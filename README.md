@@ -37,6 +37,8 @@ This will create ```build``` directory inside ```dst``` directory with minimized
 
 ## How to play
 
+You can try to play [here](https://tugcga.github.io/games/ProjectH/index.html)
+
 When the application is running, it starts from generating the level. It can takes several seconds. After that it will output to the browser console the following data:
 
 * Used seed for level generation
