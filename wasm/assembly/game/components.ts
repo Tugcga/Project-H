@@ -255,7 +255,7 @@ export class NavmeshTaskComponent {
     @inline
     increate_target_index(): void {
         this.m_target_index += 1;
-        if(this.m_target_index == this.m_points_count) {
+        if(this.m_target_index >= this.m_points_count) {
             this.deactivate();
         }
     }

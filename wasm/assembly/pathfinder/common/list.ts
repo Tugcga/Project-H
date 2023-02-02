@@ -51,7 +51,7 @@ export class List<T> extends Serializable {
             this.m_max_size = total_size;
             const new_array = new StaticArray<T>(total_size);
             for(let i = 0; i < current_size; i++) {
-                new_array[i] = this.m_array[i];
+                unchecked(new_array[i] = this.m_array[i]);
             }
 
             this.m_array = new_array;
