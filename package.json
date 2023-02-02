@@ -1,0 +1,17 @@
+{
+    "name": "project_d",
+    "source": "src/index.ts",
+    "module": "dst/build/module.js",
+    "targets": {
+        "module": {
+            "optimize": true
+        }
+    },
+    "scripts": {
+        "start": "parcel watch",
+        "build": "parcel build"
+    },
+    "devDependencies": {
+        "parcel": "^2.8.3"
+    }
+}

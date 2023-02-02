@@ -1,0 +1,6 @@
+.parcel-cache
+assets
+dst
+node_modules
+wasm/build
+wasm/assembly/index.ts
