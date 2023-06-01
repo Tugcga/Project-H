@@ -2,6 +2,7 @@
 assets/internal
 dist
 node_modules
+notes.txt
 wasm/node_modules
 wasm/build
 wasm/assembly/index.ts
