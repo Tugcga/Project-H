@@ -78,3 +78,25 @@ The wasm module based on the following side-projects:
 May be the wasm module should be rewritten into [Rust](https://www.rust-lang.org/), at least to compare AssemplyScript module vs Rust module for the performance and compiled size.
 
 For now the graphical front-end based on simple browser 2d-canvas without any addons and extensions. It's possible (and it's planned) to add the other front-end based on [Playcanvas](https://playcanvas.com/) for creating 3d-version of the game without any changes of the core wasm module.
+
+## Statistics from cloc
+
+Client sources:
+
+```
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+TypeScript                      22            248            121           1100
+-------------------------------------------------------------------------------
+```
+
+Module sources
+
+```
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+TypeScript                      80           1809            841          12160
+-------------------------------------------------------------------------------
+```
