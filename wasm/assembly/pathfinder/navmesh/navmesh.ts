@@ -72,7 +72,7 @@ export class Navmesh extends Serializable {
         //init vertex map by empty arrays
         for (let i = 0, len = vertices.length / 3; i < len; i++) {
             vertex_map.set(i, []);
-            const y = unchecked(vertices[3*i + 1]);
+            const y = vertices[3*i + 1];
             if(y < y_min){ y_min = y; }
             if(y > y_max){ y_max= y; }
         }
@@ -88,23 +88,23 @@ export class Navmesh extends Serializable {
         let triangles_count = 0;
         let nodes_count = sizes.length;
         for (let i = 0; i < nodes_count; i++) {
-            let size = unchecked(sizes[i]);
+            let size = sizes[i];
             triangles_count += size - 2;
             let polygon_indexes = new StaticArray<i32>(size);
             for (let j = 0, len = polygon_indexes.length; j < len; j++) {
-                let v = unchecked(polygons[shift]);
-                unchecked(polygon_indexes[j] = v);
+                let v = polygons[shift];
+                polygon_indexes[j] = v;
                 //add polygon to the vertex map
-                unchecked(vertex_map[v]).push(i);
+                vertex_map[v].push(i);
                 shift++;
             }
 
-            unchecked(nodes[i] = new NavmeshNode(vertices, i, polygon_indexes));
+            nodes[i] = new NavmeshNode(vertices, i, polygon_indexes);
         }
 
         // define neighborhoods
         for (let node_index = 0; node_index < nodes_count; node_index++) {
-            let node = unchecked(nodes[node_index]);
+            let node = nodes[node_index];
             let node_vertices = node.get_vertex_indexes();
             let node_vertices_len = node_vertices.length;
             for (let i = 0; i < node_vertices_len; i++) {
@@ -113,14 +113,14 @@ export class Navmesh extends Serializable {
                     j = 0;
                 }
 
-                let u = unchecked(node_vertices[i]);
-                let v = unchecked(node_vertices[j]);
+                let u = node_vertices[i];
+                let v = node_vertices[j];
                 //manualy find intersection of two arrays
                 let intersection = new Array<i32>(0);
                 let array_a = vertex_map.get(u);
                 let array_b = vertex_map.get(v);
                 for (let i = 0, len_a = array_a.length; i < len_a; i++) {
-                    let v = unchecked(array_a[i]);
+                    let v = array_a[i];
                     if (array_b.includes(v)) {
                         intersection.push(v);
                     }
@@ -129,23 +129,23 @@ export class Navmesh extends Serializable {
                     let int0 = intersection[0];
                     if (int0 != node_index) {
                         node.add_neighbor(
-                            unchecked(int0),
-                            unchecked(vertices[3 * u + 0]),
-                            unchecked(vertices[3 * u + 1]),
-                            unchecked(vertices[3 * u + 2]),
-                            unchecked(vertices[3 * v + 0]),
-                            unchecked(vertices[3 * v + 1]),
-                            unchecked(vertices[3 * v + 2])
+                            int0,
+                            vertices[3 * u + 0],
+                            vertices[3 * u + 1],
+                            vertices[3 * u + 2],
+                            vertices[3 * v + 0],
+                            vertices[3 * v + 1],
+                            vertices[3 * v + 2]
                         );
                     } else {
                         node.add_neighbor(
-                            unchecked(intersection[1]),
-                            unchecked(vertices[3 * u + 0]),
-                            unchecked(vertices[3 * u + 1]),
-                            unchecked(vertices[3 * u + 2]),
-                            unchecked(vertices[3 * v + 0]),
-                            unchecked(vertices[3 * v + 1]),
-                            unchecked(vertices[3 * v + 2])
+                            intersection[1],
+                            vertices[3 * u + 0],
+                            vertices[3 * u + 1],
+                            vertices[3 * u + 2],
+                            vertices[3 * v + 0],
+                            vertices[3 * v + 1],
+                            vertices[3 * v + 2]
                         );
                     }
                 } else {
@@ -159,14 +159,14 @@ export class Navmesh extends Serializable {
         let groups_queue_length: i32 = 0;
         let t_groups = new Array<Array<i32>>();
         for (let i = 0, len = nodes.length; i < len; i++) {
-            let node = unchecked(nodes[i]);
+            let node = nodes[i];
             let g = node.get_group();
             if (g == -1) {
                 let new_group = new Array<i32>();
                 let new_index = t_groups.length;
                 //instead of recursive process, reassign groups for nodes by using task queue
                 let is_finish: bool = false;
-                unchecked(groups_queue[0] = node.m_index);
+                groups_queue[0] = node.m_index;
                 groups_queue_length++;
                 while(!is_finish){
                     if(groups_queue_length == 0){
@@ -174,10 +174,10 @@ export class Navmesh extends Serializable {
                     }
                     else{
                         //get the last values in the queue
-                        let ni = unchecked(groups_queue[groups_queue_length - 1]);
+                        let ni = groups_queue[groups_queue_length - 1];
                         groups_queue_length -= 1;
                         //set the group for this node
-                        let ni_node = unchecked(nodes[ni]);
+                        let ni_node = nodes[ni];
                         let ni_node_neigh = ni_node.m_neighbor;
                         if(ni_node.m_group == -1){
                             ni_node.m_group = new_index;
@@ -185,10 +185,10 @@ export class Navmesh extends Serializable {
                         }
                         //then iterate throw children
                         for(let k = 0, klen = ni_node.m_neighbor_count; k < klen; k++){
-                            let knode = unchecked(nodes[ni_node_neigh[k]]);
+                            let knode = nodes[ni_node_neigh[k]];
                             let gk = knode.get_group();
                             if(gk == -1){
-                                unchecked(groups_queue[groups_queue_length] = knode.m_index);
+                                groups_queue[groups_queue_length] = knode.m_index;
                                 groups_queue_length++;
                             }
                         }
@@ -202,11 +202,11 @@ export class Navmesh extends Serializable {
         let m_groups = new StaticArray<StaticArray<i32>>(groups_count);
         
         for (let i = 0, len = groups_count; i < len; i++) {
-            let t_group = unchecked(t_groups[i]);
+            let t_group = t_groups[i];
             let m_group = new StaticArray<i32>(t_group.length);
-            unchecked(m_groups[i] = m_group);
+            m_groups[i] = m_group;
             for (let j = 0, jlen = m_group.length; j < jlen; j++) {
-                unchecked(m_group[j] = t_group[j]);
+                m_group[j] = t_group[j];
             }
         }
 
@@ -214,14 +214,14 @@ export class Navmesh extends Serializable {
         let graphs = new StaticArray<Graph>(groups_count);
 
         for (let i = 0, len = groups_count; i < len; i++) {
-            let group = unchecked(m_groups[i]);
+            let group = m_groups[i];
             let graph_edges = new Array<i32>();
 
             for (let j = 0, jlen = group.length; j < jlen; j++) {
-                let node_index = unchecked(group[j]);
-                let node_neighbors = unchecked(nodes[node_index]).get_neighbord();
+                let node_index = group[j];
+                let node_neighbors = nodes[node_index].get_neighbord();
                 for (let k = 0, klen = node_neighbors.length; k < klen; k++) {
-                    let other_node = unchecked(node_neighbors[k]);
+                    let other_node = node_neighbors[k];
                     if (is_edge_new(graph_edges, node_index, other_node)) {
                         if (node_index < other_node) {
                             graph_edges.push(node_index);
@@ -238,13 +238,13 @@ export class Navmesh extends Serializable {
             let graph_edges_len = graph_edges.length;
             let graph_edges_s = new StaticArray<i32>(graph_edges_len);
             for (let j = 0; j < graph_edges_len; j++) {
-                unchecked(graph_edges_s[j] = graph_edges[j]);
+                graph_edges_s[j] = graph_edges[j];
             }
 
             //next graph vertex positions
             let graph_verts = new Array<i32>();
             for (let j = 0; j < graph_edges_len; j++) {
-                let v = unchecked(graph_edges_s[j]);
+                let v = graph_edges_s[j];
                 if (!graph_verts.includes(v)) {
                     graph_verts.push(v);
                 }
@@ -256,21 +256,21 @@ export class Navmesh extends Serializable {
             let graph_verts_len = graph_verts.length;
             let graph_verts_s = new StaticArray<i32>(graph_verts_len);
             for (let j = 0; j < graph_verts_len; j++) {
-                unchecked(graph_verts_s[j] = graph_verts[j]);
+                graph_verts_s[j] = graph_verts[j];
             }
 
             //caluclate positions of the vertices
             let graph_verts_positions = new StaticArray<f32>(3 * graph_verts_len);
             for (let j = 0; j < graph_verts_len; j++) {
-                let v = unchecked(graph_verts_s[j]);
-                let c = unchecked(nodes[v]).get_center();
-                unchecked(graph_verts_positions[3 * j + 0] = c[0]);
-                unchecked(graph_verts_positions[3 * j + 1] = c[1]);
-                unchecked(graph_verts_positions[3 * j + 2] = c[2]);
+                let v = graph_verts_s[j];
+                let c = nodes[v].get_center();
+                graph_verts_positions[3 * j + 0] = c[0];
+                graph_verts_positions[3 * j + 1] = c[1];
+                graph_verts_positions[3 * j + 2] = c[2];
             }
 
             //create the graph
-            unchecked(graphs[i] = new Graph(graph_verts_positions, graph_verts_s, graph_edges_s));
+            graphs[i] = new Graph(graph_verts_positions, graph_verts_s, graph_edges_s);
         }
 
         //and finally, buld bvh and triangles bvh
@@ -281,24 +281,24 @@ export class Navmesh extends Serializable {
         let tr_index = 0;
         let triangles = new StaticArray<f32>(triangles_count * 9);  // because each triangle has 3 vertices (with 3 coordinates)
         for (let i = 0, len = sizes.length; i < len; i++) {
-            let size = unchecked(sizes[i]);
+            let size = sizes[i];
             for (let j = 2; j < size; j++) {
                 //add point 0, j - 1 and j
-                let i1 = unchecked(polygons[shift]);
-                let i2 = unchecked(polygons[shift + j - 1]);
-                let i3 = unchecked(polygons[shift + j]);
+                let i1 = polygons[shift];
+                let i2 = polygons[shift + j - 1];
+                let i3 = polygons[shift + j];
 
-                unchecked(triangles[9 * tr_index + 0] = vertices[3 * i1 + 0]);
-                unchecked(triangles[9 * tr_index + 1] = vertices[3 * i1 + 1]);
-                unchecked(triangles[9 * tr_index + 2] = vertices[3 * i1 + 2]);
+                triangles[9 * tr_index + 0] = vertices[3 * i1 + 0];
+                triangles[9 * tr_index + 1] = vertices[3 * i1 + 1];
+                triangles[9 * tr_index + 2] = vertices[3 * i1 + 2];
 
-                unchecked(triangles[9 * tr_index + 3] = vertices[3 * i2 + 0]);
-                unchecked(triangles[9 * tr_index + 4] = vertices[3 * i2 + 1]);
-                unchecked(triangles[9 * tr_index + 5] = vertices[3 * i2 + 2]);
+                triangles[9 * tr_index + 3] = vertices[3 * i2 + 0];
+                triangles[9 * tr_index + 4] = vertices[3 * i2 + 1];
+                triangles[9 * tr_index + 5] = vertices[3 * i2 + 2];
 
-                unchecked(triangles[9 * tr_index + 6] = vertices[3 * i3 + 0]);
-                unchecked(triangles[9 * tr_index + 7] = vertices[3 * i3 + 1]);
-                unchecked(triangles[9 * tr_index + 8] = vertices[3 * i3 + 2]);
+                triangles[9 * tr_index + 6] = vertices[3 * i3 + 0];
+                triangles[9 * tr_index + 7] = vertices[3 * i3 + 1];
+                triangles[9 * tr_index + 8] = vertices[3 * i3 + 2];
 
                 tr_index++;
             }
@@ -379,18 +379,18 @@ export class Navmesh extends Serializable {
 
         if (start_index == finish_index) {
             let to_return = new StaticArray<f32>(6);
-            unchecked(to_return[0] = s_x);
-            unchecked(to_return[1] = s_y);
-            unchecked(to_return[2] = s_z);
-            unchecked(to_return[3] = e_x);
-            unchecked(to_return[4] = e_y);
-            unchecked(to_return[5] = e_z);
+            to_return[0] = s_x;
+            to_return[1] = s_y;
+            to_return[2] = s_z;
+            to_return[3] = e_x;
+            to_return[4] = e_y;
+            to_return[5] = e_z;
             return to_return;
         }
 
         let group_index = this._get_nodes_group_index(start_index, finish_index);
         if (group_index > -1) {
-            let graph = unchecked(this.m_graphs[group_index]);
+            let graph = this.m_graphs[group_index];
             let graph_path = graph.search(start_index, finish_index);
 
             let graph_path_edges_count = graph_path.length - 1;
@@ -402,55 +402,55 @@ export class Navmesh extends Serializable {
                 this.b_raw_path    = new StaticArray<f32>(raw_path_length + NAVMESH_INITIAL_BUFFER_SIZE);
                 this.b_finall_path = new StaticArray<f32>(raw_path_length + NAVMESH_INITIAL_BUFFER_SIZE);
             }
-            unchecked(this.b_raw_path[0] = s_x);
-            unchecked(this.b_raw_path[1] = s_y);
-            unchecked(this.b_raw_path[2] = s_z);
-            unchecked(this.b_raw_path[3] = s_x);
-            unchecked(this.b_raw_path[4] = s_y);
-            unchecked(this.b_raw_path[5] = s_z);
+            this.b_raw_path[0] = s_x;
+            this.b_raw_path[1] = s_y;
+            this.b_raw_path[2] = s_z;
+            this.b_raw_path[3] = s_x;
+            this.b_raw_path[4] = s_y;
+            this.b_raw_path[5] = s_z;
 
             for (let p_i = 0; p_i < graph_path_edges_count; p_i++) {
-                let v0 = unchecked(graph_path[p_i + 0]);
-                let v1 = unchecked(graph_path[p_i + 1]);
-                let portal = unchecked(this.m_nodes[v0]).get_portal(v1);
+                let v0 = graph_path[p_i + 0];
+                let v1 = graph_path[p_i + 1];
+                let portal = this.m_nodes[v0].get_portal(v1);
                 //add values to the raw_path
-                unchecked(this.b_raw_path[(p_i + 1) * 6 + 0] = portal[0]);
-                unchecked(this.b_raw_path[(p_i + 1) * 6 + 1] = portal[1]);
-                unchecked(this.b_raw_path[(p_i + 1) * 6 + 2] = portal[2]);
+                this.b_raw_path[(p_i + 1) * 6 + 0] = portal[0];
+                this.b_raw_path[(p_i + 1) * 6 + 1] = portal[1];
+                this.b_raw_path[(p_i + 1) * 6 + 2] = portal[2];
 
-                unchecked(this.b_raw_path[(p_i + 1) * 6 + 3] = portal[3]);
-                unchecked(this.b_raw_path[(p_i + 1) * 6 + 4] = portal[4]);
-                unchecked(this.b_raw_path[(p_i + 1) * 6 + 5] = portal[5]);
+                this.b_raw_path[(p_i + 1) * 6 + 3] = portal[3];
+                this.b_raw_path[(p_i + 1) * 6 + 4] = portal[4];
+                this.b_raw_path[(p_i + 1) * 6 + 5] = portal[5];
             }
 
             //add finish points
-            unchecked(this.b_raw_path[raw_path_length - 6] = e_x);
-            unchecked(this.b_raw_path[raw_path_length - 5] = e_y);
-            unchecked(this.b_raw_path[raw_path_length - 4] = e_z);
-            unchecked(this.b_raw_path[raw_path_length - 3] = e_x);
-            unchecked(this.b_raw_path[raw_path_length - 2] = e_y);
-            unchecked(this.b_raw_path[raw_path_length - 1] = e_z);
+            this.b_raw_path[raw_path_length - 6] = e_x;
+            this.b_raw_path[raw_path_length - 5] = e_y;
+            this.b_raw_path[raw_path_length - 4] = e_z;
+            this.b_raw_path[raw_path_length - 3] = e_x;
+            this.b_raw_path[raw_path_length - 2] = e_y;
+            this.b_raw_path[raw_path_length - 1] = e_z;
 
-            unchecked(this.b_portal_apex[0] = this.b_raw_path[0]);
-            unchecked(this.b_portal_apex[1] = this.b_raw_path[1]);
-            unchecked(this.b_portal_apex[2] = this.b_raw_path[2]);
+            this.b_portal_apex[0] = this.b_raw_path[0];
+            this.b_portal_apex[1] = this.b_raw_path[1];
+            this.b_portal_apex[2] = this.b_raw_path[2];
 
-            unchecked(this.b_portal_left[0] = this.b_raw_path[0]);
-            unchecked(this.b_portal_left[1] = this.b_raw_path[1]);
-            unchecked(this.b_portal_left[2] = this.b_raw_path[2]);
+            this.b_portal_left[0] = this.b_raw_path[0];
+            this.b_portal_left[1] = this.b_raw_path[1];
+            this.b_portal_left[2] = this.b_raw_path[2];
 
-            unchecked(this.b_portal_right[0] = this.b_raw_path[3]);
-            unchecked(this.b_portal_right[1] = this.b_raw_path[4]);
-            unchecked(this.b_portal_right[2] = this.b_raw_path[5]);
+            this.b_portal_right[0] = this.b_raw_path[3];
+            this.b_portal_right[1] = this.b_raw_path[4];
+            this.b_portal_right[2] = this.b_raw_path[5];
 
             let apex_index  = 0;
             let left_index  = 0;
             let right_index = 0;
 
             //crate buffer for the finall path
-            unchecked(this.b_finall_path[0] = this.b_portal_apex[0]);
-            unchecked(this.b_finall_path[1] = this.b_portal_apex[1]);
-            unchecked(this.b_finall_path[2] = this.b_portal_apex[2]);
+            this.b_finall_path[0] = this.b_portal_apex[0];
+            this.b_finall_path[1] = this.b_portal_apex[1];
+            this.b_finall_path[2] = this.b_portal_apex[2];
 
             // memorize last path point
             this.b_last_path_point[0] = this.b_finall_path[0];
@@ -461,13 +461,13 @@ export class Navmesh extends Serializable {
             let i = 1;
 
             while (i < raw_path_length / 6) {
-                unchecked(this.b_left[0] = this.b_raw_path[6 * i + 0]);
-                unchecked(this.b_left[1] = this.b_raw_path[6 * i + 1]);
-                unchecked(this.b_left[2] = this.b_raw_path[6 * i + 2]);
+                this.b_left[0] = this.b_raw_path[6 * i + 0];
+                this.b_left[1] = this.b_raw_path[6 * i + 1];
+                this.b_left[2] = this.b_raw_path[6 * i + 2];
 
-                unchecked(this.b_right[0] = this.b_raw_path[3 * (2 * i + 1) + 0]);
-                unchecked(this.b_right[1] = this.b_raw_path[3 * (2 * i + 1) + 1]);
-                unchecked(this.b_right[2] = this.b_raw_path[3 * (2 * i + 1) + 2]);
+                this.b_right[0] = this.b_raw_path[3 * (2 * i + 1) + 0];
+                this.b_right[1] = this.b_raw_path[3 * (2 * i + 1) + 1];
+                this.b_right[2] = this.b_raw_path[3 * (2 * i + 1) + 2];
 
                 let skip_next = false;
 
@@ -476,30 +476,30 @@ export class Navmesh extends Serializable {
                         this._v_equal(this.b_portal_apex, this.b_portal_right) ||
                         this._triangle_area_2(this.b_portal_apex, this.b_portal_left, this.b_right) > 0.0
                     ) {
-                        unchecked(this.b_portal_right[0] = this.b_right[0]);
-                        unchecked(this.b_portal_right[1] = this.b_right[1]);
-                        unchecked(this.b_portal_right[2] = this.b_right[2]);
+                        this.b_portal_right[0] = this.b_right[0];
+                        this.b_portal_right[1] = this.b_right[1];
+                        this.b_portal_right[2] = this.b_right[2];
                         right_index = i;
                     } else {
                         if(!this._v_equal(this.b_portal_left, this.b_last_path_point)){
-                            unchecked(this.b_finall_path[3 * finall_path_length + 0] = this.b_portal_left[0]);
-                            unchecked(this.b_finall_path[3 * finall_path_length + 1] = this.b_portal_left[1]);
-                            unchecked(this.b_finall_path[3 * finall_path_length + 2] = this.b_portal_left[2]);
-                            unchecked(this.b_last_path_point[0] = this.b_portal_left[0]); unchecked(this.b_last_path_point[1] = this.b_portal_left[1]); unchecked(this.b_last_path_point[2] = this.b_portal_left[2]);
+                            this.b_finall_path[3 * finall_path_length + 0] = this.b_portal_left[0];
+                            this.b_finall_path[3 * finall_path_length + 1] = this.b_portal_left[1];
+                            this.b_finall_path[3 * finall_path_length + 2] = this.b_portal_left[2];
+                            this.b_last_path_point[0] = this.b_portal_left[0]; this.b_last_path_point[1] = this.b_portal_left[1]; this.b_last_path_point[2] = this.b_portal_left[2];
                             finall_path_length++;
                         }
 
-                        unchecked(this.b_portal_apex[0]  = this.b_portal_left[0]);
-                        unchecked(this.b_portal_apex[1]  = this.b_portal_left[1]);
-                        unchecked(this.b_portal_apex[2]  = this.b_portal_left[2]);
+                        this.b_portal_apex[0]  = this.b_portal_left[0];
+                        this.b_portal_apex[1]  = this.b_portal_left[1];
+                        this.b_portal_apex[2]  = this.b_portal_left[2];
 
-                        unchecked(this.b_portal_left[0]  = this.b_portal_apex[0]);
-                        unchecked(this.b_portal_left[1]  = this.b_portal_apex[1]);
-                        unchecked(this.b_portal_left[2]  = this.b_portal_apex[2]);
+                        this.b_portal_left[0]  = this.b_portal_apex[0];
+                        this.b_portal_left[1]  = this.b_portal_apex[1];
+                        this.b_portal_left[2]  = this.b_portal_apex[2];
 
-                        unchecked(this.b_portal_right[0] = this.b_portal_apex[0]);
-                        unchecked(this.b_portal_right[1] = this.b_portal_apex[1]);
-                        unchecked(this.b_portal_right[2] = this.b_portal_apex[2]);
+                        this.b_portal_right[0] = this.b_portal_apex[0];
+                        this.b_portal_right[1] = this.b_portal_apex[1];
+                        this.b_portal_right[2] = this.b_portal_apex[2];
 
                         apex_index  = left_index;
                         left_index  = apex_index;
@@ -514,28 +514,28 @@ export class Navmesh extends Serializable {
                             this._v_equal(this.b_portal_apex, this.b_portal_left) ||
                             this._triangle_area_2(this.b_portal_apex, this.b_portal_right, this.b_left) < 0.0
                         ) {
-                            unchecked(this.b_portal_left[0] = this.b_left[0]);
-                            unchecked(this.b_portal_left[1] = this.b_left[1]);
-                            unchecked(this.b_portal_left[2] = this.b_left[2]);
+                            this.b_portal_left[0] = this.b_left[0];
+                            this.b_portal_left[1] = this.b_left[1];
+                            this.b_portal_left[2] = this.b_left[2];
                             left_index = i;
                         } else {
-                            unchecked(this.b_finall_path[3 * finall_path_length + 0] = this.b_portal_right[0]);
-                            unchecked(this.b_finall_path[3 * finall_path_length + 1] = this.b_portal_right[1]);
-                            unchecked(this.b_finall_path[3 * finall_path_length + 2] = this.b_portal_right[2]);
-                            unchecked(this.b_last_path_point[0] = this.b_portal_right[0]); unchecked(this.b_last_path_point[1] = this.b_portal_right[1]); unchecked(this.b_last_path_point[2] = this.b_portal_right[2]);
+                            this.b_finall_path[3 * finall_path_length + 0] = this.b_portal_right[0];
+                            this.b_finall_path[3 * finall_path_length + 1] = this.b_portal_right[1];
+                            this.b_finall_path[3 * finall_path_length + 2] = this.b_portal_right[2];
+                            this.b_last_path_point[0] = this.b_portal_right[0]; this.b_last_path_point[1] = this.b_portal_right[1]; this.b_last_path_point[2] = this.b_portal_right[2];
                             finall_path_length++;
 
-                            unchecked(this.b_portal_apex[0]  = this.b_portal_right[0]);
-                            unchecked(this.b_portal_apex[1]  = this.b_portal_right[1]);
-                            unchecked(this.b_portal_apex[2]  = this.b_portal_right[2]);
+                            this.b_portal_apex[0]  = this.b_portal_right[0];
+                            this.b_portal_apex[1]  = this.b_portal_right[1];
+                            this.b_portal_apex[2]  = this.b_portal_right[2];
 
-                            unchecked(this.b_portal_left[0]  = this.b_portal_apex[0]);
-                            unchecked(this.b_portal_left[1]  = this.b_portal_apex[1]);
-                            unchecked(this.b_portal_left[2]  = this.b_portal_apex[2]);
+                            this.b_portal_left[0]  = this.b_portal_apex[0];
+                            this.b_portal_left[1]  = this.b_portal_apex[1];
+                            this.b_portal_left[2]  = this.b_portal_apex[2];
 
-                            unchecked(this.b_portal_right[0] = this.b_portal_apex[0]);
-                            unchecked(this.b_portal_right[1] = this.b_portal_apex[1]);
-                            unchecked(this.b_portal_right[2] = this.b_portal_apex[2]);
+                            this.b_portal_right[0] = this.b_portal_apex[0];
+                            this.b_portal_right[1] = this.b_portal_apex[1];
+                            this.b_portal_right[2] = this.b_portal_apex[2];
 
                             apex_index  = right_index;
                             left_index  = apex_index;
@@ -547,19 +547,19 @@ export class Navmesh extends Serializable {
                 i++;
             }
 
-            unchecked(this.b_left[0] = this.b_finall_path[3 * (finall_path_length - 1) + 0]);
-            unchecked(this.b_left[1] = this.b_finall_path[3 * (finall_path_length - 1) + 1]);
-            unchecked(this.b_left[2] = this.b_finall_path[3 * (finall_path_length - 1) + 2]);
+            this.b_left[0] = this.b_finall_path[3 * (finall_path_length - 1) + 0];
+            this.b_left[1] = this.b_finall_path[3 * (finall_path_length - 1) + 1];
+            this.b_left[2] = this.b_finall_path[3 * (finall_path_length - 1) + 2];
 
-            unchecked(this.b_right[0] = this.b_raw_path[raw_path_length - 6]);
-            unchecked(this.b_right[1] = this.b_raw_path[raw_path_length - 5]);
-            unchecked(this.b_right[2] = this.b_raw_path[raw_path_length - 4]);
+            this.b_right[0] = this.b_raw_path[raw_path_length - 6];
+            this.b_right[1] = this.b_raw_path[raw_path_length - 5];
+            this.b_right[2] = this.b_raw_path[raw_path_length - 4];
 
             if (!this._v_equal(this.b_left, this.b_right)) {
-                unchecked(this.b_finall_path[3 * finall_path_length + 0] = this.b_right[0]);
-                unchecked(this.b_finall_path[3 * finall_path_length + 1] = this.b_right[1]);
-                unchecked(this.b_finall_path[3 * finall_path_length + 2] = this.b_right[2]);
-                unchecked(this.b_last_path_point[0] = this.b_right[0]); unchecked(this.b_last_path_point[1] = this.b_right[1]); unchecked(this.b_last_path_point[2] = this.b_right[2]);
+                this.b_finall_path[3 * finall_path_length + 0] = this.b_right[0];
+                this.b_finall_path[3 * finall_path_length + 1] = this.b_right[1];
+                this.b_finall_path[3 * finall_path_length + 2] = this.b_right[2];
+                this.b_last_path_point[0] = this.b_right[0]; this.b_last_path_point[1] = this.b_right[1]; this.b_last_path_point[2] = this.b_right[2];
                 finall_path_length++;
             }
 
@@ -567,7 +567,7 @@ export class Navmesh extends Serializable {
             let len = finall_path_length * 3;
             let to_return = new StaticArray<f32>(len);
             for (let k = 0; k < len; k++) {
-                unchecked(to_return[k] = this.b_finall_path[k]);
+                to_return[k] = this.b_finall_path[k];
             }
             return to_return;
         }
@@ -582,12 +582,12 @@ export class Navmesh extends Serializable {
             let pairs_count: i32 = coordinates_length / 6;
             let to_return = new List<f32>();
             for(let step = 0; step < pairs_count; step++) {
-                let step_path = this.search_path(unchecked(coordinates[6*step]), unchecked(coordinates[6*step + 1]), unchecked(coordinates[6*step + 2]),
-                                                 unchecked(coordinates[6*step + 3]), unchecked(coordinates[6*step + 4]), unchecked(coordinates[6*step + 5]));
+                let step_path = this.search_path(coordinates[6*step], coordinates[6*step + 1], coordinates[6*step + 2],
+                                                 coordinates[6*step + 3], coordinates[6*step + 4], coordinates[6*step + 5]);
                 to_return.push((step_path.length / 3) as f32); // add the number of points in the path
                 // next add to the list actual points cooridnates
                 for(let i = 0, len = step_path.length; i < len; i++) {
-                    to_return.push(unchecked(step_path[i]));
+                    to_return.push(step_path[i]);
                 }
             }
 
@@ -611,7 +611,7 @@ export class Navmesh extends Serializable {
     private _get_nodes_group_index(index_01: i32, index_02: i32): i32 {
         let groups = this.m_groups;
         for (let i = 0, len = this.m_groups_count; i < len; i++) {
-            let group = unchecked(groups[i]);
+            let group = groups[i];
             if (group.includes(index_01) && group.includes(index_02)){
                 return i;
             }
@@ -622,17 +622,17 @@ export class Navmesh extends Serializable {
     @inline
     private _v_equal(a: StaticArray<f32>, b: StaticArray<f32>, epsilon: f32 = 0.0001): bool {
         return squared_len(
-            unchecked(a[0] - b[0]),
-            unchecked(a[1] - b[1]),
-            unchecked(a[2] - b[2])
+            a[0] - b[0],
+            a[1] - b[1],
+            a[2] - b[2]
         ) < epsilon;
     }
 
     @inline
     private _triangle_area_2(a: StaticArray<f32>, b: StaticArray<f32>, c: StaticArray<f32>): f32 {
         return (
-            unchecked(c[0] - a[0]) * unchecked(b[2] - a[2]) -
-            unchecked(b[0] - a[0]) * unchecked(c[2] - a[2])
+            (c[0] - a[0]) * (b[2] - a[2]) -
+            (b[0] - a[0]) * (c[2] - a[2])
         );
     }
 

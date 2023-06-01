@@ -1,6 +1,0 @@
-{
-    "extends": "C:/Users/Shekn/AppData/Roaming/npm/node_modules/assemblyscript/std/assembly.json",
-    "include": [
-        "./**/*.ts"
-    ]
-}

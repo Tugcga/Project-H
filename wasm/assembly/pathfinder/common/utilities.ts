@@ -2,12 +2,12 @@ import { Vector2, abs_sq, dot } from "./vector2";
 import { List } from "./list";
 import { Serializable, SD_TYPE } from "./binary_io";
 
-export function log_message(message: string): void{
-    //console.log(message);
-}
-
 export const RVO_EPSILON: f32 = 0.0001;
 export const RVO_INFINITY: f32 = <f32>Number.MAX_VALUE;
+
+export function log_message(message: string): void {
+
+}
 
 export class Pair<T> extends Serializable {
     constructor(public m_x: T, public m_y: T) {
@@ -102,8 +102,8 @@ export class Pair<T> extends Serializable {
 @inline
 export function is_edge_new(edges: Array<i32>, a: i32, b: i32): bool {
     for (let i = 0, len = edges.length / 2; i < len; i++) {
-        let e0 = unchecked(edges[2 * i + 0]);
-        let e1 = unchecked(edges[2 * i + 1]);
+        let e0 = edges[2 * i + 0];
+        let e1 = edges[2 * i + 1];
         if ((e0 == a && e1 == b) || (e0 == b && e1 == a)) {
             return false;
         }

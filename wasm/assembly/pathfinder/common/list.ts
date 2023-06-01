@@ -38,7 +38,7 @@ export class List<T> extends Serializable {
 
         this.m_size = in_size;
         for(let i = 0; i < in_size; i++) {
-            unchecked(this.m_array[i] = in_list.get(i));
+            this.m_array[i] = in_list.get(i);
         }
     }
 
@@ -51,14 +51,14 @@ export class List<T> extends Serializable {
             this.m_max_size = total_size;
             const new_array = new StaticArray<T>(total_size);
             for(let i = 0; i < current_size; i++) {
-                unchecked(new_array[i] = this.m_array[i]);
+                new_array[i] = this.m_array[i];
             }
 
             this.m_array = new_array;
         }
 
         for(let i = 0; i < other_size; i++) {
-            unchecked(this.m_array[current_size + i] = other.get(i));
+            this.m_array[current_size + i] = other.get(i);
         }
         this.m_size = total_size;
     }
@@ -80,7 +80,7 @@ export class List<T> extends Serializable {
             this.m_max_size = max_size;
         }
 
-        unchecked(this.m_array[size] = value);
+        this.m_array[size] = value;
         this.m_size = size + 1;
     }
 
@@ -91,7 +91,7 @@ export class List<T> extends Serializable {
         let to_return = arr[index];
         // shift all other values
         for(let i = index; i < len; ++i){
-            unchecked(arr[i] = arr[i + 1]);
+            arr[i] = arr[i + 1];
         }
         this.m_size = len;
         return to_return;
@@ -114,7 +114,7 @@ export class List<T> extends Serializable {
         // remove elements from index, index + 1, ..., index + length - 1
         let arr = this.m_array;
         for(let i = index, len = this.m_size - length; i < len; ++i){
-            unchecked(arr[i] = arr[i + length]);
+            arr[i] = arr[i + length];
         }
         this.m_size -= length;
     }
@@ -123,7 +123,7 @@ export class List<T> extends Serializable {
     pop_last(): T{
         let size = this.m_size;
         this.m_size = size - 1;
-        return unchecked(this.m_array[size - 1]);
+        return this.m_array[size - 1];
     }
 
     @inline
@@ -140,22 +140,22 @@ export class List<T> extends Serializable {
 
     @inline
     get(index: i32): T {
-        return unchecked(this.m_array[index]);
+        return this.m_array[index];
     }
 
     @inline
     set(index: i32, value: T): void {
-        unchecked(this.m_array[index] = value);
+        this.m_array[index] = value;
     }
 
     @inline
     @operator("[]") private __get(index: i32): T {
-        return unchecked(this.m_array[index]);
+        return this.m_array[index];
     }
 
     @inline
     @operator("[]=") private __set(index: i32, value: T): void {
-        unchecked(this.m_array[index] = value);
+        this.m_array[index] = value;
     }
 
     //use these methods only for primitive types (i32, f32 and bool)
@@ -170,7 +170,7 @@ export class List<T> extends Serializable {
                 view.setInt32(4, bytes_length);
                 view.setInt32(8, this.m_size);
                 for(let i = 0, len = this.m_size; i < len; i++) {
-                    view.setInt32(12 + 4*i, unchecked(<i32>this.m_array[i]));
+                    view.setInt32(12 + 4*i, <i32>this.m_array[i]);
                 }
             }
             else if(type instanceof f32) {
@@ -178,7 +178,7 @@ export class List<T> extends Serializable {
                 view.setInt32(4, bytes_length);
                 view.setInt32(8, this.m_size);
                 for(let i = 0, len = this.m_size; i < len; i++) {
-                    view.setFloat32(12 + 4*i, unchecked(<f32>this.m_array[i]));
+                    view.setFloat32(12 + 4*i, <f32>this.m_array[i]);
                 }
             }
             else if(type instanceof bool) {
@@ -186,7 +186,7 @@ export class List<T> extends Serializable {
                 view.setInt32(4, bytes_length);
                 view.setInt32(8, this.m_size);
                 for(let i = 0, len = this.m_size; i < len; i++) {
-                    view.setUint8(12 + i, unchecked(<bool>this.m_array[i] ? 1 : 0));
+                    view.setUint8(12 + i, <bool>this.m_array[i] ? 1 : 0);
                 }
             }
         }
@@ -204,14 +204,14 @@ export class List<T> extends Serializable {
             this.m_max_size = count;
             for(let i = 0; i < count; i++){
                 if(id == SD_TYPE.SD_TYPE_LIST_INT32) {
-                    unchecked(new_array[i] = <T>view.getInt32(12 + 4*i));
+                    new_array[i] = <T>view.getInt32(12 + 4*i);
                 }
                 else if(id == SD_TYPE.SD_TYPE_LIST_FLOAT32) {
-                    unchecked(new_array[i] = <T>view.getFloat32(12 + 4*i));
+                    new_array[i] = <T>view.getFloat32(12 + 4*i);
                 }
                 else if(id == SD_TYPE.SD_TYPE_LIST_BOOL) {
                     const v = view.getUint8(12 + i) == 1 ? true : false;
-                    unchecked(new_array[i] = <T>v);
+                    new_array[i] = <T>v;
                 }
             }
             this.m_array = new_array;

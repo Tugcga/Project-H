@@ -1,7 +1,7 @@
 import { Signature } from "./signature";
 import { Entity } from "./types";
 import { ECS } from "./simple_ecs";
-import { StateWalkComponent } from "../game/components";
+import { StateWalkToPointComponent } from "../game/components/state";
 
 export class System {
     private m_entities: Set<Entity> = new Set<Entity>();
@@ -12,7 +12,7 @@ export class System {
     update(dt: f32): void {
         // this never be called
         // but without it there are some assertion errors
-        this.add_component<StateWalkComponent>(0, new StateWalkComponent());
+        this.add_component<StateWalkToPointComponent>(0, new StateWalkToPointComponent());
     }
 
     @inline

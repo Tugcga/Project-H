@@ -1,6 +1,7 @@
 .parcel-cache
 assets/internal
-dst
+dist
 node_modules
+wasm/node_modules
 wasm/build
 wasm/assembly/index.ts

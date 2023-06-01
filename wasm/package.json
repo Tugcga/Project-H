@@ -7,10 +7,12 @@
         }
     },
     "scripts": {
+        "copy": "xcopy \"build\\game_api.wasm\" \"..\\dist\\build\\game_api.wasm*\" /Y",
+        "develop": "asc assembly/game_api.ts -o build/game_api.wasm --bindings raw && npm run copy",
+        "release": "asc assembly/game_api.ts -o build/game_api.wasm --uncheckedBehavior always --bindings raw --optimizeLevel 3 --converge --noAssert -Ospeed && npm run copy",
         "build": "asc assembly/index.ts -o build/index.wasm --target debug --config ./node_modules/@assemblyscript/wasi-shim/asconfig.json",
-        "release": "asc assembly/game_api.ts -o build/game_api.wasm --bindings esm",
-        "full_release": "asc assembly/game_api.ts -o build/game_api.wasm --bindings esm --optimizeLevel 3 --converge --noAssert -Ospeed",
-        "execute": "npm run build && wasmtime ./build/index.wasm"
+		"start": "wasmtime --dir . build/index.wasm",
+        "execute": "npm run build && npm run start"
     },
     "devDependencies": {
         "@assemblyscript/wasi-shim": "^0.1.0",

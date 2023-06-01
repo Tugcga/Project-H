@@ -68,6 +68,10 @@ export class Transform {
                 this.m_matrix[3] * in_x + this.m_matrix[4] * in_y + this.m_matrix[5]];
     }
 
+    multiply_array(in_coordinates: number[]): number[] {
+        return this.multiply(in_coordinates[0], in_coordinates[1]);
+    }
+
     apply_scale(in_value: number): number {
         // get length of the first vector
         const l1 = Math.sqrt(this.m_matrix[0] * this.m_matrix[0] + this.m_matrix[3] * this.m_matrix[3]);

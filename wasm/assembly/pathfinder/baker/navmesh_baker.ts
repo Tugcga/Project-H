@@ -34,7 +34,7 @@ export class NavmeshBaker {
 
         var shift: i32 = 0;
         for(let p_index = 0, p_count = sizes.length; p_index < p_count; p_index++){
-            const p_size = unchecked(sizes[p_index]);
+            const p_size = sizes[p_index];
             for(let i = 1, len = p_size - 1; i < len; i++){
                 this.m_input_triangles.push(polygons[shift] + n);
                 this.m_input_triangles.push(polygons[shift + i] + n);
@@ -77,9 +77,9 @@ export class NavmeshBaker {
             let max_z = -inf;
 
             for(let v_index = 0; v_index < nverts; v_index++){
-                const x = unchecked(verts[3*v_index + 0]);
-                const y = unchecked(verts[3*v_index + 1]);
-                const z = unchecked(verts[3*v_index + 2]);
+                const x = verts[3*v_index + 0];
+                const y = verts[3*v_index + 1];
+                const z = verts[3*v_index + 2];
                 if(x < min_x) min_x = x;
                 if(x > max_x) max_x = x;
                 if(y < min_y) min_y = y;
@@ -157,9 +157,9 @@ export class NavmeshBaker {
             let mesh_ch = pmesh.ch;
             for(let v_index = 0, v_len = pmesh.nverts; v_index < v_len; v_index++){
                 let idx = 3 * v_index;
-                unchecked(output_vertices[idx + 0] = unchecked(bmin[0]) + mesh_cs * pm_verts[idx + 0]);
-                unchecked(output_vertices[idx + 1] = unchecked(bmin[1]) + mesh_ch * (pm_verts[idx + 1] - 1));
-                unchecked(output_vertices[idx + 2] = unchecked(bmin[2]) + mesh_cs * pm_verts[idx + 2]);
+                output_vertices[idx + 0] = bmin[0] + mesh_cs * pm_verts[idx + 0];
+                output_vertices[idx + 1] = bmin[1] + mesh_ch * (pm_verts[idx + 1] - 1);
+                output_vertices[idx + 2] = bmin[2] + mesh_cs * pm_verts[idx + 2];
             }
             this.m_output_vertices = output_vertices;
             let polygons = new List<int>();

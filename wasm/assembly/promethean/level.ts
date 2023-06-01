@@ -36,9 +36,9 @@ export class Level{
         for(let x = 0; x < height; x++){
             let level_x = new StaticArray<Tile>(width);
             for(let y = 0; y < width; y++){
-                unchecked(level_x[y] = Tile.Empty);
+                level_x[y] = Tile.Empty;
             }
-            unchecked(local_level[x] = level_x);
+            local_level[x] = level_x;
         }
         this.m_statistics = new LevelStatistics();
     }
@@ -70,17 +70,17 @@ export class Level{
 
     @inline
     set_tile(x: i32, y: i32, tile: Tile): void{
-        unchecked(this.m_level[x][y] = tile);
+        this.m_level[x][y] = tile;
     }
 
     @inline
     get_from_point(point: Point): Tile{
-        return unchecked(this.m_level[point.x()][point.y()]);
+        return this.m_level[point.x()][point.y()];
     }
 
     @inline
     get_from_coordinates(x: i32, y: i32): Tile{
-        return unchecked(this.m_level[x][y]);
+        return this.m_level[x][y];
     }
 
     @inline
@@ -97,7 +97,7 @@ export class Level{
         let to_return = new StaticArray<Tile>(this.m_height * this.m_width);
         for(let x = 0; x < this.m_height; x++){
             for(let y = 0; y < this.m_width; y++){
-                unchecked(to_return[x * this.m_width + y] = this.m_level[x][y]);
+                to_return[x * this.m_width + y] = this.m_level[x][y];
             }
         }
         return to_return;
@@ -108,16 +108,16 @@ export class Level{
         for(let x = 0, x_len = inflation_factor * this.m_height; x < x_len; x++){
             let arr_x = new StaticArray<Tile>(inflation_factor * this.m_width);
             for(let y = 0, y_len = inflation_factor * this.m_width; y < y_len; y++){
-                unchecked(arr_x[y] = Tile.Empty);
+                arr_x[y] = Tile.Empty;
             }
-            unchecked(inflated_matrix[x] = arr_x);
+            inflated_matrix[x] = arr_x;
         }
 
         for(let row = 0, row_len = this.m_height; row < row_len; row++){
             for(let column = 0, col_len = this.m_width; column < col_len; column++){
                 for(let xr = 0; xr < inflation_factor; xr++){
                     for(let yr = 0; yr < inflation_factor; yr++){
-                        unchecked(inflated_matrix[row * inflation_factor + xr][column * inflation_factor + yr] = this.m_level[row][column]);
+                        inflated_matrix[row * inflation_factor + xr][column * inflation_factor + yr] = this.m_level[row][column];
                     }
                 }
             }
@@ -183,7 +183,7 @@ export function tile_level(level: Level, grid_patterns: StaticArray<GridPattern>
                 if(surrounding_area_matches_pattern(level, new Point(x, y), tile.m_pattern)){
                     for(let o = 0, o_len = tile.m_paint_offsets.length; o < o_len; o++){
                         const paint_point = tile.m_paint_offsets[o];
-                        unchecked(tile_points[tile_point_index] = new TilePoint(new Point(paint_point.position().x() + x, paint_point.position().y() + y), paint_point.tile_type()));
+                        tile_points[tile_point_index] = new TilePoint(new Point(paint_point.position().x() + x, paint_point.position().y() + y), paint_point.tile_type());
                         tile_point_index++;
                     }
                 }

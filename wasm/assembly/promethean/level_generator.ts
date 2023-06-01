@@ -42,9 +42,9 @@ export class LevelGenerator{
         let room_centers = new StaticArray<Point>(rooms.length);
         let room_sizes = new StaticArray<Point>(rooms.length);
         for(let i = 0, len = rooms.length; i < len; i++){
-            const r = unchecked(rooms[i]);
-            unchecked(room_centers[i] = new Point(r.center().x() * 2 + 1, r.center().y() * 2 + 1));
-            unchecked(room_sizes[i] = new Point(r.width(), r.height()));
+            const r = rooms[i];
+            room_centers[i] = new Point(r.center().x() * 2 + 1, r.center().y() * 2 + 1);
+            room_sizes[i] = new Point(r.width(), r.height());
         }
 
         // calculate the number of walkable tiles
@@ -77,14 +77,14 @@ export class LevelGenerator{
 
     private _render_rooms_on_level(level: Level, rooms: StaticArray<Room>): void{
         for(let i = 0, len = rooms.length; i < len; i++){
-            const room = unchecked(rooms[i]);
+            const room = rooms[i];
             const renderer: IRoomRenderer = this._get_renderer(room.room_type());
             const tiles: StaticArray<StaticArray<Tile>> = renderer.get_tiles(room);
             for(let x_offset = 0, x_len = room.height(); x_offset < x_len; x_offset++){
                 for(let y_offset = 0, y_len = room.width(); y_offset < y_len; y_offset++){
                     const x: i32 = room.position().x() + x_offset;
                     const y: i32 = room.position().y() + y_offset;
-                    level.set_tile(x, y, unchecked(tiles[x_offset][y_offset]));
+                    level.set_tile(x, y, tiles[x_offset][y_offset]);
                 }
             }
         }
@@ -92,10 +92,10 @@ export class LevelGenerator{
 
     private _render_corridors_on_level(level: Level, corridors: StaticArray<Corridor>): void{
         for(let i = 0, len = corridors.length; i < len; i++){
-            let corridor = unchecked(corridors[i]);
+            let corridor = corridors[i];
             let points: StaticArray<Point> = corridor.get_tiles();
             for(let pi = 0, pi_len = points.length; pi < pi_len; pi++){
-                let point: Point = unchecked(points[pi]);
+                let point: Point = points[pi];
                 level.set_from_point(point, Tile.Floor);
             }
         }

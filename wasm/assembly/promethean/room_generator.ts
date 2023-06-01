@@ -97,7 +97,7 @@ export class RoomGenerator{
         for(let room_count = 0, len = options.number_of_rooms; room_count < len; room_count++){
             let new_room: Room | null = this._generate(options);
             if(new_room){
-                unchecked(rooms[room_index] = new_room);
+                rooms[room_index] = new_room;
                 room_index++;
             }
         }
@@ -108,7 +108,7 @@ export class RoomGenerator{
         else{
             let other_rooms: StaticArray<Room> = new StaticArray<Room>(room_index);
             for(let i = 0; i < room_index; i++){
-                unchecked(other_rooms[i] = rooms[i]);
+                other_rooms[i] = rooms[i];
             }
             return other_rooms;
         }
@@ -124,7 +124,7 @@ export class RoomGenerator{
                 if(this._is_intersections(rooms, room_index, new_room, options)){
                     let repositioned_room: Room | null = this._reposition(rooms, room_index, new_room, options);
                     if(repositioned_room){
-                        unchecked(rooms[room_index] = repositioned_room);
+                        rooms[room_index] = repositioned_room;
                         room_index++;
                     }
                     else{
@@ -132,7 +132,7 @@ export class RoomGenerator{
                     }
                 }
                 else{
-                    unchecked(rooms[room_index] = new_room);
+                    rooms[room_index] = new_room;
                     room_index++;
                 }
             }
@@ -144,7 +144,7 @@ export class RoomGenerator{
         else{
             let other_rooms: StaticArray<Room> = new StaticArray<Room>(room_index);
             for(let i = 0; i < room_index; i++){
-                unchecked(other_rooms[i] = rooms[i]);
+                other_rooms[i] = rooms[i];
             }
             return other_rooms;
         }
@@ -314,7 +314,7 @@ export class RoomGenerator{
 
     private _is_intersections(rooms: StaticArray<Room>, rooms_count: i32, target: Room, options: Options):bool {
         for(let i = 0; i < rooms_count; i++){
-            let r = unchecked(rooms[i]);
+            let r = rooms[i];
             if(target.intersects(r, options.room_border)){
                 return true;
             }

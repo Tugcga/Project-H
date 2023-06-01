@@ -111,9 +111,9 @@ class PathFinderGraph{
         for(let x = 0, x_len = height; x < x_len; x++){
             let x_array: StaticArray<PathFinderNode> = new StaticArray<PathFinderNode>(width);
             for(let y = 0, y_len = width; y < y_len; y++){
-                unchecked(x_array[y] = new PathFinderNode(new Point(x, y), 0, 0, new Point()));
+                x_array[y] = new PathFinderNode(new Point(x, y), 0, 0, new Point());
             }
-            unchecked(loca_grid[x] = x_array);
+            loca_grid[x] = x_array;
         }
         this.m_open = new StaticArray<PathFinderNode>(width);
         this.m_open_length = 0;
@@ -121,13 +121,13 @@ class PathFinderGraph{
 
     @inline
     get_node_from_grid(x: i32, y: i32): PathFinderNode{
-        return unchecked(this.m_internal_grid[x][y]);
+        return this.m_internal_grid[x][y];
     }
 
     reset(): void{
         for(let i = 0; i < this.m_height; i++){
             for(let j = 0; j < this.m_width; j++){
-                let n = unchecked(this.m_internal_grid[i][j]);
+                let n = this.m_internal_grid[i][j];
                 n.reset();
             }
         }
@@ -139,11 +139,11 @@ class PathFinderGraph{
         if(this.m_open_length == this.m_open.length){
             let new_open = new StaticArray<PathFinderNode>(this.m_open_length + this.m_width);
             for(let i = 0; i < this.m_open_length; i++){
-                unchecked(new_open[i] = this.m_open[i]);
+                new_open[i] = this.m_open[i];
             }
             this.m_open = new_open;
         }
-        unchecked(this.m_open[this.m_open_length] = node);
+        this.m_open[this.m_open_length] = node;
         this.m_open_length++;
     }
 
@@ -165,7 +165,7 @@ class PathFinderGraph{
             let to_return_i: i32 = 0;
             let to_return_f: i32 = this.m_open[0].f();
             for(let i = 0; i < this.m_open_length; i++){
-                let node: PathFinderNode = unchecked(this.m_open[i]);
+                let node: PathFinderNode = this.m_open[i];
                 const node_f: i32 = node.f();
                 if(node_f < to_return_f){
                     to_return_i = i;
@@ -175,7 +175,7 @@ class PathFinderGraph{
             
             let return_node: PathFinderNode = this.m_open[to_return_i];
             for(let i = to_return_i; i < this.m_open_length - 1; i++){
-                unchecked(this.m_open[i] = this.m_open[i + 1]);
+                this.m_open[i] = this.m_open[i + 1];
             }
             this.m_open_length--;
             return_node.close();
@@ -204,7 +204,7 @@ function order_closed_nodes_as_array(graph: PathFinderGraph, end_node: PathFinde
     const length = end_node.g() + 1;
     let to_return = new StaticArray<Point>(length);
     for(let i = 0; i < length; i++){
-        unchecked(to_return[length - i - 1] = current_node.position());
+        to_return[length - i - 1] = current_node.position();
         const pnp = current_node.parent_node_position();
         current_node = graph.get_node_from_grid(pnp.x(), pnp.y());
     }
@@ -228,7 +228,7 @@ export class PathFinder{
 
     @inline
     block_point(point: Point): void{
-        unchecked(this.m_world_grid[point.x()][point.y()] = PathFinderTile.Blocked);
+        this.m_world_grid[point.x()][point.y()] = PathFinderTile.Blocked;
     }
 
     find_path(start: Point, end: Point): StaticArray<Point>{
@@ -251,16 +251,16 @@ export class PathFinder{
                 const y: i32 = q.position().y();
                 const g = q.g() + 1;
 
-                if(unchecked(this.m_world_grid[x][y - 1]) == PathFinderTile.Pathable){
+                if(this.m_world_grid[x][y - 1] == PathFinderTile.Pathable){
                     this.m_graph.add_node(x, y - 1, g, end, q.position());
                 }
-                if(unchecked(this.m_world_grid[x][y + 1]) == PathFinderTile.Pathable){
+                if(this.m_world_grid[x][y + 1] == PathFinderTile.Pathable){
                     this.m_graph.add_node(x, y + 1, g, end, q.position());
                 }
-                if(unchecked(this.m_world_grid[x - 1][y]) == PathFinderTile.Pathable){
+                if(this.m_world_grid[x - 1][y] == PathFinderTile.Pathable){
                     this.m_graph.add_node(x - 1, y, g, end, q.position());
                 }
-                if(unchecked(this.m_world_grid[x + 1][y]) == PathFinderTile.Pathable){
+                if(this.m_world_grid[x + 1][y] == PathFinderTile.Pathable){
                     this.m_graph.add_node(x + 1, y, g, end, q.position());
                 }
             }

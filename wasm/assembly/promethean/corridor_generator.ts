@@ -50,13 +50,13 @@ function generate_pathing_grid(rooms: StaticArray<Room>, options: Options): Stat
         let x_array = new StaticArray<PathFinderTile>(options.level_width);
         for(let y = 0, y_len = options.level_width; y < y_len; y++){
             if(x < options.border || x >= options.level_height - options.border || y < options.border || y >= options.level_width - options.border){
-                unchecked(x_array[y] = PathFinderTile.Blocked);
+                x_array[y] = PathFinderTile.Blocked;
             }
             else{
-                unchecked(x_array[y] = PathFinderTile.Pathable);
+                x_array[y] = PathFinderTile.Pathable;
             }
         }
-        unchecked(pathable_level[x] = x_array);
+        pathable_level[x] = x_array;
     }
 
     let x: i32 = 0;
@@ -77,11 +77,11 @@ function generate_pathing_grid(rooms: StaticArray<Room>, options: Options): Stat
                 }
                  const room_center = room.center();
                 if(x == room_center.x() || y == room_center.y()){
-                    unchecked(pathable_level[x][y] = PathFinderTile.Pathable);
+                    pathable_level[x][y] = PathFinderTile.Pathable;
                     continue;
                 }
 
-                unchecked(pathable_level[x][y] = PathFinderTile.Blocked);
+                pathable_level[x][y] = PathFinderTile.Blocked;
             }
         }
     }
@@ -102,8 +102,8 @@ export function generate_corridors(rooms: StaticArray<Room>, options: Options): 
     let temp_corridors = new StaticArray<Corridor>(rooms.length - 1);
     let corridors_count = 0;
     for(let index = 0, index_limit = rooms.length - 1; index < index_limit; index++){
-        let current_room: Room = unchecked(rooms[index]);
-        let next_room: Room = unchecked(rooms[index + 1]);
+        let current_room: Room = rooms[index];
+        let next_room: Room = rooms[index + 1];
 
         let path: StaticArray<Point> = pathfinder.find_path(current_room.center(), next_room.center());
 
@@ -114,9 +114,9 @@ export function generate_corridors(rooms: StaticArray<Room>, options: Options): 
 
         let corridor = new Corridor(path);
         for(let i = 1; i < corridor_length - 1; i++){
-            const p = unchecked(path[i]);
-            let prev_p: Point = unchecked(path[i - 1]);
-            let next_p: Point = unchecked(path[i + 1]);
+            const p = path[i];
+            let prev_p: Point = path[i - 1];
+            let next_p: Point = path[i + 1];
             const x: i32 = p.x();
             const y: i32 = p.y();
             const prev_x: i32 = prev_p.x();
@@ -161,7 +161,7 @@ export function generate_corridors(rooms: StaticArray<Room>, options: Options): 
             }
         }
 
-        unchecked(temp_corridors[corridors_count] = corridor);
+        temp_corridors[corridors_count] = corridor;
         corridors_count++;
     }
 
@@ -171,7 +171,7 @@ export function generate_corridors(rooms: StaticArray<Room>, options: Options): 
     else{
         let corridors = new StaticArray<Corridor>(corridors_count);
         for(let i = 0; i < corridors_count; i++){
-            unchecked(corridors[i] = temp_corridors[i]);
+            corridors[i] = temp_corridors[i];
         }
         return corridors;
     }
