@@ -5,6 +5,8 @@ import { Graph,
     staticarray_graph_bytes_length, staticarray_graph_to_bytes, staticarray_graph_from_bytes_expr } from "./navmesh_graph";
 import { is_edge_new, squared_len, log_message } from "../common/utilities";
 import { List } from "../common/list";
+import { RTree } from "./rtree/rtree";
+import { Edge } from "./rtree/polygon";
 
 import { Serializable, SD_TYPE,
     i32_bytes_length, i32_to_bytes, i32_from_bytes,
@@ -33,6 +35,8 @@ export class Navmesh extends Serializable {
 
     private m_is_planar: bool = false;  // if true, then our navmesh is planar
     private m_planar_y: f32 = 0.0;  // this parameter contains y-value of the navmesh plane
+
+    private m_tree: RTree;
 
     //buffers for path simplify process
     private b_portal_apex: StaticArray<f32>;
@@ -209,6 +213,31 @@ export class Navmesh extends Serializable {
                 m_group[j] = t_group[j];
             }
         }
+
+        // construct boundary rtree
+        const tree = new RTree(); // store edges of the mesh, use default 6 children size
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            const node_vertices = node.get_vertex_coordinates();
+            const corners_count = node_vertices.length / 3;  // each vertex has three coordinates
+            for (let j = 0; j < corners_count; j++) {
+                const start_x = node_vertices[3*j];
+                const start_y = node_vertices[3*j + 1];
+                const start_z = node_vertices[3*j + 2];
+                const next_j = (j + 1) % corners_count;
+                const finish_x = node_vertices[3*next_j];
+                const finish_y = node_vertices[3*next_j + 1];
+                const finish_z = node_vertices[3*next_j + 2];
+
+                // we should check is this edge contained in portals or not
+                if (!node.is_edge_portal(start_x, start_y, start_z, finish_x, finish_y, finish_z)) {
+                    // add this edge to the tree
+                    // but skip the second coordinate, because our tree is 2d
+                    tree.insert(new Edge(start_x, start_z, finish_x, finish_z));
+                }
+            }
+        }
+        this.m_tree = tree;
 
         //define one graph for each group
         let graphs = new StaticArray<Graph>(groups_count);
@@ -603,6 +632,13 @@ export class Navmesh extends Serializable {
         return this.m_triangles_bvh.sample(x, y, z);
     }
 
+    // input are cooridinates of the edge in 2d
+    // output is a float from [0, 1], which define the intersection point in the edge
+    // if there are no instersections with navmesh boundary, then return 1.0
+    intersect_boundary(start_x: f32, start_y: f32, finish_x: f32, finish_y: f32): f32 {
+        return this.m_tree.find_intersection_t(start_x, start_y, finish_x, finish_y);
+    }
+
     @inline
     private get_polygon_index(x: f32, y: f32, z: f32): i32{
         return this.m_nodes_bvh.sample(x, y, z);
@@ -636,7 +672,7 @@ export class Navmesh extends Serializable {
         );
     }
 
-    override to_bytes(): Uint8Array {
+    to_bytes(): Uint8Array {
         const bytes_length = this.bytes_length();
         let to_return = new Uint8Array(bytes_length);
         let view = new DataView(to_return.buffer);
@@ -681,107 +717,121 @@ export class Navmesh extends Serializable {
         to_return.set(f32_to_bytes(this.m_planar_y), shift);
         shift += f32_bytes_length();
 
+        to_return.set(this.m_tree.to_bytes(), shift);
+        shift += this.m_tree.bytes_length();
+
         return to_return;
     }
 
-    override from_bytes(bytes: Uint8Array): void {
-        if(bytes.length > 0) {
-            let view = new DataView(bytes.buffer);
-            const id = view.getInt32(0);
-            let shift = 0;
-            if(id == SD_TYPE.SD_TYPE_NAVMESH) {
-                shift = 8;
-            } else { return; }
+    from_bytes_array(bytes: Uint8Array): void {
+        const view = new DataView(bytes.buffer);
 
-            const m_vertices_id = view.getInt32(shift);
-            if(m_vertices_id == SD_TYPE.SD_TYPE_STATICARRAY_FLOAT32) {
-                const bl = view.getInt32(shift + 4);
-                this.m_vertices = staticarray_f32_from_bytes_expr(view, shift);
-                shift += bl;
-            } else { return; }
+        this.from_bytes(view, 0);
+    }
 
-            const m_polygons_id = view.getInt32(shift);
-            if(m_polygons_id == SD_TYPE.SD_TYPE_STATICARRAY_INT32) {
-                const bl = view.getInt32(shift + 4);
-                this.m_polygons = staticarray_i32_from_bytes_expr(view, shift);
-                shift += bl;
-            } else { return; }
+    from_bytes(view: DataView, start: u32): void {
+        const id = view.getInt32(start);
+        let shift = start;
+        if(id == SD_TYPE.SD_TYPE_NAVMESH) {
+            shift += 8;
+        } else { return; }
 
-            const m_sizes_id = view.getInt32(shift);
-            if(m_sizes_id == SD_TYPE.SD_TYPE_STATICARRAY_INT32) {
-                const bl = view.getInt32(shift + 4);
-                this.m_sizes = staticarray_i32_from_bytes_expr(view, shift);
-                shift += bl;
-            } else { return; }
+        const m_vertices_id = view.getInt32(shift);
+        if(m_vertices_id == SD_TYPE.SD_TYPE_STATICARRAY_FLOAT32) {
+            const bl = view.getInt32(shift + 4);
+            this.m_vertices = staticarray_f32_from_bytes_expr(view, shift);
+            shift += bl;
+        } else { return; }
 
-            const m_nodes_count_id = view.getInt32(shift);
-            if(m_nodes_count_id == SD_TYPE.SD_TYPE_INT32) {
-                const bl = view.getInt32(shift + 4);
-                this.m_nodes_count = view.getInt32(shift + 8);
-                shift += bl;
-            } else { return; }
+        const m_polygons_id = view.getInt32(shift);
+        if(m_polygons_id == SD_TYPE.SD_TYPE_STATICARRAY_INT32) {
+            const bl = view.getInt32(shift + 4);
+            this.m_polygons = staticarray_i32_from_bytes_expr(view, shift);
+            shift += bl;
+        } else { return; }
 
-            const m_nodes_id = view.getInt32(shift);
-            if(m_nodes_id == SD_TYPE.SD_TYPE_STATICARRAY_NAVMESHNODE) {
-                const bl = view.getInt32(shift + 4);
-                this.m_nodes = staticarray_navmeshnode_from_bytes_expr(view, shift);
-                shift += bl;
-            } else { return; }
+        const m_sizes_id = view.getInt32(shift);
+        if(m_sizes_id == SD_TYPE.SD_TYPE_STATICARRAY_INT32) {
+            const bl = view.getInt32(shift + 4);
+            this.m_sizes = staticarray_i32_from_bytes_expr(view, shift);
+            shift += bl;
+        } else { return; }
 
-            const m_groups_id = view.getInt32(shift);
-            if(m_groups_id == SD_TYPE.SD_TYPE_STATICARRAY_STATICARRAY_INT32) {
-                const bl = view.getInt32(shift + 4);
-                this.m_groups = staticarray_staticarray_i32_from_bytes_expr(view, shift);
-                shift += bl;
-            } else { return; }
+        const m_nodes_count_id = view.getInt32(shift);
+        if(m_nodes_count_id == SD_TYPE.SD_TYPE_INT32) {
+            const bl = view.getInt32(shift + 4);
+            this.m_nodes_count = view.getInt32(shift + 8);
+            shift += bl;
+        } else { return; }
 
-            const m_groups_count_id = view.getInt32(shift);
-            if(m_groups_count_id == SD_TYPE.SD_TYPE_INT32) {
-                const bl = view.getInt32(shift + 4);
-                this.m_groups_count = view.getInt32(shift + 8);
-                shift += bl;
-            } else { return; }
+        const m_nodes_id = view.getInt32(shift);
+        if(m_nodes_id == SD_TYPE.SD_TYPE_STATICARRAY_NAVMESHNODE) {
+            const bl = view.getInt32(shift + 4);
+            this.m_nodes = staticarray_navmeshnode_from_bytes_expr(view, shift);
+            shift += bl;
+        } else { return; }
 
-            const m_graphs_id = view.getInt32(shift);
-            if(m_graphs_id == SD_TYPE.SD_TYPE_STATICARRAY_GRAPH) {
-                const bl = view.getInt32(shift + 4);
-                this.m_graphs = staticarray_graph_from_bytes_expr(view, shift);
-                shift += bl;
-            } else { return; }
+        const m_groups_id = view.getInt32(shift);
+        if(m_groups_id == SD_TYPE.SD_TYPE_STATICARRAY_STATICARRAY_INT32) {
+            const bl = view.getInt32(shift + 4);
+            this.m_groups = staticarray_staticarray_i32_from_bytes_expr(view, shift);
+            shift += bl;
+        } else { return; }
 
-            const m_nodes_bvh_id = view.getInt32(shift);
-            if(m_nodes_bvh_id == SD_TYPE.SD_TYPE_NAVMESHBVH) {
-                const bl = view.getInt32(shift + 4);
-                this.m_nodes_bvh = new NavmeshBVH();
-                this.m_nodes_bvh.from_bytes(view, shift, this.m_nodes);
-                shift += bl;
-            } else { return; }
+        const m_groups_count_id = view.getInt32(shift);
+        if(m_groups_count_id == SD_TYPE.SD_TYPE_INT32) {
+            const bl = view.getInt32(shift + 4);
+            this.m_groups_count = view.getInt32(shift + 8);
+            shift += bl;
+        } else { return; }
 
-            const m_triangles_bvh_id = view.getInt32(shift);
-            if(m_triangles_bvh_id == SD_TYPE.SD_TYPE_TRIANGLESBVH) {
-                const bl = view.getInt32(shift + 4);
-                this.m_triangles_bvh = new TrianglesBVH();
-                this.m_triangles_bvh.from_bytes(view, shift);
-                shift += bl;
-            } else { return; }
+        const m_graphs_id = view.getInt32(shift);
+        if(m_graphs_id == SD_TYPE.SD_TYPE_STATICARRAY_GRAPH) {
+            const bl = view.getInt32(shift + 4);
+            this.m_graphs = staticarray_graph_from_bytes_expr(view, shift);
+            shift += bl;
+        } else { return; }
 
-            const m_is_planar_id = view.getInt32(shift);
-            if(m_is_planar_id == SD_TYPE.SD_TYPE_BOOL) {
-                const bl = view.getInt32(shift + 4);
-                this.m_is_planar = view.getUint8(shift + 8) == 1;
-                shift += bl;
-            } else { return; }
+        const m_nodes_bvh_id = view.getInt32(shift);
+        if(m_nodes_bvh_id == SD_TYPE.SD_TYPE_NAVMESHBVH) {
+            const bl = view.getInt32(shift + 4);
+            this.m_nodes_bvh = new NavmeshBVH();
+            this.m_nodes_bvh.from_bytes(view, shift, this.m_nodes);
+            shift += bl;
+        } else { return; }
 
-            const m_planar_y_id = view.getInt32(shift);
-            if(m_planar_y_id == SD_TYPE.SD_TYPE_FLOAT32) {
-                const bl = view.getInt32(shift + 4);
-                this.m_planar_y = view.getFloat32(shift + 8);
-                shift += bl;
-            } else { return; }
+        const m_triangles_bvh_id = view.getInt32(shift);
+        if(m_triangles_bvh_id == SD_TYPE.SD_TYPE_TRIANGLESBVH) {
+            const bl = view.getInt32(shift + 4);
+            this.m_triangles_bvh = new TrianglesBVH();
+            this.m_triangles_bvh.from_bytes(view, shift);
+            shift += bl;
+        } else { return; }
+
+        const m_is_planar_id = view.getInt32(shift);
+        if(m_is_planar_id == SD_TYPE.SD_TYPE_BOOL) {
+            const bl = view.getInt32(shift + 4);
+            this.m_is_planar = view.getUint8(shift + 8) == 1;
+            shift += bl;
+        } else { return; }
+
+        const m_planar_y_id = view.getInt32(shift);
+        if(m_planar_y_id == SD_TYPE.SD_TYPE_FLOAT32) {
+            const bl = view.getInt32(shift + 4);
+            this.m_planar_y = view.getFloat32(shift + 8);
+            shift += bl;
+        } else { return; }
+
+        const m_tree_id = view.getInt32(shift);
+        if (m_tree_id == SD_TYPE.SD_TYPE_RTREE) {
+            const m_tree_length = view.getInt32(shift + 4);
+            this.m_tree.from_bytes(view, shift);
+
+            shift += m_tree_length;
         }
     }
 
-    override bytes_length(): u32 {
+    bytes_length(): u32 {
         let to_return = 8; // id, bytes length
 
         to_return += staticarray_f32_bytes_length(this.m_vertices);
@@ -797,6 +847,8 @@ export class Navmesh extends Serializable {
 
         to_return += bool_bytes_length();  // m_is_planar
         to_return += f32_bytes_length();  // m_planar_y
+
+        to_return += this.m_tree.bytes_length();
 
         return to_return;
     }

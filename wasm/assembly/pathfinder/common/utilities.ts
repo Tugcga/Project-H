@@ -117,11 +117,16 @@ export function squared_len(x: f32, y: f32, z: f32): f32 {
 }
 
 @inline
-export function distance(a_x: f32, a_y: f32, a_z: f32, b_x: f32, b_y: f32, b_z: f32): f32 {
+export function distance_sq(a_x: f32, a_y: f32, a_z: f32, b_x: f32, b_y: f32, b_z: f32): f32 {
     let dx = a_x - b_x;
     let dy = a_y - b_y;
     let dz = a_z - b_z;
-    return Mathf.sqrt(dx * dx + dy * dy + dz * dz);
+    return dx * dx + dy * dy + dz * dz;
+}
+
+@inline
+export function distance(a_x: f32, a_y: f32, a_z: f32, b_x: f32, b_y: f32, b_z: f32): f32 {
+    return Mathf.sqrt(distance_sq(a_x, a_y, a_z, b_x, b_y, b_z));
 }
 
 @inline

@@ -1,4 +1,4 @@
-import { log_message } from "../common/utilities";
+import { log_message, distance_sq } from "../common/utilities";
 import { Serializable, SD_TYPE,
     staticarray_f32_bytes_length, staticarray_f32_to_bytes, staticarray_f32_from_bytes_expr,
     staticarray_i32_bytes_length, staticarray_i32_to_bytes, staticarray_i32_from_bytes_expr,
@@ -296,6 +296,33 @@ export class NavmeshNode extends Serializable {
                 all_nodes[neighbor[i]].set_group(group_index, group_array, all_nodes);
             }
         }
+    }
+
+    // return true if iput edge is an edge from portal of the node
+    is_edge_portal(start_x: f32, start_y: f32, start_z: f32,
+                   finish_x: f32, finish_y: f32, finish_z: f32): bool {
+        const portals = this.m_portals;
+        const keys = portals.keys();
+        for (let i = 0, len = keys.length; i < len; i++) {
+            const key = keys[i];
+            const verts = portals.get(key);
+            const verts_count = verts.length;
+            if (verts_count == 6) {
+                // calc distance from vertices triples to start and finish
+                const p_x = verts[0];
+                const p_y = verts[1];
+                const p_z = verts[2];
+                const q_x = verts[3];
+                const q_y = verts[4];
+                const q_z = verts[5];
+                if ((distance_sq(start_x, start_y, start_z, p_x, p_y, p_z) < 0.001 && distance_sq(finish_x, finish_y, finish_z, q_x, q_y, q_z) < 0.001) || 
+                    (distance_sq(start_x, start_y, start_z, q_x, q_y, q_z) < 0.001 && distance_sq(finish_x, finish_y, finish_z, p_x, p_y, p_z) < 0.001)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     is_point_inside(p_x: f32, p_y: f32, p_z: f32): bool {
