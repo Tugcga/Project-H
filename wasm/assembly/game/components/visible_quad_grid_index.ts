@@ -20,4 +20,12 @@ export class VisibleQuadGridIndexComponent extends OneIntComponent {
 
         this.m_value = y_index * this.m_width_count + x_index;
     }
+
+    width_count(): i32 {
+        return this.m_width_count;
+    }
+
+    quad_size(): f32 {
+        return this.m_quad_size;
+    }
 }

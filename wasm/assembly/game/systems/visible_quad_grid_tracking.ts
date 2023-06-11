@@ -32,15 +32,28 @@ export class VisibleQuadGridTrackingSystem extends System {
         }
     }
 
-    // return all movable entities in the quad with given position and also from the near quads
-    get_items_from_position(pos_x: f32, pos_y: f32): List<Entity> {
-        // get quad index
+    width_count(): i32 {
+        return this.m_width_count;
+    }
+
+    quad_size(): f32 {
+        return this.m_quad_size;
+    }
+
+    get_quad_index(pos_x: f32, pos_y: f32): i32 {
         const quad_size = this.m_quad_size;
         const x_index = <i32>(pos_x / quad_size);
         const y_index = <i32>(pos_y / quad_size);
 
         const width_count = this.m_width_count;
-        const index = y_index * width_count + x_index;
+        return y_index * width_count + x_index;
+    }
+
+    // return all movable entities in the quad with given position and also from the near quads
+    get_items_from_position(pos_x: f32, pos_y: f32): List<Entity> {
+        // get quad index
+        const width_count = this.m_width_count;
+        const index = this.get_quad_index(pos_x, pos_y);
 
         if (index >= 0) {
             const visited_buffer = this.m_visited_buffer;

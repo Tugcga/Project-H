@@ -29,3 +29,6 @@ export const DEBUG_TRAJECTORY_WIDTH = 1.0;
 
 export const DEBUG_CLOSEST_PAIR_COLOR = "rgb(82, 209, 77)";
 export const DEBUG_CLOSEST_PAIR_WIDTH = 1.0;
+export const DEBUG_RECT_LINE_WIDTH = 1.0;
+export const DEBUG_VISIBILITY_RECT_COLOR = "rgb(111, 156, 227)";
+export const DEBUG_NEIGHBORHOOD_RECT_COLOR = "rgb(134, 227, 111)";

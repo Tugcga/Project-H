@@ -2,7 +2,7 @@ import { ClickCursor } from "../scene/click_cursor";
 import { CLICK_CURSOR_RADIUS, CLICK_CURSOR_TIME } from "../constants";
 import { SceneTile } from "../scene/scene_tile";
 import { Transform } from "../transform";
-import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_WIDTH, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR } from "./visual_styles";
+import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBORHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR } from "./visual_styles";
 import { Person } from "../scene/person";
 import { Player } from "../scene/player";
 
@@ -204,4 +204,39 @@ export function draw_pairs(draw_ctx: CanvasRenderingContext2D,
     }
     draw_ctx.stroke();
     draw_ctx.restore();
+}
+
+function draw_rect(draw_ctx: CanvasRenderingContext2D, 
+                   wtc_tfm: Transform,
+                   coordinates: Float32Array,
+                   stroke_style: string,
+                   stroke_width: number) {
+    draw_ctx.save();
+    draw_ctx.lineWidth =  stroke_width;
+    draw_ctx.strokeStyle = stroke_style;
+    draw_ctx.beginPath();
+
+    const s = wtc_tfm.multiply(coordinates[0], coordinates[1]);
+    const e = wtc_tfm.multiply(coordinates[2], coordinates[3]);
+
+    draw_ctx.moveTo(s[0], s[1]);
+    draw_ctx.lineTo(e[0], s[1]);
+    draw_ctx.lineTo(e[0], e[1]);
+    draw_ctx.lineTo(s[0], e[1]);
+    draw_ctx.closePath();
+
+    draw_ctx.stroke();
+    draw_ctx.restore();
+}
+
+export function draw_visibility_rect(draw_ctx: CanvasRenderingContext2D, 
+                                     wtc_tfm: Transform,
+                                     coordinates: Float32Array) {
+    draw_rect(draw_ctx, wtc_tfm, coordinates, DEBUG_VISIBILITY_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
+}
+
+export function draw_neighborhood_rect(draw_ctx: CanvasRenderingContext2D, 
+                                       wtc_tfm: Transform,
+                                       coordinates: Float32Array) {
+    draw_rect(draw_ctx, wtc_tfm, coordinates, DEBUG_NEIGHBORHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
 }

@@ -19,6 +19,7 @@ import { setup_components, setup_systems, setup_player, setup_monster } from "./
 import { PositionComponent } from "./game/components/position";
 import { StateComponent, StateWalkToPointComponent } from "./game/components/state";
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
+import { UpdateDebugSystem } from "./game/systems/update_debug";
 
 export class Game {
     private ecs: ECS | null = null;
@@ -76,6 +77,8 @@ export class Game {
         const monster_iddle_time = local_constants.monster_iddle_time;
         const path_recalculate_time = local_constants.path_recalculate_time;
 
+        const debug_settings = in_settings.get_debug();
+
         const start_x: f32 = tile_size * <f32>start_point.y();  // in the level tile x - index of the row, y - index of the column, so, we should swap it
         const start_y: f32 = tile_size * <f32>start_point.x();
 
@@ -101,7 +104,7 @@ export class Game {
             monster_random_walk_target_radius,
             monster_iddle_time,
             path_recalculate_time,
-            in_settings.get_debug());
+            debug_settings);
 
         // setup player entity
         const player_entity = setup_player(local_ecs, 
@@ -118,6 +121,10 @@ export class Game {
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
+        if (debug_settings.use_debug) {
+            const debug_system = local_ecs.get_system<UpdateDebugSystem>();
+            debug_system.init(player_entity);
+        }
         
         // output player position and radius
         external_create_player(player_radius);
@@ -133,7 +140,7 @@ export class Game {
         this.constants = local_constants;
 
         // emit mosnter at each room
-        for (let i = 0; i < rooms_count; i++) {
+        for (let i = 0; i < rooms_count * 0; i++) {
             const room_center = level_stat.room_centers[i];
             const room_radius = level_stat.room_sizes[i]
 

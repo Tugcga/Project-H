@@ -20,10 +20,16 @@ export function settings_set_use_debug(settings: Settings, in_use_debug: boolean
     settings.set_use_debug(in_use_debug);
 }
 
-export function settings_set_debug_flags(settings: Settings, in_show_path: boolean, in_show_closest: boolean): void {
+export function settings_set_debug_flags(settings: Settings, 
+                                         in_show_path: boolean, 
+                                         in_show_closest: boolean,
+                                         in_show_visible: boolean,
+                                         in_show_neighborhood: boolean): void {
     const debug = settings.get_debug();
     debug.show_path = in_show_path;
     debug.show_closest = in_show_closest;
+    debug.show_visible_quad = in_show_visible;
+    debug.show_neighborhood_quad = in_show_neighborhood;
 }
 
 export function settings_set_neighborhood_quad_size(settings: Settings, in_size: f32): void {

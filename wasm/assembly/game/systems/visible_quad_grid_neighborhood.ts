@@ -29,13 +29,16 @@ export class VisibleQuadGridNeighborhoodSystem extends System {
         const entity: Entity = this.singleton();
         const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
         const quad_neight: VisibleQuadGridNeighborhoodComponent | null = this.get_component<VisibleQuadGridNeighborhoodComponent>(entity);
+        const tracking = this.m_tracking_system;
 
         if (position && quad_neight) {
             const pos_x = position.x();
             const pos_y = position.y();
 
-            const neight_entities: List<Entity> = this.m_tracking_system.get_items_from_position(pos_x, pos_y);
+            const quad_index = tracking.get_quad_index(pos_x, pos_y);
+            const neight_entities: List<Entity> = tracking.get_items_from_position(pos_x, pos_y);
             quad_neight.set_entities(neight_entities);
+            quad_neight.set_quad_index(quad_index);
 
             // next we should output data about neighborhood monsters to the client
             const to_delete = quad_neight.to_delete();

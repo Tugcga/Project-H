@@ -1,7 +1,7 @@
 import { ClientBase } from "../client_base";
 import { CAMERA_LERP_COEFFICIENT, TILE_PIXELS_SIZE } from "../constants";
 import { TILE_NONWALKABLE_COLOR } from "./visual_styles";
-import { draw_background, draw_cursor, draw_level_tile, draw_monster, draw_pairs, draw_player, draw_trajectory } from "./draws";
+import { draw_background, draw_cursor, draw_level_tile, draw_monster, draw_neighborhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
 
 // this version of the client application
 // use 2d canvas as draw device
@@ -15,6 +15,11 @@ export class ClientDataCanvas extends ClientBase {
 
     m_debug_trajectories: Map<number, Float32Array> = new Map<number, Float32Array>();
     m_debug_pairs: Array<number>;
+
+    m_is_draw_visible_rect: boolean = false;
+    m_debug_visible_rect: Float32Array = new Float32Array(4);
+    m_is_draw_neighborhood_rect: boolean = false;
+    m_debug_neighborhood_rect: Float32Array = new Float32Array(4);
 
     constructor() {
         super();
@@ -69,6 +74,22 @@ export class ClientDataCanvas extends ClientBase {
         this.m_debug_pairs.push(b_pos_y);
     }
 
+    debug_player_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        this.m_debug_visible_rect[0] = start_x;
+        this.m_debug_visible_rect[1] = start_y;
+        this.m_debug_visible_rect[2] = end_x;
+        this.m_debug_visible_rect[3] = end_y;
+        this.m_is_draw_visible_rect = true;
+    }
+
+    debug_player_neighborhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        this.m_debug_neighborhood_rect[0] = start_x;
+        this.m_debug_neighborhood_rect[1] = start_y;
+        this.m_debug_neighborhood_rect[2] = end_x;
+        this.m_debug_neighborhood_rect[3] = end_y;
+        this.m_is_draw_neighborhood_rect = true;
+    }
+
     update_process() {
         // clear debug before update
         // because at update it calls callbacks and fill this map
@@ -114,7 +135,16 @@ export class ClientDataCanvas extends ClientBase {
             draw_trajectory(this.m_scene_ctx, this.m_wtc_tfm, coordinates);
         }
 
-        // and closest pairs
+        // closest pairs
         draw_pairs(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_pairs);
+
+        // visible quad
+        if (this.m_is_draw_visible_rect) {
+            draw_visibility_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_visible_rect);
+        }
+        // neighborhood rect
+        if (this.m_is_draw_neighborhood_rect) {
+            draw_neighborhood_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_neighborhood_rect);
+        }
     }
 }

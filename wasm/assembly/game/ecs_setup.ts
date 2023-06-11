@@ -40,11 +40,12 @@ import { ResetVelocitySystem } from "./systems/reset_velocity";
 import { WalkToPointSwitchSystem, IddleWaitSwitchSystem } from "./systems/state_switch";
 import { UpdateToClientComponent } from "./components/update_to_client";
 import { UpdateToClientSystem } from "./systems/update_to_client";
+import { UpdateDebugSystem } from "./systems/update_debug"
 
 import { DebugSettings } from "./settings";
 
 export function setup_components(ecs: ECS): void {
-    // assigned: Player
+    // assigned: player
     // read systems: PositionToTileSystem
     //               VisibleQuadGridNeighborhoodSystem (executed only for player entity)
     // write systems: -
@@ -57,7 +58,7 @@ export function setup_components(ecs: ECS): void {
     // comment: tag, assigned to each monster entity
     ecs.register_component<MonsterComponent>();
 
-    // assigned: player, mosnter
+    // assigned: player, monsters
     // read systems: WalkToPointSystem
     //               NeighborhoodQuadGridTrackingSystem
     //               RVOSystem
@@ -67,6 +68,7 @@ export function setup_components(ecs: ECS): void {
     //               VisibleQuadGridTrackingSystem
     //               VisibleQuadGridNeighborhoodSystem
     //               UpdateToClientSystem (update data on cleint about the entity)
+    //               UpdateDebugSystem (for debugging close positions)
     // write systems: MoveSystem (make actual move)
     // comment: define the spatial position of the entity in the level
     ecs.register_component<PositionComponent>();
@@ -157,7 +159,7 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<VisibleQuadGridNeighborhoodComponent>();
 
     // assigned: player (start with IDDLE state), monsters (start with IDDLE_WAIT state)
-    // read systems: UpdateToClientSystem (for debug only, so, does not required in system registers)
+    // read systems: UpdateDebugSystem (for debug only, so, does not required in system registers)
     // write systems: IddleWaitSwitchSystem (change state when it should switch to other)
     //                WalkToPointSwitchSystem
     // comment: store the action state of the entity
@@ -201,6 +203,7 @@ export function setup_components(ecs: ECS): void {
     // read systems: RVOSystem (for player we should not apply rvo), 
     //               IddleWaitSwitchSystem, WalkToPointSwitchSystem (for player and monster we should apply different strategise for state switches), 
     //               UpdateToClientSystem (to call different method to update data for player or monsters)
+    //               UpdateDebugSystem
     // write systems: -, the data assigned at create time and does not changed during the game
     // comment: data component
     // describe the type of the actor entity
@@ -329,7 +332,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, VisibleQuadGridIndexComponent>();
 
     // tracking old and new monsters in the neighborhood of the player
-    // call external method when the mosnter should be removec from the client
+    // call external method when the monster should be removed from the client
     // use visible_tracking_system as dependency for this system
     ecs.register_system<VisibleQuadGridNeighborhoodSystem>(new VisibleQuadGridNeighborhoodSystem(visible_tracking_system));
     ecs.set_system_with_component<VisibleQuadGridNeighborhoodSystem, PlayerComponent>();  // only for player
@@ -338,12 +341,19 @@ export function setup_systems(ecs: ECS,
 
     // update data at client for required entities
     // send some debug data if it is active
-    ecs.register_system<UpdateToClientSystem>(new UpdateToClientSystem(debug_settings, neighborhood_tracking_system));
+    ecs.register_system<UpdateToClientSystem>(new UpdateToClientSystem());
     ecs.set_system_with_component<UpdateToClientSystem, ActorTypeComponent>();
     ecs.set_system_with_component<UpdateToClientSystem, UpdateToClientComponent>();
     ecs.set_system_with_component<UpdateToClientSystem, PositionComponent>();
     ecs.set_system_with_component<UpdateToClientSystem, AngleComponent>();
     ecs.set_system_with_component<UpdateToClientSystem, MoveTagComponent>();
+
+    if (debug_settings.use_debug) {
+        ecs.register_system<UpdateDebugSystem>(new UpdateDebugSystem(debug_settings, neighborhood_tracking_system, visible_tracking_system));
+        ecs.set_system_with_component<UpdateDebugSystem, ActorTypeComponent>();
+        ecs.set_system_with_component<UpdateDebugSystem, PositionComponent>();
+        ecs.set_system_with_component<UpdateDebugSystem, StateComponent>();
+    }
 }
 
 export function setup_player(ecs: ECS, 

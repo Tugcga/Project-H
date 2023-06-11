@@ -39,6 +39,12 @@ declare function debug_entity_walk_path(entity: u32, points: StaticArray<f32>): 
 @external("env", "host.debug_close_entity")
 declare function debug_close_entity(e1: u32, pos_x1: f32, pos_y1: f32, e2: u32, pos_x2: f32, pos_y2: f32): void;
 
+@external("env", "host.debug_visible_quad")
+declare function debug_visible_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void;
+
+@external("env", "host.debug_neighborhood_quad")
+declare function debug_neighborhood_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void;
+
 
 export function external_define_level(level_width: u32, level_height: u32, tile_size: f32): void {
     if(use_external) {
@@ -141,5 +147,21 @@ export function external_debug_close_entity(e1: u32, pos_x1: f32, pos_y1: f32, e
         debug_close_entity(e1, pos_x1, pos_y1, e2, pos_x2, pos_y2);
     } else {
         console.log("ext -> debug_close_entity: " + e1.toString() + " at (" + pos_x1.toString() + ", " + pos_y1.toString() + ")" + " - " + e2.toString() + " at (" + pos_x2.toString() + ", " + pos_y2.toString() + ")");
+    }
+}
+
+export function external_debug_visible_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void {
+    if(use_external) {
+        debug_visible_quad(start_x, start_y, end_x, end_y);
+    } else {
+        console.log("ext -> debug_visible_quad: " + "(" + start_x.toString() + ", " + start_y.toString() + ") - (" + end_x.toString() + ", " + end_y.toString() + ")");
+    }
+}
+
+export function external_debug_neighborhood_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void {
+    if(use_external) {
+        debug_neighborhood_quad(start_x, start_y, end_x, end_y);
+    } else {
+        console.log("ext -> debug_neighborhood_quad: " + "(" + start_x.toString() + ", " + start_y.toString() + ") - (" + end_x.toString() + ", " + end_y.toString() + ")");
     }
 }

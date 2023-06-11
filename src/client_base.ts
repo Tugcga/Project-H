@@ -66,6 +66,8 @@ export abstract class ClientBase {
     // it never called from the module
     abstract debug_entity_trajectory(entity: number, coordinates: Float32Array): void;
     abstract debug_close_entity_pair(entity_a: number, a_pos_x: number, a_pos_y: number, entity_b: number, b_pos_x: number, b_pos_y: number): void;
+    abstract debug_player_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
+    abstract debug_player_neighborhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
 
     constructor() {
         // define host functions for external calls from the wasm module
@@ -82,7 +84,9 @@ export abstract class ClientBase {
             remove_monster: this.remove_monster.bind(this),
             define_total_update_entities: this.define_total_update_entities.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
-            debug_close_entity: this.debug_close_entity.bind(this)
+            debug_close_entity: this.debug_close_entity.bind(this),
+            debug_visible_quad: this.debug_visible_quad.bind(this),
+            debug_neighborhood_quad: this.debug_neighborhood_quad.bind(this)
         };
 
         // setup ui
@@ -145,8 +149,7 @@ export abstract class ClientBase {
                 // change default settings
                 // select random seed
                 const seed = Math.floor(Math.random() * 4294967295);
-                console.log("seed:", seed);
-                module.settings_set_seed(settings_ptr, seed);
+                module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 1.0);
                 module.settings_set_neighborhood_quad_size(settings_ptr, 1.0);
                 module.settings_set_generate(settings_ptr,
@@ -154,10 +157,11 @@ export abstract class ClientBase {
                     2, 4,  // min and max room size
                     10  // the number of rooms
                 );
+                module.settings_set_generate(settings_ptr, 5, 3, 4, 1);
 
                 // activate debug info
-                module.settings_set_use_debug(settings_ptr, false);
-                module.settings_set_debug_flags(settings_ptr, true, false);
+                module.settings_set_use_debug(settings_ptr, true);
+                module.settings_set_debug_flags(settings_ptr, true, true, true, true);
                 
                 // create the game
                 // this method calls some callbcks:
@@ -388,5 +392,13 @@ export abstract class ClientBase {
 
     debug_close_entity(e1: number, pos_x1: number, pos_y1: number, e2: number, pos_x2: number, pos_y2: number) {
         this.debug_close_entity_pair(e1, pos_x1, pos_y1, e2, pos_x2, pos_y2);
+    }
+
+    debug_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        this.debug_player_visible_quad(start_x, start_y, end_x, end_y);
+    }
+
+    debug_neighborhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        this.debug_player_neighborhood_quad(start_x, start_y, end_x, end_y);
     }
 }

@@ -852,6 +852,10 @@ export class Navmesh extends Serializable {
 
         return to_return;
     }
+
+    toString(): string {
+        return `vartices: ${this.m_vertices}, polygons: ${this.m_polygons}, sizes: ${this.m_sizes}`;
+    }
 }
 
 export function set_bvh_delta(delta: f32): void {

@@ -8,6 +8,8 @@ export class VisibleQuadGridNeighborhoodComponent {
     private m_to_delete: List<Entity> = new List<Entity>();
     private m_to_create: List<Entity> = new List<Entity>();
 
+    private m_current_quad: i32 = 0;
+
     // we call this method every frame from visible quad grid neighborhood system (for the player)
     set_entities(in_array: List<Entity>): void {
         // we should sort in_array, then check difference with current, build to_delete and assign current array
@@ -49,6 +51,14 @@ export class VisibleQuadGridNeighborhoodComponent {
         }
 
         current.copy_from(in_array);
+    }
+
+    set_quad_index(in_index: i32): void {
+        this.m_current_quad = in_index;
+    }
+
+    quad_index(): i32 {
+        return this.m_current_quad;
     }
 
     @inline

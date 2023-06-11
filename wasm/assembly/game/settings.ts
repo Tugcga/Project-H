@@ -8,6 +8,10 @@ export class DebugSettings {
     // show intervals from entity to all closest ones
     // these closest used in RVOSystem (for example)
     show_closest: bool = true;
+
+    // for player only
+    show_visible_quad: bool = true;
+    show_neighborhood_quad: bool = true;
 }
 
 export class ConstantsSettings {
