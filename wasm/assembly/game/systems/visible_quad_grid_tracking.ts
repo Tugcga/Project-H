@@ -54,10 +54,11 @@ export class VisibleQuadGridTrackingSystem extends System {
         // get quad index
         const width_count = this.m_width_count;
         const index = this.get_quad_index(pos_x, pos_y);
+        const items_map = this.m_items_map;
+        const items_map_length = items_map.length;
 
-        if (index >= 0) {
+        if (index >= 0 && index < items_map_length) {
             const visited_buffer = this.m_visited_buffer;
-            const items_map = this.m_items_map;
 
             visited_buffer.reset();
 
@@ -70,7 +71,7 @@ export class VisibleQuadGridTrackingSystem extends System {
                 for (let y = -1; y <= 1; y++) {
                     if (!(x == 0 && y == 0)) {
                         const i = index + y * width_count + x;
-                        if (i >= 0 && i < items_map.length && is_element_new(visited_buffer, i)) {
+                        if (i >= 0 && i < items_map_length && is_element_new(visited_buffer, i)) {
                             const addon = items_map[i];
                             center.extend(addon);
                             visited_buffer.push(i);
@@ -86,6 +87,9 @@ export class VisibleQuadGridTrackingSystem extends System {
 
     update(dt: f32): void {
         const entities = this.entities();
+        const items_map = this.m_items_map;
+        const items_map_length = items_map.length;
+
         for (let i = 0, len = entities.length; i < len; i++) {
             const entity: Entity = entities[i];
 
@@ -101,12 +105,12 @@ export class VisibleQuadGridTrackingSystem extends System {
                 quad_index.set_from_position(x, y);
                 const current_quad = quad_index.value();
 
-                if (prev_quad != current_quad) {  // new index different for the last index
+                if (current_quad >= 0 && current_quad < items_map_length && prev_quad != current_quad) {  // new index different for the last index
                     // os, we should update the map for the old and new quad
-                    if (prev_quad >= 0) {
-                        this.m_items_map[prev_quad].pop_value(entity);
+                    if (prev_quad >= 0 && prev_quad < items_map_length) {
+                        items_map[prev_quad].pop_value(entity);
                     }
-                    this.m_items_map[current_quad].push(entity);
+                    items_map[current_quad].push(entity);
                 }
             }
         }

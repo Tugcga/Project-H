@@ -16,7 +16,7 @@ export class Rectangle extends Serializable {
 
     constructor(in_left_top_x: f32 = 0.0, in_left_top_y: f32 = 0.0, in_right_bottom_x: f32 = 0.0, in_right_bottom_y: f32 = 0.0) {
         super();
-        assert(in_right_bottom_y <= in_left_top_y, "Top corner should have higher Y value than bottom");
+        assert(in_right_bottom_y <= in_left_top_y, "Top corner should have higher Y value than bottom, obtain top y " + in_left_top_y.toString() + " and bottom y " + in_right_bottom_y.toString());
         assert(in_left_top_x <= in_right_bottom_x, "Right corner should have higher X value than left");
         
         this.m_left_top_x = in_left_top_x;

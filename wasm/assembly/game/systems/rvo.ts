@@ -1,10 +1,13 @@
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { rvo_linear2, rvo_linear3 } from "../../pathfinder/rvo";
+import { Navmesh } from "../../pathfinder/navmesh/navmesh";
+import { RTree } from "../../pathfinder/navmesh/rtree/rtree";
 import { Vector2, Line } from "../../pathfinder/common/vector2";
 import { List } from "../../pathfinder/common/list";
+import { clamp } from "../../pathfinder/common/utilities";
 
-import { ACTOR } from "../constants";
+import { EPSILON, ACTOR } from "../constants";
 
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
 import { VelocityComponent } from "../components/velocity";
@@ -17,13 +20,17 @@ import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tra
 
 export class RVOSystem extends System {
     // we use tracking system to find neighborhood entities
+    private m_navmesh: Navmesh;
     private m_tracking_system: NeighborhoodQuadGridTrackingSystem;
     private m_inv_time_horizon: f32 = 1.0;
     private m_orca_lines: List<Line> = new List<Line>();
+    private m_rvo_velocities: List<f32> = new List<f32>(1000);
+    private m_out_buffer: Vector2 = new Vector2();
 
-    constructor(in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_time_horizon: f32) {
+    constructor(in_navmesh: Navmesh, in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_time_horizon: f32) {
         super();
 
+        this.m_navmesh = in_navmesh;
         this.m_tracking_system = in_tracking_system;
         this.m_inv_time_horizon = 1.0 / in_time_horizon;
     }
@@ -32,9 +39,10 @@ export class RVOSystem extends System {
         const entities = this.entities();
         const tracking_system = this.m_tracking_system;
         const orca_lines = this.m_orca_lines;
-        const rvo_velocities = new StaticArray<f32>(2 * entities.length);
+        const rvo_velocities = this.m_rvo_velocities;
         const inv_time_horizon = this.m_inv_time_horizon;
         orca_lines.reset();
+        rvo_velocities.reset();
 
         for (let i = 0, len = entities.length; i < len; i++) {
             const entity: Entity = entities[i];
@@ -47,8 +55,8 @@ export class RVOSystem extends System {
                 const actor_type_value = actor_type.type();
                 if (actor_type_value == ACTOR.PLAYER) {
                     // for player we simply copy velocity
-                    rvo_velocities[2*i] = pref_velocity.x();
-                    rvo_velocities[2*i + 1] = pref_velocity.y();
+                    rvo_velocities.push(pref_velocity.x());
+                    rvo_velocities.push(pref_velocity.y());
                 } else {
                     // for all other actors calculate actual velocity by using rvo-algorithm
                     // get position of the entity
@@ -147,8 +155,8 @@ export class RVOSystem extends System {
                             rvo_linear3(orca_lines, 0, line_fail, s, rvo_velocity);
                         }
 
-                        rvo_velocities[2*i] = rvo_velocity.x();
-                        rvo_velocities[2*i + 1] = rvo_velocity.y();
+                        rvo_velocities.push(rvo_velocity.x());
+                        rvo_velocities.push(rvo_velocity.y());
                     }
                 }
                 
@@ -156,11 +164,42 @@ export class RVOSystem extends System {
         }
 
         // after all, copy rvo velocities to entities
-        for (let i = 0, len = entities.length; i < len; i++) {
+        const navmesh = this.m_navmesh;
+        const tree = navmesh.boundary_tree();
+        for (let i = 0, len = rvo_velocities.length / 2; i < len; i++) {
             const entity = entities[i];
             const velocity: VelocityComponent | null = this.get_component<VelocityComponent>(entity);
-            if (velocity) {
-                velocity.set(rvo_velocities[2*i], rvo_velocities[2*i + 1]);
+            const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
+            if (velocity && position) {
+                // check that velocity does not move the entity outside the navigation mesh
+                const vel_x = rvo_velocities[2*i];
+                const vel_y = rvo_velocities[2*i + 1];
+                const start_x = position.x();
+                const start_y = position.y();
+                const finish_x = start_x + vel_x * dt;
+                const finish_y = start_y + vel_y * dt;
+
+                const delta: f32 = 0.1;
+                const to_x = finish_x - start_x;
+                const to_y = finish_y - start_y;
+                const to_length = Mathf.sqrt(to_x*to_x + to_y*to_y);
+                const start_shift_x = to_length > EPSILON ? start_x - delta * to_x / to_length : start_x;
+                const start_shift_y = to_length > EPSILON ? start_y - delta * to_y / to_length : start_y;
+
+                if (!isNaN<f32>(start_shift_x) && !isNaN<f32>(start_shift_y) && !isNaN<f32>(finish_x) && !isNaN<f32>(finish_y) && dt > 0.0) {
+                    const out_vector = this.m_out_buffer;
+                    tree.project_vector_to_line(start_shift_x, start_shift_y, finish_x, finish_y, start_x, start_y, out_vector, true);
+                    // recalculate velocity with target point as out_vector
+                    const target_point_x = out_vector.x();
+                    const target_point_y = out_vector.y();
+
+                    const mod_vel_x = (target_point_x - start_x) / dt;
+                    const mod_vel_y = (target_point_y - start_y) / dt;
+
+                    velocity.set(mod_vel_x, mod_vel_y);
+                } else {
+                    velocity.set(0.0, 0.0);
+                }
             }
         }
     }

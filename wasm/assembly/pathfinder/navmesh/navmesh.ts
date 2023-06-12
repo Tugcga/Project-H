@@ -356,6 +356,10 @@ export class Navmesh extends Serializable {
         return this.m_sizes;
     }
 
+    boundary_tree(): RTree {
+        return this.m_tree;
+    }
+
     @inline
     get_is_planar(): bool{
         return this.m_is_planar;
@@ -635,8 +639,8 @@ export class Navmesh extends Serializable {
     // input are cooridinates of the edge in 2d
     // output is a float from [0, 1], which define the intersection point in the edge
     // if there are no instersections with navmesh boundary, then return 1.0
-    intersect_boundary(start_x: f32, start_y: f32, finish_x: f32, finish_y: f32): f32 {
-        return this.m_tree.find_intersection_t(start_x, start_y, finish_x, finish_y);
+    intersect_boundary(start_x: f32, start_y: f32, finish_x: f32, finish_y: f32, ignore_back_side: bool = false): f32 {
+        return this.m_tree.find_intersection_t(start_x, start_y, finish_x, finish_y, ignore_back_side);
     }
 
     @inline

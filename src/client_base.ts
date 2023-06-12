@@ -149,7 +149,8 @@ export abstract class ClientBase {
                 // change default settings
                 // select random seed
                 const seed = Math.floor(Math.random() * 4294967295);
-                module.settings_set_seed(settings_ptr, 12);
+                // controllabel seed ↓ for test
+                // module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 1.0);
                 module.settings_set_neighborhood_quad_size(settings_ptr, 1.0);
                 module.settings_set_generate(settings_ptr,
@@ -157,10 +158,11 @@ export abstract class ClientBase {
                     2, 4,  // min and max room size
                     10  // the number of rooms
                 );
-                module.settings_set_generate(settings_ptr, 5, 3, 4, 1);
+                // use these settings ↓ for developement
+                // module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
 
                 // activate debug info
-                module.settings_set_use_debug(settings_ptr, true);
+                module.settings_set_use_debug(settings_ptr, false);
                 module.settings_set_debug_flags(settings_ptr, true, true, true, true);
                 
                 // create the game

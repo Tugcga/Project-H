@@ -140,7 +140,7 @@ export class Game {
         this.constants = local_constants;
 
         // emit mosnter at each room
-        for (let i = 0; i < rooms_count * 0; i++) {
+        for (let i = 0; i < rooms_count; i++) {
             const room_center = level_stat.room_centers[i];
             const room_radius = level_stat.room_sizes[i]
 
@@ -170,6 +170,8 @@ export class Game {
                     const player_position: PositionComponent | null = local_ecs.get_component<PositionComponent>(player_entity);
                     if (player_position) {
                         const path: StaticArray<f32> = local_navmesh.search_path(player_position.x(), 0.0, player_position.y(), in_x, 0.0, in_y);
+                        // use simple line-path ↓ for test
+                        // const path = StaticArray.fromArray<f32>([player_position.x(), 0.0, player_position.y(), in_x, 0.0, in_y]);
                         if (path.length > 0) {
                             // find valid path
                             state.set_state(STATE.WALK_TO_POINT);

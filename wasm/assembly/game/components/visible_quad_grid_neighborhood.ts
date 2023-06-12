@@ -27,11 +27,11 @@ export class VisibleQuadGridNeighborhoodComponent {
         const in_count = in_array.length;
         for (let j = 0; j < in_count; j++) {
             const in_value = in_array.get(j);
-            while (i < current_count && current.get(i) < in_value) {
+            while (i >= 0 && i < current_count && current.get(i) < in_value) {
                 to_delete.push(current.get(i));
                 i += 1;
             }
-            if (i < current_count) {
+            if (i >= 0 && i < current_count) {
                 if (current.get(i) == in_value) {
                     i += 1;
                 } else {
@@ -45,7 +45,7 @@ export class VisibleQuadGridNeighborhoodComponent {
         }
 
         // add all other values form the current array to delete
-        while (i < current_count) {
+        while (i >=0 && i < current_count) {
             to_delete.push(current.get(i));
             i += 1;
         }

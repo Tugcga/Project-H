@@ -41,10 +41,19 @@ export function array_to_etities_list(array: Array<i32>): List<Entity> {
 }
 
 export function is_ordered_list_contains(array: List<Entity>, value: Entity): bool {
+    const array_length = array.length;
+    if (array_length == 0) {
+        return false;
+    }
+
+    if (array_length == 1) {
+        return value == array.get(0);
+    }
+
     // input array is ordered
     // so, we can use binary search to find value element
     let left: u32 = 0;
-    let right: u32 = array.length - 1;
+    let right: u32 = array_length - 1;
 
     const left_value = array.get(left);
     const right_value = array.get(right);

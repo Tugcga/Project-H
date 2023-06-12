@@ -266,7 +266,8 @@ export function setup_systems(ecs: ECS,
     // system for rvo algorithm
     // for player we simply copy preferred velocity to velocity
     // for monsters calculate proper velocities
-    const rvo_system = ecs.register_system<RVOSystem>(new RVOSystem(neighborhood_tracking_system, rvo_time_horizon));
+    // navmesh used for control movement through boundary edges
+    const rvo_system = ecs.register_system<RVOSystem>(new RVOSystem(navmesh, neighborhood_tracking_system, rvo_time_horizon));
     ecs.set_system_with_component<RVOSystem, PreferredVelocityComponent>();
     ecs.set_system_with_component<RVOSystem, VelocityComponent>();
     ecs.set_system_with_component<RVOSystem, ActorTypeComponent>();
@@ -275,6 +276,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<RVOSystem, SpeedComponent>();
 
     // move entities by using calculated velocities and curent positions
+    // navmesh used for snapping to the walkable area
     ecs.register_system<MoveSystem>(new MoveSystem(navmesh));
     ecs.set_system_with_component<MoveSystem, VelocityComponent>();
     ecs.set_system_with_component<MoveSystem, PositionComponent>();

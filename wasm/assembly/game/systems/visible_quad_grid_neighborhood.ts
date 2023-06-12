@@ -45,7 +45,6 @@ export class VisibleQuadGridNeighborhoodSystem extends System {
             for (let i = 0, len = to_delete.length; i < len; i++) {
                 external_remove_monster(to_delete.get(i));
             }
-
             const to_create = quad_neight.to_create();
             for (let i = 0, len = to_create.length; i < len; i++) {
                 const e = to_create.get(i);
