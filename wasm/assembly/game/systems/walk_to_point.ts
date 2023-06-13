@@ -2,6 +2,7 @@ import { Navmesh } from "../../pathfinder/navmesh/navmesh";
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { EPSILON } from "../constants";
+import { get_navmesh_path } from "../utilities";
 
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
 import { StateWalkToPointComponent } from "../components/state";
@@ -46,7 +47,7 @@ export class WalkToPointSystem extends System {
                     const final_target_x = path[3 * (poins_count - 1)];
                     const final_target_y = path[3 * (poins_count - 1) + 2];
 
-                    const new_path: StaticArray<f32> = navmesh.search_path(curent_x, 0.0, curent_y, final_target_x, 0.0, final_target_y);
+                    const new_path = get_navmesh_path(navmesh, curent_x, curent_y, final_target_x, final_target_y);
                     if (new_path.length > 0) {
                         // reassign the path
                         walk_to_point.define_path(new_path);

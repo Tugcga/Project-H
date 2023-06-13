@@ -42,6 +42,21 @@ export function settings_set_rvo_time_horizon(settings: Settings, in_time: f32):
     constants.set_rvo_time_horizon(in_time);
 }
 
+export function settings_set_use_rvo(settings: Settings, in_value: boolean): void {
+    const engine = settings.get_engine();
+    engine.set_use_rvo(in_value);
+}
+
+export function settings_set_snap_to_navmesh(settings: Settings, in_value: boolean): void {
+    const engine = settings.get_engine();
+    engine.set_snap_to_navmesh(in_value);
+}
+
+export function settings_set_path_recalculate_time(settings: Settings, in_value: f32): void {
+    const constants = settings.get_constants();
+    constants.set_path_recalculate_time(in_value);
+}
+
 export function create_game(settings: Settings): Game {
     return new Game(settings);
 }

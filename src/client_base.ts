@@ -1,4 +1,4 @@
-import { __Internref17, instantiate } from "../wasm/build/game_api";
+import { __Internref18, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
@@ -10,7 +10,7 @@ import { GameUI } from "./ui/ui";
 // it implement functionallity for connecting between wasm module (the server) and client IO
 // particluar graphic backend should use this base class
 export abstract class ClientBase {
-    m_game_ptr: __Internref17;
+    m_game_ptr: __Internref18;
     m_scene_canvas: HTMLCanvasElement;
     m_scene_ctx: CanvasRenderingContext2D;
 
@@ -150,7 +150,7 @@ export abstract class ClientBase {
                 // select random seed
                 const seed = Math.floor(Math.random() * 4294967295);
                 // controllabel seed ↓ for test
-                // module.settings_set_seed(settings_ptr, 12);
+                module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 1.0);
                 module.settings_set_neighborhood_quad_size(settings_ptr, 1.0);
                 module.settings_set_generate(settings_ptr,
@@ -159,11 +159,14 @@ export abstract class ClientBase {
                     10  // the number of rooms
                 );
                 // use these settings ↓ for developement
-                // module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
+                module.settings_set_generate(settings_ptr, 12, 3, 4, 2);
 
                 // activate debug info
-                module.settings_set_use_debug(settings_ptr, false);
+                module.settings_set_use_debug(settings_ptr, true);
                 module.settings_set_debug_flags(settings_ptr, true, true, true, true);
+                module.settings_set_snap_to_navmesh(settings_ptr, false);
+                module.settings_set_use_rvo(settings_ptr, false);
+                module.settings_set_path_recalculate_time(settings_ptr, 1.0);
                 
                 // create the game
                 // this method calls some callbcks:

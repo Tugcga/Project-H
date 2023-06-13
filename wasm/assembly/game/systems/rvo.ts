@@ -1,11 +1,8 @@
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { rvo_linear2, rvo_linear3 } from "../../pathfinder/rvo";
-import { Navmesh } from "../../pathfinder/navmesh/navmesh";
-import { RTree } from "../../pathfinder/navmesh/rtree/rtree";
 import { Vector2, Line } from "../../pathfinder/common/vector2";
 import { List } from "../../pathfinder/common/list";
-import { clamp } from "../../pathfinder/common/utilities";
 
 import { EPSILON, ACTOR } from "../constants";
 
@@ -20,17 +17,15 @@ import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tra
 
 export class RVOSystem extends System {
     // we use tracking system to find neighborhood entities
-    private m_navmesh: Navmesh;
     private m_tracking_system: NeighborhoodQuadGridTrackingSystem;
     private m_inv_time_horizon: f32 = 1.0;
     private m_orca_lines: List<Line> = new List<Line>();
     private m_rvo_velocities: List<f32> = new List<f32>(1000);
     private m_out_buffer: Vector2 = new Vector2();
 
-    constructor(in_navmesh: Navmesh, in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_time_horizon: f32) {
+    constructor(in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_time_horizon: f32) {
         super();
 
-        this.m_navmesh = in_navmesh;
         this.m_tracking_system = in_tracking_system;
         this.m_inv_time_horizon = 1.0 / in_time_horizon;
     }
@@ -163,8 +158,16 @@ export class RVOSystem extends System {
             }
         }
 
+        for (let i = 0, len = rvo_velocities.length / 2; i < len; i++) {
+            const entity = entities[i];
+            const velocity: VelocityComponent | null = this.get_component<VelocityComponent>(entity);
+            if (velocity) {
+                velocity.set(rvo_velocities[2*i], rvo_velocities[2*i + 1]);
+            }
+        }
+
         // after all, copy rvo velocities to entities
-        const navmesh = this.m_navmesh;
+        /*const navmesh = this.m_navmesh;
         const tree = navmesh.boundary_tree();
         for (let i = 0, len = rvo_velocities.length / 2; i < len; i++) {
             const entity = entities[i];
@@ -201,6 +204,6 @@ export class RVOSystem extends System {
                     velocity.set(0.0, 0.0);
                 }
             }
-        }
+        }*/
     }
 }

@@ -6,17 +6,19 @@ import { Level } from "./promethean/level";
 
 import { generate_level, generate_navmesh } from "./game/generate";
 import { Settings, ConstantsSettings } from "./game/settings";
-import { STATE } from "./game/constants";
+import { EPSILON, STATE } from "./game/constants";
 
 import { external_define_level,
          external_define_navmesh,
          external_define_total_tiles,
          external_create_player,
          external_define_player_changes } from "./external";
+import { get_navmesh_path } from "./game/utilities";
 
 import { setup_components, setup_systems, setup_player, setup_monster } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
+import { SpeedComponent } from "./game/components/speed";
 import { StateComponent, StateWalkToPointComponent } from "./game/components/state";
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
@@ -78,6 +80,7 @@ export class Game {
         const path_recalculate_time = local_constants.path_recalculate_time;
 
         const debug_settings = in_settings.get_debug();
+        const engine_settings = in_settings.get_engine();
 
         const start_x: f32 = tile_size * <f32>start_point.y();  // in the level tile x - index of the row, y - index of the column, so, we should swap it
         const start_y: f32 = tile_size * <f32>start_point.x();
@@ -104,7 +107,8 @@ export class Game {
             monster_random_walk_target_radius,
             monster_iddle_time,
             path_recalculate_time,
-            debug_settings);
+            debug_settings,
+            engine_settings);
 
         // setup player entity
         const player_entity = setup_player(local_ecs, 
@@ -140,7 +144,7 @@ export class Game {
         this.constants = local_constants;
 
         // emit mosnter at each room
-        for (let i = 0; i < rooms_count; i++) {
+        for (let i = 0; i < rooms_count * 0; i++) {
             const room_center = level_stat.room_centers[i];
             const room_radius = level_stat.room_sizes[i]
 
@@ -151,7 +155,32 @@ export class Game {
     update(dt: f32): void {
         let local_ecs = this.ecs;
         if(local_ecs) {
-            local_ecs.update(dt);
+            if (dt > EPSILON) {
+                local_ecs.update(dt);
+            }
+        }
+    }
+
+    // for development only
+    _set_player_position(in_x: f32, in_y: f32): void {
+        const local_ecs = this.ecs;
+        if (local_ecs) {
+            const player_entity = this.player_entity;
+            const position: PositionComponent | null = local_ecs.get_component<PositionComponent>(player_entity);
+            if (position) {
+                position.set(in_x, in_y);
+            }
+        }
+    }
+
+    _zero_speed(): void {
+        const local_ecs = this.ecs;
+        if (local_ecs) {
+            const player_entity = this.player_entity;
+            const speed: SpeedComponent | null = local_ecs.get_component<SpeedComponent>(player_entity);
+            if (speed) {
+                speed.set_value(0.0);
+            }
         }
     }
 
@@ -169,7 +198,7 @@ export class Game {
                     // if the player do nothing or go to the point or to the target, then reassign new state
                     const player_position: PositionComponent | null = local_ecs.get_component<PositionComponent>(player_entity);
                     if (player_position) {
-                        const path: StaticArray<f32> = local_navmesh.search_path(player_position.x(), 0.0, player_position.y(), in_x, 0.0, in_y);
+                        const path = get_navmesh_path(local_navmesh, player_position.x(), player_position.y(), in_x, in_y);
                         // use simple line-path ↓ for test
                         // const path = StaticArray.fromArray<f32>([player_position.x(), 0.0, player_position.y(), in_x, 0.0, in_y]);
                         if (path.length > 0) {

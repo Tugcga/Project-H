@@ -74,6 +74,12 @@ export class TwoFloatsComponent {
         return this.m_y;
     }
 
+    length(): f32 {
+        const x = this.m_x;
+        const y = this.m_y;
+        return Mathf.sqrt(x*x + y*y);
+    }
+
     @inline
     set(in_x: f32, in_y: f32): void {
         this.m_x = in_x;

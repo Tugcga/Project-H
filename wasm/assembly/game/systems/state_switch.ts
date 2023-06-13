@@ -3,6 +3,7 @@ import { PseudoRandom } from "../../promethean/pseudo_random"
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { STATE, ACTOR } from "../constants";
+import { get_navmesh_path } from "../utilities";
 
 import { ActorTypeComponent } from "../components/actor_type";
 import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent } from "../components/state";
@@ -98,7 +99,7 @@ export class IddleWaitSwitchSystem extends System {
                     const target_x = <f32>local_random.next_float(pos_x - random_target_radius, pos_x + random_target_radius);
                     const target_y = <f32>local_random.next_float(pos_y - random_target_radius, pos_y + random_target_radius);
 
-                    const path: StaticArray<f32> = local_navmesh.search_path(pos_x, 0.0, pos_y, target_x, 0.0, target_y);
+                    const path = get_navmesh_path(local_navmesh, pos_x, pos_y, target_x, target_y);
                     // check is the path is valid
                     // it can be invalid if we select random target point outside of the walkable area
                     if (path.length > 0) {

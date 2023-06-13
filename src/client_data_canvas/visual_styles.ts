@@ -26,6 +26,8 @@ export const MAP_PLAYER_SIZE = 2; // in pixels
 
 export const DEBUG_TRAJECTORY_COLOR = "rgb(94, 178, 219)";
 export const DEBUG_TRAJECTORY_WIDTH = 1.0;
+export const DEBUG_TRAJECTORY_POINT_COLOR = "rgb(53, 129, 166)";
+export const DEBUG_TRAJECTORY_POINT_RADIUS = 2.0;
 
 export const DEBUG_CLOSEST_PAIR_COLOR = "rgb(82, 209, 77)";
 export const DEBUG_CLOSEST_PAIR_WIDTH = 1.0;

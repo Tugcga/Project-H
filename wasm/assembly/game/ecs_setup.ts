@@ -35,6 +35,8 @@ import { VisibleQuadGridTrackingSystem } from "./systems/visible_quad_grid_track
 import { NeighborhoodQuadGridTrackingSystem } from "./systems/neighborhood_quad_grid_tracking";
 import { RotateSystem } from "./systems/rotate";
 import { RVOSystem } from "./systems/rvo";
+import { PrefToVelocitySystem } from "./systems/pref_velocity";
+import { PostVelocitySystem } from "./systems/post_velocity";
 import { MoveSystem } from "./systems/move";
 import { ResetVelocitySystem } from "./systems/reset_velocity";
 import { WalkToPointSwitchSystem, IddleWaitSwitchSystem } from "./systems/state_switch";
@@ -42,7 +44,7 @@ import { UpdateToClientComponent } from "./components/update_to_client";
 import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
 
-import { DebugSettings } from "./settings";
+import { DebugSettings, EngineSettings } from "./settings";
 
 export function setup_components(ecs: ECS): void {
     // assigned: player
@@ -62,6 +64,7 @@ export function setup_components(ecs: ECS): void {
     // read systems: WalkToPointSystem
     //               NeighborhoodQuadGridTrackingSystem
     //               RVOSystem
+    //               PostVelocitySystem
     //               IddleWaitSwitchSystem (to define path if we switch to the walk state)
     //               PositionToTileSystem (obtain tile index)
     //               MoveTrackingSystem (check is entity is move by compare with previuos position)
@@ -185,13 +188,16 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<StateWalkToPointComponent>();
 
     // assigned: player, monsters
-    // read systems: MoveSystem (use velocity for actual move of the entity)
+    // read systems: PostVelocitySystem (read and write to modify)
+    //               MoveSystem (use velocity for actual move of the entity)
     // write systems: RVOSystem (calculate actual velocity vector from preferred velocities of the neighborhood entities)
+    //                PrefToVelocitySystem (if RVO disabled)
+    //                PostVelocitySystem
     // comment: contains final calculated velocity of the entity
     ecs.register_component<VelocityComponent>();
 
     // assigned: player, monsters
-    // read systems: RVOSystem (get velocity for the algorithm)
+    // read systems: RVOSystem (get velocity for the algorithm) or PrefToVelocitySystem (iof RVO disabled)
     // write systems: ResetVelocitySystem (at start clear preferred velocity vector)
     //                WalkToPointSystem (define preferred velocity to the walk target)
     // comment: target velocity of the entity
@@ -241,7 +247,8 @@ export function setup_systems(ecs: ECS,
                               monster_random_walk_target_radius: f32,
                               monster_iddle_time: Array<f32>,
                               path_recalculate_time: f32,
-                              debug_settings: DebugSettings): void {
+                              debug_settings: DebugSettings,
+                              engine_settings: EngineSettings): void {
     // reset to zero preferred velocities for all movable entities (player, mosnters)
     ecs.register_system<ResetVelocitySystem>(new ResetVelocitySystem());
     ecs.set_system_with_component<ResetVelocitySystem, PreferredVelocityComponent>();
@@ -263,21 +270,29 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, NeighborhoodQuadGridIndexComponent>();
 
-    // system for rvo algorithm
-    // for player we simply copy preferred velocity to velocity
-    // for monsters calculate proper velocities
-    // navmesh used for control movement through boundary edges
-    const rvo_system = ecs.register_system<RVOSystem>(new RVOSystem(navmesh, neighborhood_tracking_system, rvo_time_horizon));
-    ecs.set_system_with_component<RVOSystem, PreferredVelocityComponent>();
-    ecs.set_system_with_component<RVOSystem, VelocityComponent>();
-    ecs.set_system_with_component<RVOSystem, ActorTypeComponent>();
-    ecs.set_system_with_component<RVOSystem, PositionComponent>();
-    ecs.set_system_with_component<RVOSystem, RadiusComponent>();
-    ecs.set_system_with_component<RVOSystem, SpeedComponent>();
+    if (engine_settings.use_rvo) {
+        // system for rvo algorithm
+        // for player we simply copy preferred velocity to velocity
+        // for monsters calculate proper velocities
+        ecs.register_system<RVOSystem>(new RVOSystem(neighborhood_tracking_system, rvo_time_horizon));
+        ecs.set_system_with_component<RVOSystem, PreferredVelocityComponent>();
+        ecs.set_system_with_component<RVOSystem, VelocityComponent>();
+        ecs.set_system_with_component<RVOSystem, ActorTypeComponent>();
+        ecs.set_system_with_component<RVOSystem, PositionComponent>();
+        ecs.set_system_with_component<RVOSystem, RadiusComponent>();
+        ecs.set_system_with_component<RVOSystem, SpeedComponent>();
+    } else {
+        ecs.register_system<PrefToVelocitySystem>(new PrefToVelocitySystem());
+        ecs.set_system_with_component<PrefToVelocitySystem, PreferredVelocityComponent>();
+        ecs.set_system_with_component<PrefToVelocitySystem, VelocityComponent>();
+    }
+
+    ecs.register_system<PostVelocitySystem>(new PostVelocitySystem(navmesh));
+    ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
 
     // move entities by using calculated velocities and curent positions
     // navmesh used for snapping to the walkable area
-    ecs.register_system<MoveSystem>(new MoveSystem(navmesh));
+    ecs.register_system<MoveSystem>(new MoveSystem(navmesh, engine_settings.snap_to_navmesh));
     ecs.set_system_with_component<MoveSystem, VelocityComponent>();
     ecs.set_system_with_component<MoveSystem, PositionComponent>();
 

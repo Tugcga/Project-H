@@ -14,6 +14,19 @@ export class DebugSettings {
     show_neighborhood_quad: bool = true;
 }
 
+export class EngineSettings {
+    snap_to_navmesh: bool = true;
+    use_rvo: bool = true;
+
+    set_snap_to_navmesh(in_value: bool): void {
+        this.snap_to_navmesh = in_value;
+    }
+
+    set_use_rvo(in_value: bool): void {
+        this.use_rvo = in_value;
+    }
+}
+
 export class ConstantsSettings {
     tile_size: f32 = 1.5;  // tile size of the map
     visible_quad_size: f32 = 18.0;  // the size of one quad, used for tracking neighborhood movable items (in fact close to tile_size * visible_radius)
@@ -37,6 +50,10 @@ export class ConstantsSettings {
 
     set_neighborhood_quad_size(in_value: f32): void {
         this.neighborhood_quad_size = in_value;
+    }
+
+    set_path_recalculate_time(in_value: f32): void {
+        this.path_recalculate_time = in_value;
     }
 }
 
@@ -96,12 +113,14 @@ export class Settings {
     seed: u32;
     generate: GenerateSettings;
     constants: ConstantsSettings;
+    engine: EngineSettings;
     debug: DebugSettings;
 
     constructor() {
         this.seed = 1;
         this.generate = new GenerateSettings();
         this.constants = new ConstantsSettings();
+        this.engine = new EngineSettings();
         this.debug = new DebugSettings();
     }
 
@@ -120,6 +139,10 @@ export class Settings {
 
     get_constants(): ConstantsSettings {
         return this.constants;
+    }
+
+    get_engine(): EngineSettings {
+        return this.engine;
     }
 
     get_debug(): DebugSettings {
