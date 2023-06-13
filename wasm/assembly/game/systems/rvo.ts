@@ -165,45 +165,5 @@ export class RVOSystem extends System {
                 velocity.set(rvo_velocities[2*i], rvo_velocities[2*i + 1]);
             }
         }
-
-        // after all, copy rvo velocities to entities
-        /*const navmesh = this.m_navmesh;
-        const tree = navmesh.boundary_tree();
-        for (let i = 0, len = rvo_velocities.length / 2; i < len; i++) {
-            const entity = entities[i];
-            const velocity: VelocityComponent | null = this.get_component<VelocityComponent>(entity);
-            const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
-            if (velocity && position) {
-                // check that velocity does not move the entity outside the navigation mesh
-                const vel_x = rvo_velocities[2*i];
-                const vel_y = rvo_velocities[2*i + 1];
-                const start_x = position.x();
-                const start_y = position.y();
-                const finish_x = start_x + vel_x * dt;
-                const finish_y = start_y + vel_y * dt;
-
-                const delta: f32 = 0.1;
-                const to_x = finish_x - start_x;
-                const to_y = finish_y - start_y;
-                const to_length = Mathf.sqrt(to_x*to_x + to_y*to_y);
-                const start_shift_x = to_length > EPSILON ? start_x - delta * to_x / to_length : start_x;
-                const start_shift_y = to_length > EPSILON ? start_y - delta * to_y / to_length : start_y;
-
-                if (!isNaN<f32>(start_shift_x) && !isNaN<f32>(start_shift_y) && !isNaN<f32>(finish_x) && !isNaN<f32>(finish_y) && dt > 0.0) {
-                    const out_vector = this.m_out_buffer;
-                    tree.project_vector_to_line(start_shift_x, start_shift_y, finish_x, finish_y, start_x, start_y, out_vector, true);
-                    // recalculate velocity with target point as out_vector
-                    const target_point_x = out_vector.x();
-                    const target_point_y = out_vector.y();
-
-                    const mod_vel_x = (target_point_x - start_x) / dt;
-                    const mod_vel_y = (target_point_y - start_y) / dt;
-
-                    velocity.set(mod_vel_x, mod_vel_y);
-                } else {
-                    velocity.set(0.0, 0.0);
-                }
-            }
-        }*/
     }
 }

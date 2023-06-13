@@ -159,13 +159,13 @@ export abstract class ClientBase {
                     10  // the number of rooms
                 );
                 // use these settings ↓ for developement
-                module.settings_set_generate(settings_ptr, 12, 3, 4, 2);
+                // module.settings_set_generate(settings_ptr, 12, 3, 4, 2);
 
                 // activate debug info
-                module.settings_set_use_debug(settings_ptr, true);
+                module.settings_set_use_debug(settings_ptr, false);
                 module.settings_set_debug_flags(settings_ptr, true, true, true, true);
-                module.settings_set_snap_to_navmesh(settings_ptr, false);
-                module.settings_set_use_rvo(settings_ptr, false);
+                module.settings_set_snap_to_navmesh(settings_ptr, true);
+                module.settings_set_use_rvo(settings_ptr, true);
                 module.settings_set_path_recalculate_time(settings_ptr, 1.0);
                 
                 // create the game

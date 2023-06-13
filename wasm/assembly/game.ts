@@ -144,7 +144,7 @@ export class Game {
         this.constants = local_constants;
 
         // emit mosnter at each room
-        for (let i = 0; i < rooms_count * 0; i++) {
+        for (let i = 0; i < rooms_count; i++) {
             const room_center = level_stat.room_centers[i];
             const room_radius = level_stat.room_sizes[i]
 
