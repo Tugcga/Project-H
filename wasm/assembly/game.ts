@@ -6,20 +6,23 @@ import { Level } from "./promethean/level";
 
 import { generate_level, generate_navmesh } from "./game/generate";
 import { Settings, ConstantsSettings } from "./game/settings";
-import { EPSILON, STATE } from "./game/constants";
+import { EPSILON } from "./game/constants";
 
 import { external_define_level,
          external_define_navmesh,
          external_define_total_tiles,
          external_create_player,
-         external_define_player_changes } from "./external";
-import { get_navmesh_path } from "./game/utilities";
+         external_define_entity_changes } from "./external";
 
-import { setup_components, setup_systems, setup_player, setup_monster } from "./game/ecs_setup";
+import { setup_components, 
+         setup_systems, 
+         setup_player, 
+         setup_monster,
+         command_move_to_point,
+         command_shift } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
 import { SpeedComponent } from "./game/components/speed";
-import { StateComponent, StateWalkToPointComponent } from "./game/components/state";
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
 
@@ -71,6 +74,9 @@ export class Game {
         const visible_quad_size = local_constants.visible_quad_size;
         const neighborhood_quad_size = local_constants.neighborhood_quad_size;
         const player_speed = local_constants.player_speed;
+        const player_shift_speed_multiplier = local_constants.player_shift_speed_multiplier;
+        const player_shift_distance = local_constants.player_shift_distance;
+        const player_shift_cooldawn = local_constants.player_shift_cooldawn;
         const player_radius = local_constants.player_radius;
         const player_rotation_speed = local_constants.player_rotation_speed;
         const tiles_visible_raidus = local_constants.tiles_visible_radius;
@@ -86,7 +92,8 @@ export class Game {
         const start_y: f32 = tile_size * <f32>start_point.x();
 
         // start player rotation angle
-        const start_angle = <f32>local_random.next_float(0.0, 2* Math.PI);
+        // const start_angle = <f32>local_random.next_float(0.0, 2* Math.PI);
+        const start_angle: f32 = 0.0;
 
         // init ecs
         let local_ecs = new ECS();
@@ -116,6 +123,9 @@ export class Game {
             start_x, 
             start_y, 
             player_speed, 
+            player_shift_speed_multiplier,
+            player_shift_distance,
+            player_shift_cooldawn,
             player_radius, 
             start_angle, 
             player_rotation_speed, 
@@ -131,8 +141,8 @@ export class Game {
         }
         
         // output player position and radius
-        external_create_player(player_radius);
-        external_define_player_changes(start_x, start_y, start_angle, false);
+        external_create_player(player_entity, player_radius);
+        external_define_entity_changes(player_entity, start_x, start_y, start_angle, false);
 
         // store in the class all local instances
         this.level = local_level;
@@ -190,47 +200,21 @@ export class Game {
         if (local_ecs && local_navmesh) {
             // get player entity
             const player_entity = this.player_entity;
-            // get state
-            const state: StateComponent | null = local_ecs.get_component<StateComponent>(player_entity);
-            if (state) {
-                const state_value = state.state();
-                if (state_value == STATE.IDDLE || state_value == STATE.WALK_TO_POINT || state_value == STATE.WALK_TO_TARGET) {
-                    // if the player do nothing or go to the point or to the target, then reassign new state
-                    const player_position: PositionComponent | null = local_ecs.get_component<PositionComponent>(player_entity);
-                    if (player_position) {
-                        const path = get_navmesh_path(local_navmesh, player_position.x(), player_position.y(), in_x, in_y);
-                        // use simple line-path ↓ for test
-                        // const path = StaticArray.fromArray<f32>([player_position.x(), 0.0, player_position.y(), in_x, 0.0, in_y]);
-                        if (path.length > 0) {
-                            // find valid path
-                            state.set_state(STATE.WALK_TO_POINT);
-                            // in general we shoul remove all state components
-                            // and then assign walk to point state component
-                            // but for now simply check the state
-                            if (state_value == STATE.WALK_TO_POINT) {
-                                const walk_to_point: StateWalkToPointComponent | null = local_ecs.get_component<StateWalkToPointComponent>(player_entity);
-                                if (walk_to_point) {
-                                    return walk_to_point.define_path(path);
-                                }
-                            } else {
-                                // create new component
-                                const walk_to_point = new StateWalkToPointComponent();
-                                // assign path
-                                const is_define = walk_to_point.define_path(path);
-                                // add this component to the entity
-                                local_ecs.add_component<StateWalkToPointComponent>(player_entity, walk_to_point);
-                                return is_define;
-                            }
-                        } else {
-                            // path is invalid
-                            return false;
-                        }
-                    }
-                }
-            }
+            return command_move_to_point(local_ecs, local_navmesh, player_entity, in_x, in_y);
         }
 
         return false;
+    }
+
+    // use cursor x/y for direction of the shift
+    player_shift(cursor_x: f32, cursor_y: f32): void {
+        const local_ecs = this.ecs;
+        const local_navmesh = this.navmesh;
+        if (local_ecs && local_navmesh) {
+            const player_entity = this.player_entity;
+
+            command_shift(local_ecs, local_navmesh, player_entity, cursor_x, cursor_y);
+        }
     }
 
     emit_one_monster(pos_x: f32, pos_y: f32, angle: f32): void {

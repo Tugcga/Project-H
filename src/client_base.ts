@@ -2,8 +2,8 @@ import { __Internref18, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
-import { TILE_PIXELS_SIZE } from "./constants";
-import { click_coordinates } from "./utilities";
+import { ACTION, COOLDAWN, MOVE_STATUS, TILE_PIXELS_SIZE } from "./constants";
+import { cursor_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
 
 // base class for client of the game
@@ -56,11 +56,14 @@ export abstract class ClientBase {
     abstract scene_tile_create(pos_x: number, pos_y: number, index: number, type: number): void;
     // define player methods called after the module update player properties
     // it should be used in the client to update player shape
-    abstract scene_define_player_changes(pos_x: number, pos_y: number, angle: number, is_move: boolean): void;
+    abstract scene_define_player_changes(pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void;
     abstract scene_create_player(radius: number): void;
-    abstract scene_define_monster_changes(entity: number, pos_x: number, pos_y: number, angle: number, is_move: boolean): void;
+    abstract scene_define_entity_changes(entity: number, pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void;
     abstract scene_create_monster(entity: number, radius: number): void;
     abstract scene_remove_monster(entity: number): void;
+    abstract scene_entity_start_action(entity: number, action_id: ACTION): void;
+    abstract scene_entity_finish_action(entity: number, action_id: ACTION): void;
+    abstract scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void;
     // debug callbacks
     // if debug is off, then these callbacks are not required
     // it never called from the module
@@ -78,11 +81,13 @@ export abstract class ClientBase {
             tile_delete: this.tile_delete.bind(this),
             tile_create: this.tile_create.bind(this),
             create_player: this.create_player.bind(this),
-            define_player_changes: this.define_player_changes.bind(this),
             create_monster: this.create_monster.bind(this),
-            define_monster_changes: this.define_monster_changes.bind(this),
+            define_entity_changes: this.define_entity_changes.bind(this),
             remove_monster: this.remove_monster.bind(this),
             define_total_update_entities: this.define_total_update_entities.bind(this),
+            entity_start_action: this.entity_start_action.bind(this),
+            entity_finish_action: this.entity_finish_action.bind(this),
+            entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
@@ -119,6 +124,10 @@ export abstract class ClientBase {
         // keyboard
         document.onkeydown = function(event) {
             local_this.key_event(event.key);
+
+            // stop scrolling the page by the space
+            // nad also other space actions
+            return !(event.key == " ");
         }
 
         // mouse click, release and move
@@ -150,7 +159,7 @@ export abstract class ClientBase {
                 // select random seed
                 const seed = Math.floor(Math.random() * 4294967295);
                 // controllabel seed ↓ for test
-                module.settings_set_seed(settings_ptr, 12);
+                // module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 1.0);
                 module.settings_set_neighborhood_quad_size(settings_ptr, 1.0);
                 module.settings_set_generate(settings_ptr,
@@ -159,7 +168,7 @@ export abstract class ClientBase {
                     10  // the number of rooms
                 );
                 // use these settings ↓ for developement
-                // module.settings_set_generate(settings_ptr, 12, 3, 4, 2);
+                // module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
 
                 // activate debug info
                 module.settings_set_use_debug(settings_ptr, false);
@@ -167,6 +176,8 @@ export abstract class ClientBase {
                 module.settings_set_snap_to_navmesh(settings_ptr, true);
                 module.settings_set_use_rvo(settings_ptr, true);
                 module.settings_set_path_recalculate_time(settings_ptr, 1.0);
+                module.settings_set_velocity_boundary_control(settings_ptr, true);
+                module.settings_set_player_fast_shift(settings_ptr, 2.0, 5.0, 0.5);
                 
                 // create the game
                 // this method calls some callbcks:
@@ -226,7 +237,7 @@ export abstract class ClientBase {
         if(this.m_is_start && this.m_is_game_active) {
             this.m_is_mouse_press = true;
     
-            const c = click_coordinates(this.m_scene_canvas, event);
+            const c = cursor_coordinates(this.m_scene_canvas, event);
             const c_world = this.point_to_world(c[0], c[1]);
             const is_defined = this.m_scene.click_position(this.m_module, this.m_game_ptr, c_world[0], c_world[1], true);
             // also call click method from the client implementation
@@ -260,6 +271,10 @@ export abstract class ClientBase {
                     this.m_map.scale_up();
                 } else if(key == "-") {
                     this.m_map.scale_down();
+                } else if (key == " ") {
+                    const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
+                    const c_world = this.point_to_world(c[0], c[1]);
+                    this.m_module.game_client_shift(this.m_game_ptr, c_world[0], c_world[1]);
                 }
             }
         }
@@ -271,7 +286,7 @@ export abstract class ClientBase {
             // in non-active tab the delta time is nearly 2 seconds
             // it's too big value for correct behaviour
             if(this.m_is_mouse_press && this.m_mouse_event && this.m_scene_canvas) {
-                const c = click_coordinates(this.m_scene_canvas, this.m_mouse_event);
+                const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
                 const c_world = this.point_to_world(c[0], c[1]);
                 this.m_scene.click_position(this.m_module, this.m_game_ptr, c_world[0], c_world[1]);
             }
@@ -290,6 +305,7 @@ export abstract class ClientBase {
                 this.m_module.game_update(this.m_game_ptr, dt);
             }
 
+            this.m_scene.get_cooldawns().update(dt);
             this.m_scene.get_click_cursor().update(dt);
 
             this.m_ui.update(dt);
@@ -354,16 +370,10 @@ export abstract class ClientBase {
         this.scene_tile_create(pos_x, pos_y, index, type);
     }
 
-    create_player(radius: number) {
+    create_player(id: number, radius: number) {
+        this.m_scene.set_player_id(id);
         this.m_scene.set_player_radius(radius);
         this.scene_create_player(radius);
-    }
-
-    define_player_changes(pos_x: number, pos_y: number, angle: number, is_move: boolean) {
-        this.m_scene.set_player_position(pos_x, pos_y);
-        this.m_scene.set_player_angle(angle);
-        this.m_scene.set_player_move(is_move);
-        this.scene_define_player_changes(pos_x, pos_y, angle, is_move);
     }
 
     create_monster(entity: number, radius: number) {
@@ -371,11 +381,16 @@ export abstract class ClientBase {
         this.scene_create_monster(entity, radius);
     }
 
-    define_monster_changes(entity: number, pos_x: number, pos_y: number, angle: number, is_move: boolean) {
-        this.m_scene.set_monster_position(entity, pos_x, pos_y);
-        this.m_scene.set_monster_angle(entity, angle);
-        this.m_scene.set_monster_move(entity, is_move);
-        this.scene_define_monster_changes(entity, pos_x, pos_y, angle, is_move);
+    define_entity_changes(entity: number, pos_x: number, pos_y: number, angle: number, move_status: number) {
+        this.m_scene.set_entity_position(entity, pos_x, pos_y);
+        this.m_scene.set_entity_angle(entity, angle);
+        this.m_scene.set_entity_move(entity, move_status);
+
+        if (this.m_scene.is_player(entity)) {
+            this.scene_define_player_changes(pos_x, pos_y, angle, move_status);
+        } else {
+            this.scene_define_entity_changes(entity, pos_x, pos_y, angle, move_status);
+        }
     }
 
     remove_monster(entity: number) {
@@ -385,6 +400,19 @@ export abstract class ClientBase {
 
     define_total_update_entities(count: number) {
         this.m_total_level_entities = count;
+    }
+
+    entity_start_action(entity: number, action_id: number) {
+        this.scene_entity_start_action(entity, action_id);
+    }
+
+    entity_finish_action(entity: number, action_id: number) {
+        this.scene_entity_finish_action(entity, action_id);
+    }
+
+    entity_start_cooldawn(entity: number, cooldawn_id: number, cooldawn_time: number) {
+        this.m_scene.get_cooldawns().start_cooldawn(entity, cooldawn_id, cooldawn_time);
+        this.scene_entity_start_cooldawn(entity, cooldawn_id, cooldawn_time);
     }
 
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {

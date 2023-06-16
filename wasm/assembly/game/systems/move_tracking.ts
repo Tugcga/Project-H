@@ -1,13 +1,14 @@
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { direction_to_angle } from "../utilities";
-import { EPSILON, ACTOR } from "../constants";
+import { EPSILON, ACTOR, STATE } from "../constants";
 
 import { PreviousPositionComponent } from "../components/previous_position";
 import { PositionComponent } from "../components/position";
-import { MoveTagComponent } from "../components/tags";
+import { MoveTagComponent } from "../components/move";
 import { TargetAngleComponent } from "../components/target_angle";
 import { UpdateToClientComponent } from "../components/update_to_client";
+import { StateComponent } from "../components/state";
 
 // this system track current and previous positions
 // if these values different, then set move tag to true
@@ -23,10 +24,11 @@ export class MoveTrackingSystem extends System {
             const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
             const move: MoveTagComponent | null = this.get_component<MoveTagComponent>(entity);
             const target: TargetAngleComponent | null = this.get_component<TargetAngleComponent>(entity);
+            const state: StateComponent | null = this.get_component<StateComponent>(entity);
             const should_update: UpdateToClientComponent | null = this.get_component<UpdateToClientComponent>(entity);
 
-            if (prev_position && position && move && target && should_update) {
-                const prev_move = move.value();
+            if (prev_position && position && move && target && should_update && state) {
+                const prev_move = move.status();
                 const prev_x = prev_position.x();
                 const prev_y = prev_position.y();
 
@@ -39,7 +41,14 @@ export class MoveTrackingSystem extends System {
                 const dir_length = <f32>Math.sqrt(dir_x * dir_x + dir_y * dir_y);
 
                 if (dir_length > EPSILON) {
-                    move.set_value(true);
+                    // entity can move or shift
+                    // check it
+                    const state_value = state.state();
+                    if (state_value == STATE.SHIFTING) {
+                        move.set_shift();
+                    } else {
+                        move.set_walk();
+                    }
 
                     // normalize direction vector
                     dir_x /= dir_length;
@@ -53,10 +62,10 @@ export class MoveTrackingSystem extends System {
 
                 } else {
                     // positions are the same, nothing to do
-                    move.set_value(false);
+                    move.set_none();
                 }
 
-                const current_move = move.value();
+                const current_move = move.status();
                 if (current_move != prev_move) {
                     should_update.set_value(true);
                 }

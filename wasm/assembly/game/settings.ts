@@ -17,6 +17,7 @@ export class DebugSettings {
 export class EngineSettings {
     snap_to_navmesh: bool = true;
     use_rvo: bool = true;
+    velocity_boundary_control: bool = true;
 
     set_snap_to_navmesh(in_value: bool): void {
         this.snap_to_navmesh = in_value;
@@ -24,6 +25,10 @@ export class EngineSettings {
 
     set_use_rvo(in_value: bool): void {
         this.use_rvo = in_value;
+    }
+
+    set_velocity_boundary_control(in_value: bool):void {
+        this.velocity_boundary_control = in_value;
     }
 }
 
@@ -43,6 +48,9 @@ export class ConstantsSettings {
     monster_iddle_time: Array<f32> = [1.0, 5.0];  // in seconds
     monsters_per_room: Array<i32> = [3, 7];
     path_recalculate_time: f32 = 1.0;  // in seconds, after this time we should calculate the path to the target point
+    player_shift_speed_multiplier: f32 = 5.0;
+    player_shift_distance: f32 = 2.0;
+    player_shift_cooldawn: f32 = 0.5;
 
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;
@@ -54,6 +62,12 @@ export class ConstantsSettings {
 
     set_path_recalculate_time(in_value: f32): void {
         this.path_recalculate_time = in_value;
+    }
+
+    set_player_shift(in_multiplier: f32, in_distance: f32, in_cooldawn: f32): void {
+        this.player_shift_speed_multiplier = in_multiplier;
+        this.player_shift_distance = in_distance;
+        this.player_shift_cooldawn = in_cooldawn;
     }
 }
 

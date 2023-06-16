@@ -1,10 +1,11 @@
 import { ClickCursor } from "../scene/click_cursor";
-import { CLICK_CURSOR_RADIUS, CLICK_CURSOR_TIME } from "../constants";
+import { CLICK_CURSOR_RADIUS, CLICK_CURSOR_TIME, COOLDAWN, MOVE_STATUS } from "../constants";
 import { SceneTile } from "../scene/scene_tile";
 import { Transform } from "../transform";
-import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBORHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR } from "./visual_styles";
+import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBORHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR } from "./visual_styles";
 import { Person } from "../scene/person";
 import { Player } from "../scene/player";
+import { Monster } from "../scene/monster";
 
 export function draw_background(draw_ctx: CanvasRenderingContext2D, width: number, height: number) {
     draw_ctx.save();
@@ -112,14 +113,18 @@ export function draw_level_tile(draw_ctx: CanvasRenderingContext2D,
 function draw_person(draw_ctx: CanvasRenderingContext2D, 
                      wtc_tfm: Transform, 
                      person: Person,
+                     cooldawns: Map<COOLDAWN, [number, number]>,
                      stroke_width: number,
-                     move_color: string,
+                     walk_color: string,
                      iddle_color: string,
+                     shift_color: string,
                      stroke_color: string,
                      is_stroke: boolean) {
     draw_ctx.save();
     draw_ctx.lineWidth = stroke_width;
-    draw_ctx.fillStyle = person.get_move() ? move_color : iddle_color;
+    draw_ctx.fillStyle = person.get_move() == MOVE_STATUS.NONE ? iddle_color : 
+                         (person.get_move() == MOVE_STATUS.WALK ? walk_color : 
+                         (shift_color));
     draw_ctx.strokeStyle = stroke_color;
     draw_ctx.beginPath();
     // constuct transform from local to canvas
@@ -140,32 +145,51 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
         draw_ctx.stroke();
     }
     draw_ctx.restore();
+
+    // draw cooldawns
+    for (let [cooldawn, times] of cooldawns) {
+        draw_ctx.save();
+        // for now use only one color/size, because there are no other colldawns
+        // but in general case we should get proper style with respect to the key cooldawn
+        draw_ctx.lineWidth = COOLDAWN_SHIFT_WIDTH;
+        draw_ctx.strokeStyle = COOLDAWN_SHIFT_COLOR;
+        draw_ctx.beginPath();
+        draw_ctx.arc(c_center[0], c_center[1], COOLDAWN_SHIFT_RADIUS, a, 2.0 * Math.PI * (1.0 - times[1] / times[0]) + a);
+        draw_ctx.stroke();
+        draw_ctx.restore();
+    }
 }
 
 export function draw_player(draw_ctx: CanvasRenderingContext2D, 
                             wtc_tfm: Transform, 
-                            player: Player) {
+                            player: Player,
+                            cooldawns: Map<COOLDAWN, [number, number]>,) {
     
     draw_person(draw_ctx,
         wtc_tfm,
         player,
+        cooldawns,
         PLAYER_STROKE_WIDTH,
         PLAYER_MOVE_COLOR,
         PLAYER_IDLE_COLOR,
+        PLAYER_SHIFT_COLOR,
         PLAYER_STROKE_COLOR,
         PLAYER_IS_STROKE);
 }
 
 export function draw_monster(draw_ctx: CanvasRenderingContext2D, 
                              wtc_tfm: Transform, 
-                             player: Player) {
+                             monster: Monster,
+                             cooldawns: Map<COOLDAWN, [number, number]>,) {
     
     draw_person(draw_ctx,
         wtc_tfm,
-        player,
+        monster,
+        cooldawns,
         MONSTER_STROKE_WIDTH,
         MONSTER_MOVE_COLOR,
         MONSTER_IDLE_COLOR,
+        MONSTER_SHIFT_COLOR,
         MONSTER_STROKE_COLOR,
         MONSTER_IS_STROKE);
 }

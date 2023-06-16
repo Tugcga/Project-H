@@ -8,7 +8,6 @@ import { VisibleQuadGridNeighborhoodComponent } from "../components/visible_quad
 import { AngleComponent } from "../components/angle";
 import { RadiusComponent } from "../components/radius";
 import { PositionComponent } from "../components/position";
-import { MoveTagComponent } from "../components/tags";
 import { UpdateToClientComponent } from "../components/update_to_client";
 
 import { external_remove_monster,

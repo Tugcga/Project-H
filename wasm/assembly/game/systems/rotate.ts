@@ -1,11 +1,11 @@
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
-import { EPSILON, ACTOR } from "../constants";
+import { EPSILON, ACTOR, MOVE_STATUS } from "../constants";
 
 import { AngleComponent } from "../components/angle";
 import { TargetAngleComponent } from "../components/target_angle";
 import { RotationSpeedComponent } from "../components/rotation_speed";
-import { MoveTagComponent } from "../components/tags";
+import { MoveTagComponent } from "../components/move";
 import { UpdateToClientComponent } from "../components/update_to_client";
 
 export class RotateSystem extends System {
@@ -21,7 +21,7 @@ export class RotateSystem extends System {
             const should_update: UpdateToClientComponent | null = this.get_component<UpdateToClientComponent>(entity);
 
             if (move && angle && target_angle && speed && should_update) {
-                if (move.value()) {
+                if (move.status() == MOVE_STATUS.WALK) {
                     // item is moving, so, we should rotate the angle to snap with target angle
                     const a = angle.value();  // curent angle
                     const ta = target_angle.value();  // target angle

@@ -76,9 +76,9 @@ export class WalkToPointSystem extends System {
                     }
 
                     // calculate next point
-                    const s: f32 = speed.value();
-                    const new_x: f32 = current_x + dir_x * dt * s;
-                    const new_y: f32 = current_y + dir_y * dt * s;
+                    const speed_value: f32 = speed.value();
+                    const new_x: f32 = current_x + dir_x * dt * speed_value;
+                    const new_y: f32 = current_y + dir_y * dt * speed_value;
 
                     // check, may be we overjump target point
                     const new_dir_x = target_x - new_x;
@@ -93,7 +93,6 @@ export class WalkToPointSystem extends System {
                         switch_to_next = true;
                     }
 
-                    const speed_value = speed.value();
                     if (switch_to_next) {
                         walk_to_point.increate_target_index();
                         // set velocity to step excectly to the target point

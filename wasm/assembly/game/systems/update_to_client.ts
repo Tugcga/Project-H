@@ -7,11 +7,10 @@ import { PositionComponent } from "../components/position";
 import { AngleComponent } from "../components/angle";
 import { ActorTypeComponent } from "../components/actor_type";
 import { UpdateToClientComponent } from "../components/update_to_client";
-import { MoveTagComponent } from "../components/tags";
+import { MoveTagComponent } from "../components/move";
 import { VisibleQuadGridNeighborhoodComponent } from "../components/visible_quad_grid_neighborhood";
 
-import { external_define_player_changes,
-         external_define_monster_changes,
+import { external_define_entity_changes,
          external_define_total_update_entities } from "../../external";
 
 // we should init this system by define player entity value
@@ -55,23 +54,13 @@ export class UpdateToClientSystem extends System {
                         const should_update_value = should_update.value();
                         const actor_type_value = actor_type.type();
                         if (should_update_value) {
-                            if (actor_type_value == ACTOR.PLAYER) {
+                            if (actor_type_value == ACTOR.PLAYER || (actor_type_value == ACTOR.MONSTER) && is_ordered_list_contains(visible_entities, entity)) {
                                 const move: MoveTagComponent | null = this.get_component<MoveTagComponent>(entity);
                                 const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
                                 const angle: AngleComponent | null = this.get_component<AngleComponent>(entity);
 
                                 if (move && position && angle) {
-                                    external_define_player_changes(position.x(), position.y(), angle.value(), move.value());
-                                }
-                            } else if (actor_type_value == ACTOR.MONSTER) {
-                                if (is_ordered_list_contains(visible_entities, entity)) {
-                                    const move: MoveTagComponent | null = this.get_component<MoveTagComponent>(entity);
-                                    const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
-                                    const angle: AngleComponent | null = this.get_component<AngleComponent>(entity);
-
-                                    if (move && position && angle) {
-                                        external_define_monster_changes(entity, position.x(), position.y(), angle.value(), move.value());
-                                    }
+                                    external_define_entity_changes(entity, position.x(), position.y(), angle.value(), move.status());
                                 }
                             }
 

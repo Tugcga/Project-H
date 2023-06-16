@@ -3,12 +3,14 @@ export const PLAYER_STROKE_WIDTH = 1.0;
 export const PLAYER_STROKE_COLOR = "rgb(74, 193, 33)";
 export const PLAYER_IDLE_COLOR = "rgba(91, 128, 78, 0.75)";
 export const PLAYER_MOVE_COLOR = "rgba(91, 128, 78, 0.5)";
+export const PLAYER_SHIFT_COLOR = "rgba(91, 128, 78, 0.25)";
 
 export const MONSTER_IS_STROKE = false;
 export const MONSTER_STROKE_WIDTH = 1.0;
 export const MONSTER_STROKE_COLOR = "rgb(226, 55, 27)";
 export const MONSTER_IDLE_COLOR = "rgba(196, 94, 45, 0.75)";
 export const MONSTER_MOVE_COLOR = "rgba(196, 94, 45, 0.5)";
+export const MONSTER_SHIFT_COLOR = "rgba(196, 94, 45, 0.25)";
 
 export const TILE_IS_STROKE = true;
 export const TILE_STROKE_WIDTH = 0.2;
@@ -34,3 +36,8 @@ export const DEBUG_CLOSEST_PAIR_WIDTH = 1.0;
 export const DEBUG_RECT_LINE_WIDTH = 1.0;
 export const DEBUG_VISIBILITY_RECT_COLOR = "rgb(111, 156, 227)";
 export const DEBUG_NEIGHBORHOOD_RECT_COLOR = "rgb(134, 227, 111)";
+
+// each cooldawn drawn as circle arc
+export const COOLDAWN_SHIFT_COLOR = "rgba(255, 255, 255, 0.25)";
+export const COOLDAWN_SHIFT_WIDTH = 2.0;
+export const COOLDAWN_SHIFT_RADIUS = 6.0;

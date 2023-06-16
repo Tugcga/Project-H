@@ -52,9 +52,19 @@ export function settings_set_snap_to_navmesh(settings: Settings, in_value: boole
     engine.set_snap_to_navmesh(in_value);
 }
 
+export function settings_set_velocity_boundary_control(settings: Settings, in_value: boolean): void {
+    const engine = settings.get_engine();
+    engine.set_velocity_boundary_control(in_value);
+}
+
 export function settings_set_path_recalculate_time(settings: Settings, in_value: f32): void {
     const constants = settings.get_constants();
     constants.set_path_recalculate_time(in_value);
+}
+
+export function settings_set_player_fast_shift(settings: Settings, speed_multiplier: f32, distance: f32, cooldawn: f32): void {
+    const constants = settings.get_constants();
+    constants.set_player_shift(speed_multiplier, distance, cooldawn);
 }
 
 export function create_game(settings: Settings): Game {
@@ -67,6 +77,10 @@ export function game_update(game: Game, dt: f32): void {
 
 export function game_client_point(game: Game, in_x: f32, in_y: f32): boolean {
     return game.client_point(in_x, in_y);
+}
+
+export function game_client_shift(game: Game, cursor_x: f32, cursor_y: f32): void {
+    game.player_shift(cursor_x, cursor_y);
 }
 
 export function game_add_monsters(game: Game): void {

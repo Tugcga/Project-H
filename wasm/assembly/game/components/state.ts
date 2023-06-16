@@ -20,8 +20,8 @@ export class StateComponent {
             return "walk to point";
         } else if (this.m_state == STATE.WALK_TO_TARGET) {
             return "walk to target";
-        } else if (this.m_state == STATE.ROLLING) {
-            return "rolling";
+        } else if (this.m_state == STATE.SHIFTING) {
+            return "faset shifting";
         } else if (this.m_state == STATE.CASTING) {
             return "casting";
         } else if (this.m_state == STATE.STAN) {
@@ -139,4 +139,24 @@ export class StateWalkToPointComponent {
         this.m_target_index = 0;
         this.m_points_count = 0;
     }
+}
+
+// data for state - fast shift
+// it should store only target point, which calculated by shift distance
+export class StateShiftComponent {
+    private m_target_x: f32;
+    private m_target_y: f32;
+    private m_active: bool;
+
+    constructor(in_target_x: f32, in_target_y: f32) {
+        this.m_target_x = in_target_x;
+        this.m_target_y = in_target_y;
+        this.m_active = true;
+    }
+
+    target_x(): f32 { return this.m_target_x; }
+    target_y(): f32 { return this.m_target_y; }
+    active(): bool { return this.m_active; }
+
+    deactivate(): void { this.m_active = false; }
 }

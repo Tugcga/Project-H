@@ -1,5 +1,5 @@
 import { ClientBase } from "../client_base";
-import { CAMERA_LERP_COEFFICIENT, TILE_PIXELS_SIZE } from "../constants";
+import { ACTION, CAMERA_LERP_COEFFICIENT, COOLDAWN, MOVE_STATUS, TILE_PIXELS_SIZE } from "../constants";
 import { TILE_NONWALKABLE_COLOR } from "./visual_styles";
 import { draw_background, draw_cursor, draw_level_tile, draw_monster, draw_neighborhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
 
@@ -49,7 +49,7 @@ export class ClientDataCanvas extends ClientBase {
     scene_create_player(radius: number): void { }
     mouse_click(inc_x: number, inc_y: number, inw_x: number, inw_y: number): void { }
     // when define player position, we should update camera to output shapes to the canvas
-    scene_define_player_changes(pos_x: number, pos_y: number, angle: number, is_move: boolean): void { 
+    scene_define_player_changes(pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void { 
         // update wtc transform
         this.m_camera_position_x = CAMERA_LERP_COEFFICIENT * pos_x + (1 - CAMERA_LERP_COEFFICIENT) * this.m_camera_position_x;
         this.m_camera_position_y = CAMERA_LERP_COEFFICIENT * pos_y + (1 - CAMERA_LERP_COEFFICIENT) * this.m_camera_position_y;
@@ -57,8 +57,11 @@ export class ClientDataCanvas extends ClientBase {
         this.m_wtc_tfm.set_translation(this.m_canvas_width / 2 - this.m_camera_position_x * this.m_wtc_scale, this.m_canvas_height / 2 - this.m_camera_position_y * this.m_wtc_scale);
     }
     scene_create_monster(entity: number, radius: number): void { }
-    scene_define_monster_changes(entity: number, pos_x: number, pos_y: number, angle: number, is_move: boolean): void { }
+    scene_define_entity_changes(entity: number, pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void { }
     scene_remove_monster(entity: number): void {}
+    scene_entity_start_action(entity: number, action_id: ACTION): void {}
+    scene_entity_finish_action(entity: number, action_id: ACTION): void {}
+    scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void {}
 
     debug_entity_trajectory(entity: number, coordinates: Float32Array): void {
         // store coordinates in temporary map
@@ -122,12 +125,12 @@ export class ClientDataCanvas extends ClientBase {
 
         // player
         const player = this.m_scene.get_player();
-        draw_player(this.m_scene_ctx, this.m_wtc_tfm, player);
+        draw_player(this.m_scene_ctx, this.m_wtc_tfm, player, this.m_scene.get_person_cooldawns(player.get_id()));
 
         // monsters
         const monsters = this.m_scene.get_monsters();
         for(let [entity, monster] of monsters) {
-            draw_monster(this.m_scene_ctx, this.m_wtc_tfm, monster);
+            draw_monster(this.m_scene_ctx, this.m_wtc_tfm, monster, this.m_scene.get_person_cooldawns(monster.get_id()));
         }
 
         // draw debug trajectories

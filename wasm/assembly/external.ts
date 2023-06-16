@@ -16,10 +16,7 @@ declare function tile_delete(index: u32): void;
 declare function tile_create(x: u32, y: u32, index: u32, type: u32): void;
 
 @external("env", "host.create_player")
-declare function create_player(radius: f32): void;
-
-@external("env", "host.define_player_changes")
-declare function define_player_changes(pos_x: f32, pos_y: f32, angle: f32, is_move: bool): void;
+declare function create_player(entity: u32, radius: f32): void;
 
 @external("env", "host.remove_monster")
 declare function remove_monster(entity: u32): void;
@@ -27,11 +24,20 @@ declare function remove_monster(entity: u32): void;
 @external("env", "host.create_monster")
 declare function create_monster(entity: u32, radius: f32): void;
 
-@external("env", "host.define_monster_changes")
-declare function define_monster_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32, is_move: bool): void;
+@external("env", "host.define_entity_changes")
+declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32, move_status: u32): void;
 
 @external("env", "host.define_total_update_entities")
 declare function define_total_update_entities(count: u32): void;
+
+@external("env", "host.entity_start_action")
+declare function entity_start_action(entity: u32, action_id: u32): void;
+
+@external("env", "host.entity_finish_action")
+declare function entity_finish_action(entity: u32, action_id: u32): void;
+
+@external("env", "host.entity_start_cooldawn")
+declare function entity_start_cooldawn(entity: u32, cooldawn_id: u32, cooldawn_time: f32): void;
 
 @external("env", "host.debug_entity_walk_path")
 declare function debug_entity_walk_path(entity: u32, points: StaticArray<f32>): void;
@@ -86,19 +92,11 @@ export function external_tile_create(x: u32, y: u32, index: u32, type: u32): voi
     }
 }
 
-export function external_create_player(radius: f32): void {
+export function external_create_player(entity: u32, radius: f32): void {
     if(use_external) {
-        create_player(radius);
+        create_player(entity, radius);
     } else {
-        console.log("ext -> create_player: " + radius.toString());
-    }
-}
-
-export function external_define_player_changes(pos_x: f32, pos_y: f32, angle: f32, is_move: bool): void {
-    if(use_external) {
-        define_player_changes(pos_x, pos_y, angle, is_move);
-    } else {
-        console.log("ext -> define_player_changes: " + pos_x.toString() + " " + pos_y.toString() + " " + angle.toString() + " " + is_move.toString());
+        console.log("ext -> create_player: " + entity.toString() + " " + radius.toString());
     }
 }
 
@@ -118,11 +116,11 @@ export function external_create_monster(entity: u32, radius: f32): void {
     }
 }
 
-export function external_define_monster_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32, is_move: bool): void {
+export function external_define_entity_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32, move_status: u32): void {
     if(use_external) {
-        define_monster_changes(entity, pos_x, pos_y, angle, is_move);
+        define_entity_changes(entity, pos_x, pos_y, angle, move_status);
     } else {
-        console.log("ext -> define_monster_changes: " + entity.toString() + " " + pos_x.toString() + " " + pos_y.toString() + " " + angle.toString() + " " + is_move.toString());
+        console.log("ext -> define_entity_changes: " + entity.toString() + " " + pos_x.toString() + " " + pos_y.toString() + " " + angle.toString() + " " + move_status.toString());
     }
 }
 
@@ -131,6 +129,30 @@ export function external_define_total_update_entities(count: u32): void {
         define_total_update_entities(count);
     } else {
         console.log("ext -> define_total_update_entities: " + count.toString());
+    }
+}
+
+export function external_entity_start_action(entity: u32, action_id: u32): void {
+    if(use_external) {
+        entity_start_action(entity, action_id);
+    } else {
+        console.log("ext -> entity_start_action: " + entity.toString() + " " + action_id.toString());
+    }
+}
+
+export function external_entity_finish_action(entity: u32, action_id: u32): void {
+    if(use_external) {
+        entity_finish_action(entity, action_id);
+    } else {
+        console.log("ext -> entity_finish_action: " + entity.toString() + " " + action_id.toString());
+    }
+}
+
+export function external_entity_start_cooldawn(entity: u32, cooldawn_id: u32, cooldawn_time: f32): void {
+    if(use_external) {
+        entity_start_cooldawn(entity, cooldawn_id, cooldawn_time);
+    } else {
+        console.log("ext -> entity_start_cooldawn: " + entity.toString() + " " + cooldawn_id.toString() + " " + cooldawn_time.toString());
     }
 }
 

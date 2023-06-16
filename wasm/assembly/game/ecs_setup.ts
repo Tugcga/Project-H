@@ -4,7 +4,9 @@ import { Navmesh } from "../pathfinder/navmesh/navmesh";
 import { PseudoRandom } from "../promethean/pseudo_random";
 import { Level } from "../promethean/level";
 
-import { STATE, ACTOR } from "./constants";
+import { STATE, ACTOR, ACTION, EPSILON } from "./constants";
+
+import { get_navmesh_path, direction_to_angle } from "./utilities";
 
 // import components
 import { AngleComponent } from "./components/angle";
@@ -17,18 +19,24 @@ import { VisibleQuadGridNeighborhoodComponent } from "./components/visible_quad_
 import { RadiusComponent } from "./components/radius";
 import { RotationSpeedComponent } from "./components/rotation_speed";
 import { SpeedComponent } from "./components/speed";
-import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent } from "./components/state";
-import { PlayerComponent, MonsterComponent, MoveTagComponent } from "./components/tags";
+import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent } from "./components/state";
+import { PlayerComponent, MonsterComponent } from "./components/tags";
 import { TargetAngleComponent } from "./components/target_angle";
 import { TilePositionComponent } from "./components/tile_position";
 import { VelocityComponent } from "./components/velocity";
 import { PreferredVelocityComponent } from "./components/preferred_velocity";
 import { ActorTypeComponent } from "./components/actor_type"
 import { NeighborhoodQuadGridIndexComponent } from "./components/neighborhood_quad_grid_index";
+import { BuffShiftCooldawnComponent } from "./components/buffs";
+import { ShiftSpeedMultiplierComponent } from "./components/shift_speed";
+import { ShiftDistanceComponent } from "./components/shift_distance";
+import { ShiftCooldawnComponent } from "./components/shift_cooldawn";
+import { MoveTagComponent } from "./components/move";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
 import { WalkToPointSystem } from "./systems/walk_to_point";
+import { ShiftSystem } from "./systems/shift";
 import { PositionToTileSystem } from "./systems/position_to_tile";
 import { VisibleQuadGridNeighborhoodSystem } from "./systems/visible_quad_grid_neighborhood";
 import { VisibleQuadGridTrackingSystem } from "./systems/visible_quad_grid_tracking";
@@ -39,10 +47,13 @@ import { PrefToVelocitySystem } from "./systems/pref_velocity";
 import { PostVelocitySystem } from "./systems/post_velocity";
 import { MoveSystem } from "./systems/move";
 import { ResetVelocitySystem } from "./systems/reset_velocity";
-import { WalkToPointSwitchSystem, IddleWaitSwitchSystem } from "./systems/state_switch";
+import { WalkToPointSwitchSystem, ShiftSwitchSystem, IddleWaitSwitchSystem } from "./systems/state_switch";
 import { UpdateToClientComponent } from "./components/update_to_client";
 import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
+import { BuffTimerShiftCooldawnSystem } from "./systems/buff_timer";
+
+import { external_entity_start_action } from "../external";
 
 import { DebugSettings, EngineSettings } from "./settings";
 
@@ -73,6 +84,7 @@ export function setup_components(ecs: ECS): void {
     //               UpdateToClientSystem (update data on cleint about the entity)
     //               UpdateDebugSystem (for debugging close positions)
     // write systems: MoveSystem (make actual move)
+    //                ShiftSystem (move at shift action)
     // comment: define the spatial position of the entity in the level
     ecs.register_component<PositionComponent>();
 
@@ -107,6 +119,7 @@ export function setup_components(ecs: ECS): void {
     // assigned: player, mosnters
     // read systems: WalkToPointSystem (to calculate preffered velocity)
     //               RVOSystem (for the algorithm)
+    //               ShiftSystem
     // write systems: - the value of the component never changed
     // comment: data component with move speed of the entity
     ecs.register_component<SpeedComponent>();
@@ -134,7 +147,7 @@ export function setup_components(ecs: ECS): void {
     //               RotateSystem (the rotation can happens only when the entity is moved)
     // write systems: MoveTrackingSystem (if the entity is moved, than activate the tag)
     // comment: not acutal tag
-    // contains true/false data for moved or non-moved entity
+    // contains current move status (none, walk, etc.)
     ecs.register_component<MoveTagComponent>();
 
     // assigned: player, monster
@@ -163,8 +176,10 @@ export function setup_components(ecs: ECS): void {
 
     // assigned: player (start with IDDLE state), monsters (start with IDDLE_WAIT state)
     // read systems: UpdateDebugSystem (for debug only, so, does not required in system registers)
+    //               MoveTrackingSystem (to define how the entity is moved)
     // write systems: IddleWaitSwitchSystem (change state when it should switch to other)
     //                WalkToPointSwitchSystem
+    //                ShiftSwitchSystem
     // comment: store the action state of the entity
     // this component never delete from the entity
     // if the state is not IDDLE, then the entity should contains additional component what describe the properties of the selected state
@@ -187,6 +202,14 @@ export function setup_components(ecs: ECS): void {
     // contains trajectory (the path) for move entites to the destination point
     ecs.register_component<StateWalkToPointComponent>();
 
+    // assigned: player (and may be monsters, if it can use this skill)
+    // read systems: ShiftSystem (to get target point in the move process)
+    //               ShiftSwitchSystem
+    // write systems: - (contains only data)
+    // comment: add this component when switch the state to fast shift
+    // store speed multiplier and calculated target position
+    ecs.register_component<StateShiftComponent>();
+
     // assigned: player, monsters
     // read systems: PostVelocitySystem (read and write to modify)
     //               MoveSystem (use velocity for actual move of the entity)
@@ -200,6 +223,7 @@ export function setup_components(ecs: ECS): void {
     // read systems: RVOSystem (get velocity for the algorithm) or PrefToVelocitySystem (iof RVO disabled)
     // write systems: ResetVelocitySystem (at start clear preferred velocity vector)
     //                WalkToPointSystem (define preferred velocity to the walk target)
+    //                ShiftSystem
     // comment: target velocity of the entity
     // used as orientir for velocity in RVOSystem
     // this value does not used directly for moving
@@ -207,7 +231,9 @@ export function setup_components(ecs: ECS): void {
 
     // assigned: player, monster
     // read systems: RVOSystem (for player we should not apply rvo), 
-    //               IddleWaitSwitchSystem, WalkToPointSwitchSystem (for player and monster we should apply different strategise for state switches), 
+    //               IddleWaitSwitchSystem,
+    //               WalkToPointSwitchSystem (for player and monster we should apply different strategise for state switches), 
+    //               ShiftSwitchSystem
     //               UpdateToClientSystem (to call different method to update data for player or monsters)
     //               UpdateDebugSystem
     // write systems: -, the data assigned at create time and does not changed during the game
@@ -233,6 +259,30 @@ export function setup_components(ecs: ECS): void {
     // but use smaller chunk size
     // used to tracking the quad index of each entity (from it position)
     ecs.register_component<NeighborhoodQuadGridIndexComponent>();
+
+    // assigned: player (and may be monsers)
+    // read systems: BuffTimerShiftCooldawnSystem (update value in the component), also used in ShiftSwitchSystem (to start cooldawn after action)
+    // write systems: BuffTimerShiftCooldawnSystem
+    // comment: add to the entity when it switch the state from fast shift to something different
+    ecs.register_component<BuffShiftCooldawnComponent>();
+
+    // assigned: player (and may be monsters)
+    // read systems: ShiftSystem (to define actual speed, it calculated as general entity speed multiply to the value in the component)
+    // write systems: -
+    // comment: data component, used in fast shift state
+    ecs.register_component<ShiftSpeedMultiplierComponent>();
+
+    // assigned: player (and may be monsters)
+    // read systems: - (used only when the entity command to stat fast shift action)
+    // write systems: -
+    // comment: data component, define fast shift action property
+    ecs.register_component<ShiftDistanceComponent>();
+
+    // assigned: player (and may be monsters)
+    // read systems: ShiftSwitchSystem (used for apply cooldawn buff, when it needs)
+    // write systems: -
+    // comment: data component, define fast shift action propery
+    ecs.register_component<ShiftCooldawnComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -263,6 +313,15 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<WalkToPointSystem, StateWalkToPointComponent>();
     ecs.set_system_with_component<WalkToPointSystem, PreferredVelocityComponent>();
 
+    // alternative to walk to point system
+    // calculate the proper velocity (in fact preferred velocity) for entities in the fast shift action state
+    ecs.register_system<ShiftSystem>(new ShiftSystem());
+    ecs.set_system_with_component<ShiftSystem, PositionComponent>();
+    ecs.set_system_with_component<ShiftSystem, StateShiftComponent>();
+    ecs.set_system_with_component<ShiftSystem, SpeedComponent>();
+    ecs.set_system_with_component<ShiftSystem, ShiftSpeedMultiplierComponent>();
+    ecs.set_system_with_component<ShiftSystem, PreferredVelocityComponent>();
+
     // calculate quad index (used for neigborhoods) from the position of the player and monsters
     // store it in the component
     // if the index is changed, then move entity index in the inner array of the system, whcich tracking all changes and store actual indices
@@ -287,8 +346,13 @@ export function setup_systems(ecs: ECS,
         ecs.set_system_with_component<PrefToVelocitySystem, VelocityComponent>();
     }
 
-    ecs.register_system<PostVelocitySystem>(new PostVelocitySystem(navmesh));
-    ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
+    // we does not need this without active rvo
+    // because velocity modified only by rvo
+    // in all other cases the agents walk along navmesh path
+    if (engine_settings.velocity_boundary_control) {
+        ecs.register_system<PostVelocitySystem>(new PostVelocitySystem(navmesh));
+        ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
+    }
 
     // move entities by using calculated velocities and curent positions
     // navmesh used for snapping to the walkable area
@@ -312,6 +376,15 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<WalkToPointSwitchSystem, StateComponent>();
     ecs.set_system_with_component<WalkToPointSwitchSystem, ActorTypeComponent>();
 
+    // controll when the action shift is over and change the entity state to iddle
+    // for player to simple iddle
+    // for monster to wait iddle (and that's why we need random and iddle times)
+    ecs.register_system<ShiftSwitchSystem>(new ShiftSwitchSystem(random, monster_iddle_time));
+    ecs.set_system_with_component<ShiftSwitchSystem, StateComponent>();
+    ecs.set_system_with_component<ShiftSwitchSystem, StateShiftComponent>();
+    ecs.set_system_with_component<ShiftSwitchSystem, ShiftCooldawnComponent>();
+    ecs.set_system_with_component<ShiftSwitchSystem, ActorTypeComponent>();
+
     // calculate tile index for the current player position
     // also find new, current and old tiles
     // send external call to the client
@@ -330,6 +403,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<MoveTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<MoveTrackingSystem, MoveTagComponent>();
     ecs.set_system_with_component<MoveTrackingSystem, TargetAngleComponent>();  // set target angle with respect to prv and current position
+    ecs.set_system_with_component<MoveTrackingSystem, StateComponent>();  // to check how the entity is move
     ecs.set_system_with_component<MoveTrackingSystem, UpdateToClientComponent>();
 
     // rotate (change AngleComponent) if the target angle is different from current angle
@@ -356,6 +430,12 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<VisibleQuadGridNeighborhoodSystem, PositionComponent>();
     ecs.set_system_with_component<VisibleQuadGridNeighborhoodSystem, VisibleQuadGridNeighborhoodComponent>();
 
+    // system for controll the time of the buff, which we assign to the entity after fast shif action
+    // with this buff the new action is not allowed
+    // when the timer is over, the component deleted by this system
+    ecs.register_system<BuffTimerShiftCooldawnSystem>(new BuffTimerShiftCooldawnSystem());
+    ecs.set_system_with_component<BuffTimerShiftCooldawnSystem, BuffShiftCooldawnComponent>();
+
     // update data at client for required entities
     // send some debug data if it is active
     ecs.register_system<UpdateToClientSystem>(new UpdateToClientSystem());
@@ -377,7 +457,10 @@ export function setup_player(ecs: ECS,
                              level: Level, 
                              pos_x: f32, 
                              pos_y: f32, 
-                             speed: f32, 
+                             speed: f32,
+                             shift_speed_multiplier: f32,
+                             shift_distance: f32,
+                             shift_cooldawn: f32,
                              radius: f32, 
                              angle: f32, 
                              rotation_speed: f32, 
@@ -404,6 +487,9 @@ export function setup_player(ecs: ECS,
     ecs.add_component<VisibleQuadGridNeighborhoodComponent>(player_entity, new VisibleQuadGridNeighborhoodComponent());
     ecs.add_component<UpdateToClientComponent>(player_entity, new UpdateToClientComponent());
     ecs.add_component<NeighborhoodQuadGridIndexComponent>(player_entity, new NeighborhoodQuadGridIndexComponent(level_width, neighborhood_quad_size));
+    ecs.add_component<ShiftSpeedMultiplierComponent>(player_entity, new ShiftSpeedMultiplierComponent(shift_speed_multiplier));
+    ecs.add_component<ShiftDistanceComponent>(player_entity, new ShiftDistanceComponent(shift_distance));
+    ecs.add_component<ShiftCooldawnComponent>(player_entity, new ShiftCooldawnComponent(shift_cooldawn));
 
     return player_entity;
 }
@@ -441,4 +527,119 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<NeighborhoodQuadGridIndexComponent>(monster_entity, new NeighborhoodQuadGridIndexComponent(level_width, neighborhood_quad_size));
 
     return monster_entity;
+}
+
+export function command_move_to_point(ecs: ECS, navmehs: Navmesh, entity: Entity, in_x: f32, in_y: f32): boolean {
+    // get state
+    const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
+    if (state) {
+        const state_value = state.state();
+        // for fast shift state we can not assign new target point
+        if (state_value == STATE.IDDLE || state_value == STATE.WALK_TO_POINT || state_value == STATE.WALK_TO_TARGET) {
+            // if the entity do nothing or go to the point or to the target, then reassign new state
+            const position: PositionComponent | null = ecs.get_component<PositionComponent>(entity);
+            if (position) {
+                const path = get_navmesh_path(navmehs, position.x(), position.y(), in_x, in_y);
+                // use simple line-path ↓ for test
+                // const path = StaticArray.fromArray<f32>([position.x(), 0.0, position.y(), in_x, 0.0, in_y]);
+                if (path.length > 0) {
+                    // find valid path
+                    state.set_state(STATE.WALK_TO_POINT);
+                    // in general we shoul remove all state components
+                    // and then assign walk to point state component
+                    // but for now simply check the state
+                    if (state_value == STATE.WALK_TO_POINT) {
+                        const walk_to_point: StateWalkToPointComponent | null = ecs.get_component<StateWalkToPointComponent>(entity);
+                        if (walk_to_point) {
+                            return walk_to_point.define_path(path);
+                        }
+                    } else {
+                        // create new component
+                        const walk_to_point = new StateWalkToPointComponent();
+                        // assign path
+                        const is_define = walk_to_point.define_path(path);
+                        // add this component to the entity
+                        ecs.add_component<StateWalkToPointComponent>(entity, walk_to_point);
+                        return is_define;
+                    }
+                } else {
+                    // path is invalid
+                    return false;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor_x: f32, cursor_y: f32): void {
+    const delta: f32 = 0.1;
+    // chek the sate of the entity
+    const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
+    if (state) {
+        // we can start the shift from any state, except the actual shift
+        const state_value = state.state();
+        if (state_value != STATE.SHIFTING) {
+            // check is the player contains shift cooldawn
+            const shift_cooldawn: BuffShiftCooldawnComponent | null = ecs.get_component<BuffShiftCooldawnComponent>(entity);
+            if (!shift_cooldawn) {
+                // there are no buff in the player
+                // so, we can start the shift
+                // get player angle
+                // we will use it if fails to use the terget (if it close to position)
+                const angle: AngleComponent | null = ecs.get_component<AngleComponent>(entity);
+                const target_angle: TargetAngleComponent | null = ecs.get_component<TargetAngleComponent>(entity);
+                // and current position
+                const position: PositionComponent | null = ecs.get_component<PositionComponent>(entity);
+                const shift_distance: ShiftDistanceComponent | null = ecs.get_component<ShiftDistanceComponent>(entity);
+                if (angle && target_angle && position && shift_distance) {
+                    const pos_x = position.x();
+                    const pos_y = position.y();
+                    const a = angle.value();
+                    let dir_x = Mathf.cos(a);
+                    let dir_y = Mathf.sin(a);
+                    const to_cursor_x = cursor_x - pos_x;
+                    const to_cursor_y = cursor_y - pos_y;
+                    const to_cursor_length = Mathf.sqrt(to_cursor_x*to_cursor_x + to_cursor_y*to_cursor_y);
+                    if (to_cursor_length > EPSILON) {
+                        dir_x = to_cursor_x / to_cursor_length;
+                        dir_y = to_cursor_y / to_cursor_length;
+
+                        // set angle and target angle
+                        const new_a = direction_to_angle(dir_x, dir_y);
+                        // it's question: should we immediately set the angle, or rotate it to target angle
+                        angle.set_value(new_a);
+                        target_angle.set_value(new_a);
+                    }
+
+                    // get distance from settings
+                    const distance = shift_distance.value();
+                    
+                    // calculate target point
+                    const target_x = pos_x + dir_x * distance;
+                    const target_y = pos_y + dir_y * distance;
+
+                    // check is the line from pos to target intersect the navmesh boundary
+                    // use slightly bigger interval
+                    const t = navmesh.intersect_boundary(pos_x - dir_x * delta, pos_y - dir_y * delta, target_x, target_y, true);
+                    const mod_t = ((distance + delta) * t - delta) / distance;
+
+                    // use actual target position defined by mod_t\in [0; 1]
+                    const shift = new StateShiftComponent(pos_x + dir_x * (distance * mod_t - EPSILON), pos_y + dir_y * (distance * mod_t - EPSILON));
+
+                    // switch the state
+                    // delete state component
+                    if (state_value == STATE.WALK_TO_POINT) {
+                        ecs.remove_component<StateWalkToPointComponent>(entity);
+                    }
+                    // assign new state
+                    state.set_state(STATE.SHIFTING);
+                    // add the component
+                    ecs.add_component<StateShiftComponent>(entity, shift);
+                    external_entity_start_action(entity, ACTION.SHIFT);
+                }
+            }
+        }
+    }
 }

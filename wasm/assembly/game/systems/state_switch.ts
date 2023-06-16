@@ -2,12 +2,17 @@ import { Navmesh } from "../../pathfinder/navmesh/navmesh";
 import { PseudoRandom } from "../../promethean/pseudo_random"
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
-import { STATE, ACTOR } from "../constants";
+import { STATE, ACTOR, ACTION, COOLDAWN } from "../constants";
 import { get_navmesh_path } from "../utilities";
 
 import { ActorTypeComponent } from "../components/actor_type";
-import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent } from "../components/state";
+import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent } from "../components/state";
 import { PositionComponent } from "../components/position";
+import { BuffShiftCooldawnComponent } from "../components/buffs";
+import { ShiftCooldawnComponent } from "../components/shift_cooldawn";
+
+import { external_entity_finish_action,
+         external_entity_start_cooldawn } from "../../external";
 
 // several systems from this file controll the switch between different states of entitites
 
@@ -55,6 +60,66 @@ export class WalkToPointSwitchSystem extends System {
                         const wait_time = <f32>local_random.next_float(monster_iddle_start, monster_iddle_end);
                         // assign the state component
                         this.add_component(entity, new StateIddleWaitComponent(wait_time));
+                    }
+                }
+            }
+        }
+    }
+}
+
+export class ShiftSwitchSystem extends System {
+    private m_random: PseudoRandom;
+    private m_monster_iddle_start: f32;
+    private m_monster_iddle_end: f32;
+
+    constructor(in_random: PseudoRandom, in_monster_iddle_time: Array<f32>) {
+        super();
+
+        this.m_random = in_random;
+        this.m_monster_iddle_start = in_monster_iddle_time[0];
+        this.m_monster_iddle_end = in_monster_iddle_time[1];
+    }
+
+    update(dt: f32): void {
+        const local_random = this.m_random;
+        const monster_iddle_start = this.m_monster_iddle_start;
+        const monster_iddle_end = this.m_monster_iddle_end;
+
+        const entities = this.entities();
+
+        for (let i = 0, len = entities.length; i < len; i++) {
+            const entity: Entity = entities[i];
+
+            const state: StateComponent | null = this.get_component<StateComponent>(entity);
+            const shift: StateShiftComponent | null = this.get_component<StateShiftComponent>(entity);
+
+            if (state && shift) {
+                const state_value = state.state();
+                const shift_active = shift.active();
+
+                if (state_value == STATE.SHIFTING && shift_active == false) {
+                    // switch state to iddle (for now and simplicity)
+                    this.remove_component<StateShiftComponent>(entity);
+                    external_entity_finish_action(entity, ACTION.SHIFT);
+
+                    // add cooldawn component
+                    const cooldawn: ShiftCooldawnComponent | null = this.get_component<ShiftCooldawnComponent>(entity);
+                    if (cooldawn) {
+                        const cooldawn_value = cooldawn.value();
+                        this.add_component<BuffShiftCooldawnComponent>(entity, new BuffShiftCooldawnComponent(cooldawn_value));
+                        external_entity_start_cooldawn(entity, COOLDAWN.SHIFT, cooldawn_value);
+                    }
+
+                    const actor: ActorTypeComponent | null = this.get_component<ActorTypeComponent>(entity);
+                    if (actor) {
+                        const actor_value = actor.type();
+                        if (actor_value == ACTOR.PLAYER) {
+                            state.set_state(STATE.IDDLE);
+                        } else if (actor_value == ACTOR.MONSTER) {
+                            state.set_state(STATE.IDDLE_WAIT);
+                            const wait_time = <f32>local_random.next_float(monster_iddle_start, monster_iddle_end);
+                            this.add_component(entity, new StateIddleWaitComponent(wait_time));
+                        }
                     }
                 }
             }
