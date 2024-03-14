@@ -2,7 +2,7 @@ import { __Internref12, __Internref19, instantiate } from "../wasm/build/game_ap
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
-import { COOLDAWN, DOUBLE_TOUCH_DELTA, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
+import { COOLDAWN, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
 import { cursor_coordinates, touch_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
 
@@ -35,6 +35,7 @@ export abstract class ClientBase {
     m_is_mouse_press: boolean = false;
     m_mouse_event: MouseEvent;
     m_last_touch_time: number = performance.now();
+    m_last_touch_coords: [number, number] = [0, 0];
 
     m_total_level_entities: number = 0;
 
@@ -267,14 +268,15 @@ export abstract class ClientBase {
             const c = touch_coordinates(this.m_scene_canvas, event);
             if (c.length > 0) {
                 const touch_time = performance.now();
-                if (touch_time - this.m_last_touch_time < DOUBLE_TOUCH_DELTA) {
+                const c_world = this.point_to_world(c[0], c[1]);
+                if (touch_time - this.m_last_touch_time < DOUBLE_TOUCH_DELTA && 
+                    Math.abs(c_world[0] - this.m_last_touch_coords[0]) < DOUBLE_TOUCH_CURSOR_DELTA &&
+                    Math.abs(c_world[1] - this.m_last_touch_coords[1]) < DOUBLE_TOUCH_CURSOR_DELTA) {
                     // this is double touch
                     // make the shift
-                    const c_world = this.point_to_world(c[0], c[1]);
                     this.m_module.game_client_shift(this.m_game_ptr, c_world[0], c_world[1]);
                 } else {
                     // this is single touch
-                    const c_world = this.point_to_world(c[0], c[1]);
                     const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
                     if (is_send) {
                         this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
@@ -282,6 +284,8 @@ export abstract class ClientBase {
                 }
 
                 this.m_last_touch_time = touch_time;
+                this.m_last_touch_coords[0] = c_world[0];
+                this.m_last_touch_coords[1] = c_world[1];
             }
         }
     }
