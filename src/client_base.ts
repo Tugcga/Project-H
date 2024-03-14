@@ -2,7 +2,7 @@ import { __Internref12, __Internref19, instantiate } from "../wasm/build/game_ap
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
-import { COOLDAWN, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
+import { COOLDAWN, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
 import { cursor_coordinates, touch_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
 
@@ -45,6 +45,8 @@ export abstract class ClientBase {
     // in start method current client implementation should start render loop
     // this loop should at first call update method, and only then process other stuff
     abstract start(): void;
+    // called by the base when we change the game canvas size (after resizing the window)
+    abstract on_canvas_resize(in_width: number, in_height: number): void;
     // input is coordinates on the screen, output is world coordinates of the point
     // conversation depends on the client implementation
     abstract point_to_world(in_x: number, in_y: number) : number[];
@@ -120,6 +122,9 @@ export abstract class ClientBase {
         this.m_map_canvas = document.getElementById("map_canvas") as HTMLCanvasElement;
         this.m_map_ctx = this.m_map_canvas.getContext("2d")!;
 
+        // resize canvases
+        this.setup_canvas_size();
+
         // disable map canvas mouse interaction
         this.m_map_canvas.style.pointerEvents = "none";
 
@@ -140,7 +145,7 @@ export abstract class ClientBase {
             return !(event.key == " ");
         }
 
-        const is_touch_input = "ontouchstart" in window || navigator.maxTouchPoints;
+        const is_touch_input = "ontouchstart" in window && navigator.maxTouchPoints;
         if (is_touch_input) {
             this.m_scene_canvas.addEventListener("touchstart", (event) => {
                 event.preventDefault();
@@ -161,6 +166,10 @@ export abstract class ClientBase {
 
         document.addEventListener("visibilitychange" , function() {
             local_this.visibilitychange_event();
+        });
+
+        window.addEventListener("resize", function() {
+            local_this.setup_canvas_size();
         });
 
         // finally, load the wasm module
@@ -228,6 +237,49 @@ export abstract class ClientBase {
                 local_this.m_ui.off_pause();
                 local_this.m_ui.loading_hide();
         }));
+    }
+
+    setup_canvas_size() {
+        const window_width = window.innerWidth;
+        const window_height = window.innerHeight;
+
+        let game_width = DEFAULT_WIDTH;
+        let game_height = DEFAULT_HEIGHT;
+        if (window_width < DEFAULT_WIDTH || window_height < DEFAULT_HEIGHT) {
+            game_width = window_width;
+            game_height = window_height;
+        }
+
+        const width_elements = document.getElementsByClassName(RESIZABLE_WIDTH_CLASS_NAME);
+        for (let i = 0; i < width_elements.length; i++) {
+            const element = width_elements[i] as HTMLElement;
+            element.style.width = game_width + "px";
+        }
+        const height_elements = document.getElementsByClassName(RESIZABLE_HEIGHT_CLASS_NAME);
+        for (let i = 0; i < height_elements.length; i++) {
+            const element = height_elements[i] as HTMLElement;
+            element.style.height = game_height + "px";
+        }
+
+        // resize both canvases
+        if (this.m_scene_canvas) {
+            this.m_scene_canvas.width  = game_width;
+            this.m_scene_canvas.height = game_height;
+        }
+        if (this.m_map_canvas) {
+            this.m_map_canvas.width  = game_width;
+            this.m_map_canvas.height = game_height;
+        }
+
+        // get main window div
+        const window_div = document.getElementById("window");
+        if (window_div) {
+            window_div.style.left = (window_width - game_width) / 2.0 + "px";
+            window_div.style.top = (window_height - game_height) / 2.0 + "px";
+        }
+
+        // update the host
+        this.on_canvas_resize(game_width, game_height);
     }
 
     visibilitychange_event() {

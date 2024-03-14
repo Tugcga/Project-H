@@ -34,6 +34,13 @@ export class ClientDataCanvas extends ClientBase {
         this.update_process();
     }
 
+    on_canvas_resize(in_width: number, in_height: number): void {
+        this.m_canvas_width = in_width;
+        this.m_canvas_height = in_height;
+
+        this.m_wtc_tfm.set_translation(this.m_canvas_width / 2 - this.m_camera_position_x * this.m_wtc_scale, this.m_canvas_height / 2 - this.m_camera_position_y * this.m_wtc_scale);
+    }
+
     point_to_world(in_x: number, in_y: number) : number[] {
         // in this implementation we use m_wtc_tfm as transform from canvas to world
         // this transform is also used for the map

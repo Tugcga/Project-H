@@ -1,3 +1,9 @@
+export const DEFAULT_WIDTH: number = 1200;
+export const DEFAULT_HEIGHT: number = 700;
+
+export const RESIZABLE_WIDTH_CLASS_NAME = "resizable_width";
+export const RESIZABLE_HEIGHT_CLASS_NAME = "resizable_height";
+
 export const TILE_PIXELS_SIZE: number = 50; // the number of pixels for one tile of the level
 export const CLICK_CURSOR_TIME: number = 400; // in milliseconds
 export const CLICK_CURSOR_RADIUS: number = 0.5; // in world units

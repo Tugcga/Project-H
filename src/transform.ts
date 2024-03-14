@@ -9,7 +9,7 @@ export class Transform {
     constructor() {
         this.m_matrix[0] = 1.0; this.m_matrix[1] = 0.0; this.m_matrix[2] = 0.0;
         this.m_matrix[3] = 0.0; this.m_matrix[4] = 1.0; this.m_matrix[5] = 0.0;
-        this.m_matrix[6] = 0.0; this.m_matrix[7] = 0.0; this.m_matrix[8] = 1.0;  // this row always shouldbe (0.0, 0.0, 1.0)
+        this.m_matrix[6] = 0.0; this.m_matrix[7] = 0.0; this.m_matrix[8] = 1.0;  // this row always should be (0.0, 0.0, 1.0)
     }
 
     matrix_array(): Float32Array {
@@ -40,7 +40,7 @@ export class Transform {
         this.m_matrix[4] = Math.cos(this.m_angle) * this.m_scale_y;
     }
 
-    set_rotation(in_value: number) {  // in_value - in radians from OX in conter clock wise direction
+    set_rotation(in_value: number) {  // in_value - in radians from OX in counter clock wise direction
         this.m_angle = in_value;
         this._update_rotation();
     }

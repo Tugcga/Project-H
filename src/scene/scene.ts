@@ -70,31 +70,7 @@ export class Scene {
 
         this.m_click_cursor.deactivate_enemy_select();
     }
-
-    // when we click into canvas, we should add to the scene cursor object
-    // input are world coordinates of the click position
-    // return true if the point in the walkable area
-    /*click_position(wasm_module: any, game_ptr: __Internref18, in_x: number, in_y: number, force: boolean = false): boolean {
-        const current_time = performance.now();
-        if(force || current_time - this.m_last_click_time > (this.m_click_number == 1 ? FIRST_MOUSE_CLICK_DELTA : OTHER_MOUSE_CLICK_DELTA)) {
-            this.m_last_click_time = current_time;
-            this.m_click_number += 1;
-            if(this.m_click_number > 2) {
-                this.m_click_number = 2;
-            }
-            // call to move the player
-            const is_define: boolean = wasm_module.game_client_point(game_ptr, in_x, in_y);
-
-            if(force && is_define) {
-                this.m_click_cursor.activate(in_x, in_y);
-            }
-
-            return is_define;
-        }
-
-        return false;
-    }*/
-
+    
     // call when release the mouse
     reset_click() {
         this.m_click_number = 0;

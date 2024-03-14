@@ -1,7 +1,7 @@
 .parcel-cache
 .vscode
 assets/internal
-dist
+dist/build
 node_modules
 notes.txt
 wasm/node_modules
