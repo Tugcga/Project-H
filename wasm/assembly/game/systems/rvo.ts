@@ -4,7 +4,7 @@ import { rvo_linear2, rvo_linear3 } from "../../pathfinder/rvo";
 import { Vector2, Line } from "../../pathfinder/common/vector2";
 import { List } from "../../pathfinder/common/list";
 
-import { EPSILON, ACTOR } from "../constants";
+import { EPSILON, ACTOR, STATE } from "../constants";
 
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
 import { VelocityComponent } from "../components/velocity";
@@ -12,6 +12,7 @@ import { ActorTypeComponent } from "../components/actor_type";
 import { PositionComponent } from "../components/position";
 import { RadiusComponent } from "../components/radius";
 import { SpeedComponent } from "../components/speed";
+import { StateComponent } from "../components/state";
 
 import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
 
@@ -45,10 +46,14 @@ export class RVOSystem extends System {
             const pref_velocity: PreferredVelocityComponent | null = this.get_component<PreferredVelocityComponent>(entity);
             const velocity: VelocityComponent | null = this.get_component<VelocityComponent>(entity);
             const actor_type: ActorTypeComponent | null = this.get_component<ActorTypeComponent>(entity);
+            const state: StateComponent | null = this.get_component<StateComponent>(entity);
 
-            if (velocity && pref_velocity && actor_type) {
+            if (velocity && pref_velocity && actor_type && state) {
                 const actor_type_value = actor_type.type();
-                if (actor_type_value == ACTOR.PLAYER) {
+                const state_value = state.state();
+                if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || actor_type_value == ACTOR.PLAYER) {
+                    // entities in shift state does not effected by rvo (move at streight)
+                    // also casting entities stay at place and should not move
                     // for player we simply copy velocity
                     rvo_velocities.push(pref_velocity.x());
                     rvo_velocities.push(pref_velocity.y());
@@ -75,8 +80,15 @@ export class RVOSystem extends System {
                                 const other_position: PositionComponent | null = this.get_component<PositionComponent>(other);
                                 const other_velocity: VelocityComponent | null = this.get_component<VelocityComponent>(other);
                                 const other_radius: RadiusComponent | null = this.get_component<RadiusComponent>(other);
+                                const other_state: StateComponent | null = this.get_component<StateComponent>(other);
 
-                                if (other_position && other_velocity && other_radius) {
+                                if (other_position && other_velocity && other_radius && other_state) {
+                                    const other_state_value = other_state.state();
+                                    // ignore in rvo entities with shift state
+                                    if (other_state_value == STATE.SHIFTING) {
+                                        continue;
+                                    }
+
                                     const rel_pos_x = other_position.x() - pos_x;
                                     const rel_pos_y = other_position.y() - pos_y;
 

@@ -1,30 +1,34 @@
 import { Navmesh } from "../../pathfinder/navmesh/navmesh";
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
-import { EPSILON } from "../constants";
+import { EPSILON, TARGET_ACTION } from "../constants";
 import { get_navmesh_path } from "../utilities";
 
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
 import { StateWalkToPointComponent } from "../components/state";
 import { PositionComponent } from "../components/position";
 import { SpeedComponent } from "../components/speed";
+import { TargetActionComponent } from "../components/target_action"
 
 // used for entitys in walk to point state (and contains corresponding component)
 // this system calculates preffered velocity
 // actual move happens in another system (after rvo)
 export class WalkToPointSystem extends System {
     private m_path_recalculate_time: f32 = 0.0;
+    private m_path_to_target_recalculate_time: f32 = 0.0;
     private m_navmesh: Navmesh;
 
-    constructor(in_navmesh: Navmesh, in_recalculate_time: f32) {
+    constructor(in_navmesh: Navmesh, in_recalculate_time: f32, in_target_recalculate_time: f32) {
         super();
 
         this.m_navmesh = in_navmesh;
         this.m_path_recalculate_time = in_recalculate_time;
+        this.m_path_to_target_recalculate_time = in_target_recalculate_time;
     }
 
     update(dt: f32): void {
         const recalculate_time = this.m_path_recalculate_time;
+        const recalculate_target_time = this.m_path_to_target_recalculate_time;
         const navmesh = this.m_navmesh;
 
         const entities = this.entities();
@@ -35,17 +39,32 @@ export class WalkToPointSystem extends System {
             const speed: SpeedComponent | null = this.get_component<SpeedComponent>(entity);
             const walk_to_point: StateWalkToPointComponent | null = this.get_component<StateWalkToPointComponent>(entity);
             const pref_velocity: PreferredVelocityComponent | null = this.get_component<PreferredVelocityComponent>(entity);
+            const target_action: TargetActionComponent | null = this.get_component<TargetActionComponent>(entity);
 
-            if (position && speed && walk_to_point && pref_velocity) {
+            if (position && speed && walk_to_point && pref_velocity && target_action) {
                 const spend_time = walk_to_point.get_spend_time();
-                if (spend_time > recalculate_time) {
+                const target_action_type = target_action.type();
+
+                if ((target_action_type == TARGET_ACTION.NONE && spend_time > recalculate_time) ||
+                    (target_action_type != TARGET_ACTION.NONE && spend_time > recalculate_target_time)) {
                     // update the path of the entity
                     const poins_count = walk_to_point.path_points_count();
                     const path = walk_to_point.path_points();
                     const curent_x = position.x();
                     const curent_y = position.y();
-                    const final_target_x = path[3 * (poins_count - 1)];
-                    const final_target_y = path[3 * (poins_count - 1) + 2];
+                    let final_target_x = path[3 * (poins_count - 1)];
+                    let final_target_y = path[3 * (poins_count - 1) + 2];
+
+                    if (target_action_type != TARGET_ACTION.NONE) {
+                        // there is a target
+                        // we should get the position of the target entity
+                        const target_entity = target_action.entity();
+                        const target_position: PositionComponent | null = this.get_component<PositionComponent>(target_entity);
+                        if (target_position) {
+                            final_target_x = target_position.x();
+                            final_target_y = target_position.y();
+                        }
+                    }
 
                     const new_path = get_navmesh_path(navmesh, curent_x, curent_y, final_target_x, final_target_y);
                     if (new_path.length > 0) {

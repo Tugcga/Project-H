@@ -16,6 +16,11 @@ export function settings_set_generate(settings: Settings, level_size: u32, room_
     generate.set_rooms_count(rooms_count);
 }
 
+export function settings_set_monsters_per_room(settings: Settings, min_value: u32, max_value: u32): void {
+    const constants = settings.get_constants();
+    constants.set_monsters_per_room(min_value, max_value);
+}
+
 export function settings_set_use_debug(settings: Settings, in_use_debug: boolean): void {
     settings.set_use_debug(in_use_debug);
 }
@@ -67,6 +72,21 @@ export function settings_set_player_fast_shift(settings: Settings, speed_multipl
     constants.set_player_shift(speed_multiplier, distance, cooldawn);
 }
 
+export function settings_set_monster_iddle_time(settings: Settings, min_iddle: f32, max_iddle: f32): void {
+    const constants = settings.get_constants();
+    constants.set_monster_iddle_time(min_iddle, max_iddle);
+}
+
+export function settings_set_player_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+    const constants = settings.get_constants();
+    constants.set_player_melee_attack(distance, time_span, cooldawn, damage_spread, damage_distance);
+}
+
+export function settings_set_monster_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+    const constants = settings.get_constants();
+    constants.set_monster_melee_attack(distance, time_span, cooldawn, damage_spread, damage_distance);
+}
+
 export function create_game(settings: Settings): Game {
     return new Game(settings);
 }
@@ -75,8 +95,8 @@ export function game_update(game: Game, dt: f32): void {
     game.update(dt);
 }
 
-export function game_client_point(game: Game, in_x: f32, in_y: f32): boolean {
-    return game.client_point(in_x, in_y);
+export function game_client_point(game: Game, in_x: f32, in_y: f32): void {
+    game.client_point(in_x, in_y);
 }
 
 export function game_client_shift(game: Game, cursor_x: f32, cursor_y: f32): void {
@@ -85,4 +105,8 @@ export function game_client_shift(game: Game, cursor_x: f32, cursor_y: f32): voi
 
 export function game_add_monsters(game: Game): void {
     game.add_monsters();
+}
+
+export function game_make_aggressive(game: Game): void {
+    game.make_aggressive();
 }

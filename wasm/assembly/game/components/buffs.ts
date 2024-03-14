@@ -1,4 +1,4 @@
-export class BuffShiftCooldawnComponent {
+class BuffCooldawn {
     private m_cooldawn_time: f32;
     private m_spend_time: f32;
 
@@ -19,3 +19,7 @@ export class BuffShiftCooldawnComponent {
         return false;
     }
 }
+
+export class BuffShiftCooldawnComponent extends BuffCooldawn {}
+
+export class BuffMeleeAttackCooldawnComponent extends BuffCooldawn {}

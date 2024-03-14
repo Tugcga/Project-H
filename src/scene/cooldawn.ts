@@ -1,6 +1,6 @@
 import { COOLDAWN } from "../constants"
 
-// one class to contaoll colldawns of all entities in the scene
+// one class to control cooldawns of all entities in the scene
 export class Cooldawn {
     // key - entity id
     // values - map from cooldawn type to the pair (total time, elapsed time)

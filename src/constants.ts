@@ -5,8 +5,13 @@ export const MAP_TILE_PIXELS_SIZES: number[] = [3, 5, 8, 12, 15, 20, 30, 40, 50]
 export const CAMERA_LERP_COEFFICIENT: number = 1.0;  // for smooth camera
 
 // delay between mouse clicks, when the button is hold
-export const FIRST_MOUSE_CLICK_DELTA: number = 500;  // in miliseconds
-export const OTHER_MOUSE_CLICK_DELTA: number = 30;  // in miliseconds
+export const FIRST_MOUSE_CLICK_DELTA: number = 500;  // in milliseconds
+export const OTHER_MOUSE_CLICK_DELTA: number = 30;  // in milliseconds
+export const DOUBLE_TOUCH_DELTA: number = 200;
+
+export enum ACTION_EFFECT {
+    MELEE_ATTACK
+}
 
 // the same as in wasm-side
 export enum MOVE_STATUS {
@@ -15,10 +20,12 @@ export enum MOVE_STATUS {
     SHIFT
 }
 
-export enum ACTION {
-    SHIFT,
+export enum TARGET_ACTION {
+    NONE,
+    ATTACK,
 }
 
 export enum COOLDAWN {
     SHIFT,
+    MELEE_ATTACK,
 }

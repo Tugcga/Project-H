@@ -10,6 +10,13 @@ class ComponentArray<T> extends IComponentArray {
     private m_index_to_entity_map: Map<u32, Entity> = new Map<u32, Entity>();
     private m_size: u32 = 0;
 
+    private m_name: string;
+
+    constructor(in_name: string) {
+        super();
+        this.m_name = in_name;
+    }
+
     insert_data(entity: Entity, component: T): void {
         assert(!this.m_entity_to_index_map.has(entity), "Component added to same entity more than once");
 
@@ -22,7 +29,7 @@ class ComponentArray<T> extends IComponentArray {
     }
 
     remove_data(entity: Entity): void {
-        assert(this.m_entity_to_index_map.has(entity), "Removing non-existent component");
+        assert(this.m_entity_to_index_map.has(entity), "Removing non-existent component " + this.m_name);
 
         const index_of_removed_entity: u32 = this.m_entity_to_index_map.get(entity);
         const index_of_last_element: u32 = this.m_size - 1;
@@ -64,7 +71,7 @@ export class ComponentManager {
         assert(!this.m_component_types.has(type_name), "Registering component type more than once");
 
         this.m_component_types.set(type_name, this.m_next_component_type);
-        this.m_component_arrays.set(type_name, new ComponentArray<T>());
+        this.m_component_arrays.set(type_name, new ComponentArray<T>(type_name));
         this.m_next_component_type++;
     }
 

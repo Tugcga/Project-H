@@ -31,7 +31,7 @@ export class NeighborhoodQuadGridTrackingSystem extends VisibleQuadGridTrackingS
                 const current_quad = quad_index.value();
 
                 if (current_quad >= 0 && current_quad < items_map_length && prev_quad != current_quad) {  // new index different for the last index
-                    // os, we should update the map for the old and new quad
+                    // so, we should update the map for the old and new quad
                     if(prev_quad >= 0 && prev_quad < items_map_length) {
                         items_map[prev_quad].pop_value(entity);
                     }

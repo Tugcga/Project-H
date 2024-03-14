@@ -6,12 +6,16 @@ import { Level } from "./promethean/level";
 
 import { generate_level, generate_navmesh } from "./game/generate";
 import { Settings, ConstantsSettings } from "./game/settings";
-import { EPSILON } from "./game/constants";
+import { EPSILON, ACTOR, TARGET_ACTION } from "./game/constants";
+import { distance } from "./game/utilities";
 
 import { external_define_level,
          external_define_navmesh,
          external_define_total_tiles,
          external_create_player,
+         external_update_entity_params,
+         external_click_entity,
+         external_click_position,
          external_define_entity_changes } from "./external";
 
 import { setup_components, 
@@ -19,12 +23,18 @@ import { setup_components,
          setup_player, 
          setup_monster,
          command_move_to_point,
+         command_init_attack,
          command_shift } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
+import { RadiusSelectComponent } from "./game/components/radius";
 import { SpeedComponent } from "./game/components/speed";
+import { ActorTypeComponent } from "./game/components/actor_type";
+import { TargetActionComponent } from "./game/components/target_action";
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
+import { NeighborhoodQuadGridTrackingSystem } from "./game/systems/neighborhood_quad_grid_tracking";
+import { RVOSystem } from "./game/systems/rvo";
 
 export class Game {
     private ecs: ECS | null = null;
@@ -84,6 +94,13 @@ export class Game {
         const monster_random_walk_target_radius = local_constants.monster_random_walk_target_radius;
         const monster_iddle_time = local_constants.monster_iddle_time;
         const path_recalculate_time = local_constants.path_recalculate_time;
+        const path_to_target_recalculate_time = local_constants.path_to_target_recalculate_time;
+        const radius_select_delta = local_constants.radius_select_delta;
+        const atack_distance = local_constants.player_atack_distance;
+        const melle_atack_timing = local_constants.player_melle_atack_time_span;
+        const player_melee_atack_cooldawn = local_constants.player_melee_atack_cooldawn;
+        const player_melee_damage_distance = local_constants.player_melee_damage_distance;
+        const player_melee_damage_spread = local_constants.player_melee_damage_spread;
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -114,6 +131,7 @@ export class Game {
             monster_random_walk_target_radius,
             monster_iddle_time,
             path_recalculate_time,
+            path_to_target_recalculate_time,
             debug_settings,
             engine_settings);
 
@@ -126,12 +144,18 @@ export class Game {
             player_shift_speed_multiplier,
             player_shift_distance,
             player_shift_cooldawn,
+            player_melee_atack_cooldawn,
             player_radius, 
             start_angle, 
             player_rotation_speed, 
             tiles_visible_raidus, 
             <f32>local_level.width() * tile_size, 
-            neighborhood_quad_size);
+            neighborhood_quad_size,
+            radius_select_delta,
+            atack_distance,
+            melle_atack_timing,
+            player_melee_damage_distance,
+            player_melee_damage_spread);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -143,6 +167,12 @@ export class Game {
         // output player position and radius
         external_create_player(player_entity, player_radius);
         external_define_entity_changes(player_entity, start_x, start_y, start_angle, false);
+        // use here melle_atack_timing but in general case we should get it from character parameters
+
+        const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(player_entity);
+        if (select_radius) {
+            external_update_entity_params(player_entity, 0, 0, select_radius.value(), atack_distance, melle_atack_timing);
+        }
 
         // store in the class all local instances
         this.level = local_level;
@@ -194,16 +224,54 @@ export class Game {
         }
     }
 
-    client_point(in_x: f32, in_y: f32): boolean {
+    client_point(in_x: f32, in_y: f32): void {
         let local_ecs = this.ecs;
         let local_navmesh = this.navmesh;
         if (local_ecs && local_navmesh) {
             // get player entity
             const player_entity = this.player_entity;
-            return command_move_to_point(local_ecs, local_navmesh, player_entity, in_x, in_y);
-        }
 
-        return false;
+            // we should properly assign the action when the player click at some position
+            // if there is an monster near the click point, then start to atack it
+            // if there is another iteractible item (actor) - go to them and interact
+            // if nothing in the point, then try to go to this point
+            const neighborhood_tracking_system = local_ecs.get_system<NeighborhoodQuadGridTrackingSystem>();
+            const neight_entities = neighborhood_tracking_system.get_items_from_position(in_x, in_y);
+            let assign_target = false;
+            for (let i = 0, len = neight_entities.length; i < len; i++) {
+                const e = neight_entities[i];
+                const e_actor_type: ActorTypeComponent | null = local_ecs.get_component<ActorTypeComponent>(e);
+                if (e_actor_type && !assign_target) {
+                    if (e_actor_type.type() == ACTOR.MONSTER) {
+                        // if the close entity is a monster
+                        // check is we click inside the select radius
+                        const pos: PositionComponent | null = local_ecs.get_component<PositionComponent>(e);
+                        const sel_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(e);
+                        if (pos && sel_radius) {
+                            // calculate the distance between click point and actor position
+                            const pos_x = pos.x();
+                            const pos_y = pos.y();
+                            const d = distance(pos_x, pos_y, in_x, in_y);
+                            if (d < sel_radius.value()) {
+                                // find the first actor near the click point
+                                // try to start the action
+                                assign_target = command_init_attack(local_ecs, local_navmesh, player_entity, e);
+                                if (assign_target) {
+                                    external_click_entity(e, TARGET_ACTION.ATACK);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!assign_target) {
+                const is_point = command_move_to_point(local_ecs, local_navmesh, player_entity, in_x, in_y);
+                if (is_point) {
+                    external_click_position(in_x, in_y);
+                }
+            }
+        }
     }
 
     // use cursor x/y for direction of the shift
@@ -230,18 +298,35 @@ export class Game {
             const neighborhood_quad_size = local_constants.neighborhood_quad_size;
             const tile_size = local_constants.tile_size;
             const monster_iddle_time = local_constants.monster_iddle_time;
+            const radius_select_delta = local_constants.radius_select_delta;
+            const atack_distance = local_constants.monster_atack_distance;
+            const melle_atack_timing = local_constants.monster_melle_atack_time_span;
+            const monster_melee_atack_cooldawn = local_constants.monster_melee_atack_cooldawn;
+            const monster_melee_damage_distance = local_constants.monster_melee_damage_distance;
+            const monster_melee_damage_spread = local_constants.monster_melee_damage_spread;
 
-            setup_monster(local_ecs, 
-                pos_x, 
-                pos_y, 
-                angle, 
-                monster_speed, 
-                monster_radius, 
-                monster_rotation_speed, 
-                <f32>local_random.next_float(monster_iddle_time[0], monster_iddle_time[1]),
-                <f32>local_level.width() * tile_size, 
-                visible_quad_size, 
-                neighborhood_quad_size);
+            const mosnter_entity = setup_monster(local_ecs, 
+                                                 pos_x, 
+                                                 pos_y, 
+                                                 angle, 
+                                                 monster_speed, 
+                                                 monster_melee_atack_cooldawn,
+                                                 monster_radius, 
+                                                 monster_rotation_speed, 
+                                                 <f32>local_random.next_float(monster_iddle_time[0], monster_iddle_time[1]),
+                                                 <f32>local_level.width() * tile_size, 
+                                                 visible_quad_size, 
+                                                 neighborhood_quad_size,
+                                                 radius_select_delta,
+                                                 atack_distance,
+                                                 melle_atack_timing,
+                                                 monster_melee_damage_distance,
+                                                 monster_melee_damage_spread);
+
+            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(mosnter_entity);
+            if (select_radius) {
+                external_update_entity_params(mosnter_entity, 0, 0, select_radius.value(), atack_distance, melle_atack_timing);
+            }
         }
     }
 
@@ -288,6 +373,32 @@ export class Game {
             const r_radius = level_stat.room_sizes[r_index];
 
             this.add_monsters_at_room(r_center.x(), r_center.y(), r_radius.x(), r_radius.y());
+        }
+    }
+
+    // for tests only
+    // make all monsters atack the player
+    make_aggressive(): void {
+        const local_ecs = this.ecs;
+        const local_navmesh = this.navmesh;
+        if (local_ecs && local_navmesh) {
+            const rvo_entities: Array<Entity> = local_ecs.get_entities<RVOSystem>();
+            const player_entity = this.player_entity;
+
+            const player_position: PositionComponent | null = local_ecs.get_component<PositionComponent>(player_entity);
+            if (player_position) {
+                for (let i = 0, len = rvo_entities.length; i < len; i++) {
+                    const entity: Entity = rvo_entities[i];
+
+                    const actor_type: ActorTypeComponent | null = local_ecs.get_component<ActorTypeComponent>(entity);
+
+                    if (actor_type) {
+                        if (actor_type.type() == ACTOR.MONSTER && entity != player_entity) {
+                            command_init_attack(local_ecs, local_navmesh, entity, player_entity);
+                        }
+                    }
+                }
+            }
         }
     }
 

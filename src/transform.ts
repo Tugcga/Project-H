@@ -49,6 +49,14 @@ export class Transform {
         return this.m_angle;
     }
 
+    uniform_scale(): number {
+        return (this.m_scale_x + this.m_scale_y) / 2.0;
+    }
+
+    scale(): number[] {
+        return [this.m_scale_x, this.m_scale_y];
+    }
+
     set_scale(in_x: number, in_y: number) {
         this.m_scale_x = in_x;
         this.m_scale_y = in_y;

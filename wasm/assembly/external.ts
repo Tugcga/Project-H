@@ -18,6 +18,9 @@ declare function tile_create(x: u32, y: u32, index: u32, type: u32): void;
 @external("env", "host.create_player")
 declare function create_player(entity: u32, radius: f32): void;
 
+@external("env", "host.update_entity_params")
+declare function update_entity_params(entity: u32, life: u32, max_life: u32, select_radius: f32, atack_distance: f32, attack_time: f32): void;
+
 @external("env", "host.remove_monster")
 declare function remove_monster(entity: u32): void;
 
@@ -30,14 +33,26 @@ declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32, angl
 @external("env", "host.define_total_update_entities")
 declare function define_total_update_entities(count: u32): void;
 
-@external("env", "host.entity_start_action")
-declare function entity_start_action(entity: u32, action_id: u32): void;
+@external("env", "host.entity_start_shift")
+declare function entity_start_shift(entity: u32): void;
 
-@external("env", "host.entity_finish_action")
-declare function entity_finish_action(entity: u32, action_id: u32): void;
+@external("env", "host.entity_finish_shift")
+declare function entity_finish_shift(entity: u32): void;
+
+@external("env", "host.entity_start_melee_attack")
+declare function entity_start_melee_attack(entity: u32, time: f32, damage_distance: f32, damage_spread: f32): void;
+
+@external("env", "host.entity_finish_melee_attack")
+declare function entity_finish_melee_attack(entity: u32, interrupt: bool): void;
 
 @external("env", "host.entity_start_cooldawn")
 declare function entity_start_cooldawn(entity: u32, cooldawn_id: u32, cooldawn_time: f32): void;
+
+@external("env", "host.click_entity")
+declare function click_entity(entity: u32, action: u32): void;
+
+@external("env", "host.click_position")
+declare function click_position(pos_x: f32, pos_y: f32): void;
 
 @external("env", "host.debug_entity_walk_path")
 declare function debug_entity_walk_path(entity: u32, points: StaticArray<f32>): void;
@@ -96,7 +111,19 @@ export function external_create_player(entity: u32, radius: f32): void {
     if(use_external) {
         create_player(entity, radius);
     } else {
-        console.log("ext -> create_player: " + entity.toString() + " " + radius.toString());
+        console.log("ext -> create_player: id " + entity.toString() + " radius " + radius.toString());
+    }
+}
+
+export function external_update_entity_params(entity: u32, 
+                                              life: u32, max_life: u32, 
+                                              select_radius: f32,
+                                              atack_distance: f32, 
+                                              atack_time: f32): void {
+    if (use_external) {
+        update_entity_params(entity, life, max_life, select_radius, atack_distance, atack_time);
+    } else {
+        console.log("ext -> update_entity_params: entity " + entity.toString() + " life " + life.toString() + "/" + max_life.toString() + " slect radius " + select_radius.toString() + " atack distance " + atack_distance.toString() + " attack time " + atack_time.toString());
     }
 }
 
@@ -112,7 +139,7 @@ export function external_create_monster(entity: u32, radius: f32): void {
     if(use_external) {
         create_monster(entity, radius);
     } else {
-        console.log("ext -> create_monster: " + entity.toString() + " " + radius.toString());
+        console.log("ext -> create_monster: id " + entity.toString() + " radius " + radius.toString());
     }
 }
 
@@ -120,7 +147,7 @@ export function external_define_entity_changes(entity: u32, pos_x: f32, pos_y: f
     if(use_external) {
         define_entity_changes(entity, pos_x, pos_y, angle, move_status);
     } else {
-        console.log("ext -> define_entity_changes: " + entity.toString() + " " + pos_x.toString() + " " + pos_y.toString() + " " + angle.toString() + " " + move_status.toString());
+        console.log("ext -> define_entity_changes: id " + entity.toString() + " position " + pos_x.toString() + " " + pos_y.toString() + " angle " + angle.toString() + " move " + move_status.toString());
     }
 }
 
@@ -132,19 +159,35 @@ export function external_define_total_update_entities(count: u32): void {
     }
 }
 
-export function external_entity_start_action(entity: u32, action_id: u32): void {
+export function external_entity_start_shift(entity: u32): void {
     if(use_external) {
-        entity_start_action(entity, action_id);
+        entity_start_shift(entity);
     } else {
-        console.log("ext -> entity_start_action: " + entity.toString() + " " + action_id.toString());
+        console.log("ext -> entity_start_shift: " + entity.toString());
     }
 }
 
-export function external_entity_finish_action(entity: u32, action_id: u32): void {
+export function external_entity_finish_shift(entity: u32): void {
     if(use_external) {
-        entity_finish_action(entity, action_id);
+        entity_finish_shift(entity);
     } else {
-        console.log("ext -> entity_finish_action: " + entity.toString() + " " + action_id.toString());
+        console.log("ext -> entity_finish_shift: " + entity.toString());
+    }
+}
+
+export function external_entity_start_melee_attack(entity: u32, time: f32, damage_distance: f32, damage_spread: f32): void {
+    if (use_external) {
+        entity_start_melee_attack(entity, time, damage_distance, damage_spread);
+    } else {
+        console.log("ext -> entity_start_melee_attack: " + entity.toString() + " time " + time.toString() + " damage params " + damage_distance.toString() + " " + damage_spread.toString());
+    }
+}
+
+export function external_entity_finish_melee_attack(entity: u32, interrupt: bool): void {
+    if (use_external) {
+        entity_finish_melee_attack(entity, interrupt);
+    } else {
+        console.log("ext -> entity_finish_melee_attack: " + entity.toString() + " interrupt " + interrupt.toString());
     }
 }
 
@@ -153,6 +196,22 @@ export function external_entity_start_cooldawn(entity: u32, cooldawn_id: u32, co
         entity_start_cooldawn(entity, cooldawn_id, cooldawn_time);
     } else {
         console.log("ext -> entity_start_cooldawn: " + entity.toString() + " " + cooldawn_id.toString() + " " + cooldawn_time.toString());
+    }
+}
+
+export function external_click_entity(entity: u32, action: u32): void {
+    if (use_external) {
+        click_entity(entity, action);
+    } else {
+        console.log("ext -> click_entity: " + entity.toString() + " action " + action.toString());
+    }
+}
+
+export function external_click_position(pos_x: f32, pos_y: f32): void {
+    if (use_external) {
+        click_position(pos_x, pos_y);
+    } else {
+        console.log("ext -> click_position: " + pos_x.toString() + " " + pos_y.toString());
     }
 }
 

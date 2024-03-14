@@ -1,16 +1,16 @@
-import { __Internref18, instantiate } from "../wasm/build/game_api";
+import { __Internref12, __Internref19, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
-import { ACTION, COOLDAWN, MOVE_STATUS, TILE_PIXELS_SIZE } from "./constants";
-import { cursor_coordinates } from "./utilities";
+import { COOLDAWN, DOUBLE_TOUCH_DELTA, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
+import { cursor_coordinates, touch_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
 
 // base class for client of the game
-// it implement functionallity for connecting between wasm module (the server) and client IO
-// particluar graphic backend should use this base class
+// it implement functionality for connecting between wasm module (the server) and client IO
+// particular graphic backend should use this base class
 export abstract class ClientBase {
-    m_game_ptr: __Internref18;
+    m_game_ptr: __Internref19;
     m_scene_canvas: HTMLCanvasElement;
     m_scene_ctx: CanvasRenderingContext2D;
 
@@ -34,11 +34,12 @@ export abstract class ClientBase {
     m_wtc_scale: number = 1.0;
     m_is_mouse_press: boolean = false;
     m_mouse_event: MouseEvent;
+    m_last_touch_time: number = performance.now();
 
     m_total_level_entities: number = 0;
 
     m_is_game_active: boolean = true;
-    m_is_pause: boolean = false;  // turn on only when pause the game manualy
+    m_is_pause: boolean = false;  // turn on only when pause the game manually
 
     // in start method current client implementation should start render loop
     // this loop should at first call update method, and only then process other stuff
@@ -46,9 +47,7 @@ export abstract class ClientBase {
     // input is coordinates on the screen, output is world coordinates of the point
     // conversation depends on the client implementation
     abstract point_to_world(in_x: number, in_y: number) : number[];
-    // mouse_click can be used for inistantiate the shape for the cursor
-    // input is coordinates on the canvas and corresponding coordinates on the world
-    abstract mouse_click(inc_x: number, inc_y: number, inw_x: number, inw_y: number): void;
+    // abstract mouse_click(inc_x: number, inc_y: number, inw_x: number, inw_y: number): void;
     // when we should delete the tile from the scene, call this method to delete the shape from the client
     abstract scene_tile_delete(index: number): void;
     // the same for create new tile
@@ -58,12 +57,17 @@ export abstract class ClientBase {
     // it should be used in the client to update player shape
     abstract scene_define_player_changes(pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void;
     abstract scene_create_player(radius: number): void;
+    abstract scene_update_entity_params(entity: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number): void;
     abstract scene_define_entity_changes(entity: number, pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void;
     abstract scene_create_monster(entity: number, radius: number): void;
     abstract scene_remove_monster(entity: number): void;
-    abstract scene_entity_start_action(entity: number, action_id: ACTION): void;
-    abstract scene_entity_finish_action(entity: number, action_id: ACTION): void;
+    abstract scene_entity_start_shift(entity: number): void;
+    abstract scene_entity_finish_shift(entity: number): void;
+    abstract scene_entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number): void;
+    abstract scene_entity_finish_melee_attack(entity: number): void;
     abstract scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void;
+    abstract scene_click_entity(entity: number, action_id: TARGET_ACTION): void;
+    abstract scene_click_position(pos_x: number, pos_y: number): void;
     // debug callbacks
     // if debug is off, then these callbacks are not required
     // it never called from the module
@@ -81,17 +85,22 @@ export abstract class ClientBase {
             tile_delete: this.tile_delete.bind(this),
             tile_create: this.tile_create.bind(this),
             create_player: this.create_player.bind(this),
+            update_entity_params: this.update_entity_params.bind(this),
             create_monster: this.create_monster.bind(this),
             define_entity_changes: this.define_entity_changes.bind(this),
             remove_monster: this.remove_monster.bind(this),
             define_total_update_entities: this.define_total_update_entities.bind(this),
-            entity_start_action: this.entity_start_action.bind(this),
-            entity_finish_action: this.entity_finish_action.bind(this),
+            entity_start_shift: this.entity_start_shift.bind(this),
+            entity_finish_shift: this.entity_finish_shift.bind(this),
+            entity_start_melee_attack: this.entity_start_melee_attack.bind(this),
+            entity_finish_melee_attack: this.entity_finish_melee_attack.bind(this),
             entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
+            click_entity: this.click_entity.bind(this),
+            click_position: this.click_position.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
-            debug_neighborhood_quad: this.debug_neighborhood_quad.bind(this)
+            debug_neighborhood_quad: this.debug_neighbourhood_quad.bind(this)
         };
 
         // setup ui
@@ -126,20 +135,29 @@ export abstract class ClientBase {
             local_this.key_event(event.key);
 
             // stop scrolling the page by the space
-            // nad also other space actions
+            // and also other space actions
             return !(event.key == " ");
         }
 
-        // mouse click, release and move
-        this.m_scene_canvas.addEventListener("mousedown", function(event) {
-            local_this.mouse_press_event(event);
-        });
-        this.m_scene_canvas.addEventListener("mouseup", function(event) {
-            local_this.mouse_release_event(event);
-        });
-        document.onmousemove = function(event) {
-            local_this.m_mouse_event = event;
+        const is_touch_input = "ontouchstart" in window || navigator.maxTouchPoints;
+        if (is_touch_input) {
+            this.m_scene_canvas.addEventListener("touchstart", (event) => {
+                event.preventDefault();
+                local_this.touch_start_event(event);
+            });
+        } else {
+            // mouse click, release and move
+            this.m_scene_canvas.addEventListener("mousedown", function(event) {
+                local_this.mouse_press_event(event);
+            });
+            this.m_scene_canvas.addEventListener("mouseup", function(event) {
+                local_this.mouse_release_event(event);
+            });
+            document.onmousemove = function(event) {
+                local_this.m_mouse_event = event;
+            }
         }
+
         document.addEventListener("visibilitychange" , function() {
             local_this.visibilitychange_event();
         });
@@ -158,29 +176,41 @@ export abstract class ClientBase {
                 // change default settings
                 // select random seed
                 const seed = Math.floor(Math.random() * 4294967295);
-                // controllabel seed ↓ for test
-                // module.settings_set_seed(settings_ptr, 12);
-                module.settings_set_rvo_time_horizon(settings_ptr, 1.0);
+                // controllable seed ↓ for test
+                module.settings_set_seed(settings_ptr, 12);
+                module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
                 module.settings_set_neighborhood_quad_size(settings_ptr, 1.0);
                 module.settings_set_generate(settings_ptr,
                     22,  // level size
                     2, 4,  // min and max room size
                     10  // the number of rooms
                 );
-                // use these settings ↓ for developement
-                // module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
+                // use these settings ↓ for development
+                module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
 
                 // activate debug info
-                module.settings_set_use_debug(settings_ptr, false);
-                module.settings_set_debug_flags(settings_ptr, true, true, true, true);
+                module.settings_set_use_debug(settings_ptr, true);
+                module.settings_set_debug_flags(settings_ptr, true, true, false, true);
                 module.settings_set_snap_to_navmesh(settings_ptr, true);
                 module.settings_set_use_rvo(settings_ptr, true);
                 module.settings_set_path_recalculate_time(settings_ptr, 1.0);
                 module.settings_set_velocity_boundary_control(settings_ptr, true);
                 module.settings_set_player_fast_shift(settings_ptr, 2.0, 5.0, 0.5);
+                module.settings_set_monster_iddle_time(settings_ptr, 1.0, 2.0);
+                module.settings_set_monsters_per_room(settings_ptr, 1, 1);
+                module.settings_set_player_melee_attack(settings_ptr, 1.25,  // attack distance
+                                                                      0.75,  // how long attack cast
+                                                                      1.0,  // cooldawn, start after attack is finish
+                                                                      Math.PI / 2.0,  // angles spread
+                                                                      1.5);  // damage cone size
+                module.settings_set_monster_melee_attack(settings_ptr, 0.75,  // distance
+                                                                       0.75,  // how long
+                                                                       0.75,  // cooldawn
+                                                                       Math.PI / 4,  // spread
+                                                                       1.0);  // cone size
                 
                 // create the game
-                // this method calls some callbcks:
+                // this method calls some callbacks:
                 // - define_level
                 // - define_total_tiles
                 // - define_navmesh
@@ -232,18 +262,40 @@ export abstract class ClientBase {
         }
     }
 
+    touch_start_event(event: TouchEvent) {
+        if (this.m_is_start && this.m_is_game_active) {
+            const c = touch_coordinates(this.m_scene_canvas, event);
+            if (c.length > 0) {
+                const touch_time = performance.now();
+                if (touch_time - this.m_last_touch_time < DOUBLE_TOUCH_DELTA) {
+                    // this is double touch
+                    // make the shift
+                    const c_world = this.point_to_world(c[0], c[1]);
+                    this.m_module.game_client_shift(this.m_game_ptr, c_world[0], c_world[1]);
+                } else {
+                    // this is single touch
+                    const c_world = this.point_to_world(c[0], c[1]);
+                    const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
+                    if (is_send) {
+                        this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
+                    }
+                }
+
+                this.m_last_touch_time = touch_time;
+            }
+        }
+    }
+
     mouse_press_event(event: MouseEvent) {
         this.m_mouse_event = event;
-        if(this.m_is_start && this.m_is_game_active) {
+        if (this.m_is_start && this.m_is_game_active) {
             this.m_is_mouse_press = true;
     
             const c = cursor_coordinates(this.m_scene_canvas, event);
             const c_world = this.point_to_world(c[0], c[1]);
-            const is_defined = this.m_scene.click_position(this.m_module, this.m_game_ptr, c_world[0], c_world[1], true);
-            // also call click method from the client implementation
-            if(is_defined) {
-                // nothing to do if we click outside the walkable are
-                this.mouse_click(c[0], c[1], c_world[0], c_world[1]);
+            const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
+            if (is_send) {
+                this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
             }
         }
     }
@@ -265,6 +317,8 @@ export abstract class ClientBase {
                 if(key == "s") {
                     // add monster
                     this.m_module.game_add_monsters(this.m_game_ptr);
+                } else if(key == "a") {
+                    this.m_module.game_make_aggressive(this.m_game_ptr);
                 } else if(key == "m") {
                     this.m_map.toggle_active();
                 } else if(key == "+") {
@@ -288,10 +342,13 @@ export abstract class ClientBase {
             if(this.m_is_mouse_press && this.m_mouse_event && this.m_scene_canvas) {
                 const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
                 const c_world = this.point_to_world(c[0], c[1]);
-                this.m_scene.click_position(this.m_module, this.m_game_ptr, c_world[0], c_world[1]);
+                const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], false);
+                if (is_send) {
+                    this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
+                }
             }
 
-            // read the curent time
+            // read the current time
             const time = performance.now();
             // calculate delta time
             const dt = (time - this.m_current_time) / 1000.0;
@@ -306,6 +363,7 @@ export abstract class ClientBase {
             }
 
             this.m_scene.get_cooldawns().update(dt);
+            this.m_scene.get_action_effects().update(dt);
             this.m_scene.get_click_cursor().update(dt);
 
             this.m_ui.update(dt);
@@ -376,6 +434,14 @@ export abstract class ClientBase {
         this.scene_create_player(radius);
     }
 
+    update_entity_params(id: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number) {
+        this.m_scene.set_entity_atack_distance(id, atack_distance);
+        this.m_scene.set_entity_life(id, life, max_life);
+        this.m_scene.set_entity_attack_time(id, attack_time);
+        this.m_scene.set_entity_select_radius(id, select_radius);
+        this.scene_update_entity_params(id, life, max_life, select_radius, atack_distance, attack_time);
+    }
+
     create_monster(entity: number, radius: number) {
         this.m_scene.set_monster_radius(entity, radius);
         this.scene_create_monster(entity, radius);
@@ -402,17 +468,38 @@ export abstract class ClientBase {
         this.m_total_level_entities = count;
     }
 
-    entity_start_action(entity: number, action_id: number) {
-        this.scene_entity_start_action(entity, action_id);
+    entity_start_shift(entity: number) {
+        this.m_scene.entity_start_shift(entity);
+        this.scene_entity_start_shift(entity);
     }
 
-    entity_finish_action(entity: number, action_id: number) {
-        this.scene_entity_finish_action(entity, action_id);
+    entity_finish_shift(entity: number) {
+        this.scene_entity_finish_shift(entity);
+    }
+
+    entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number) {
+        this.m_scene.get_action_effects().add_melee_attack(entity, time, damage_distance, damage_spread);
+        this.scene_entity_start_melee_attack(entity, time, damage_distance, damage_spread);
+    }
+
+    entity_finish_melee_attack(entity: number, interrupt: boolean) {
+        this.m_scene.get_action_effects().remove_melee_attack(entity);
+        this.scene_entity_finish_melee_attack(entity);
     }
 
     entity_start_cooldawn(entity: number, cooldawn_id: number, cooldawn_time: number) {
         this.m_scene.get_cooldawns().start_cooldawn(entity, cooldawn_id, cooldawn_time);
         this.scene_entity_start_cooldawn(entity, cooldawn_id, cooldawn_time);
+    }
+
+    click_entity(entity: number, action_id: TARGET_ACTION) {
+        this.m_scene.input_click_entity(entity, action_id);
+        this.scene_click_entity(entity, action_id);
+    }
+
+    click_position(pos_x: number, pos_y: number) {
+        this.m_scene.input_click_position(pos_x, pos_y);
+        this.scene_click_position(pos_x, pos_y);
     }
 
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {
@@ -431,7 +518,7 @@ export abstract class ClientBase {
         this.debug_player_visible_quad(start_x, start_y, end_x, end_y);
     }
 
-    debug_neighborhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+    debug_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
         this.debug_player_neighborhood_quad(start_x, start_y, end_x, end_y);
     }
 }

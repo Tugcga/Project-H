@@ -1,4 +1,4 @@
-import { STATE } from "../constants";
+import { STATE, CAST_ACTION } from "../constants";
 
 export class StateComponent {
     private m_state: STATE = STATE.IDDLE;
@@ -18,8 +18,6 @@ export class StateComponent {
             return "iddle wait";
         } else if (this.m_state == STATE.WALK_TO_POINT) {
             return "walk to point";
-        } else if (this.m_state == STATE.WALK_TO_TARGET) {
-            return "walk to target";
         } else if (this.m_state == STATE.SHIFTING) {
             return "faset shifting";
         } else if (this.m_state == STATE.CASTING) {
@@ -159,4 +157,38 @@ export class StateShiftComponent {
     active(): bool { return this.m_active; }
 
     deactivate(): void { this.m_active = false; }
+}
+
+// this component assigned when the entity start casting some action
+// atack (malee or range), use item, use skill or something similar
+// actual data for cast result shold be stored in separate component
+// the type allows to identify required component
+export class StateCastComponent {
+    private m_type: CAST_ACTION;
+    private m_time_length: f32;
+    private m_time_spend: f32;
+    private m_active: bool;
+
+    constructor(in_type: CAST_ACTION, in_time: f32) {
+        this.m_type = in_type;
+        this.m_time_length = in_time;
+        this.m_time_spend = 0.0;
+        this.m_active = true;
+    }
+
+    type(): CAST_ACTION {
+        return this.m_type;
+    }
+
+    increase(dt: f32): void {
+        this.m_time_spend += dt;
+
+        if (this.m_time_spend >= this.m_time_length) {
+            this.m_active = false;
+        }
+    }
+
+    active(): bool {
+        return this.m_active;
+    }
 }

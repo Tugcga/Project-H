@@ -4,9 +4,8 @@ export enum STATE {
     IDDLE,
     IDDLE_WAIT,  // used for monsters, when it shoul start to move after some time
     WALK_TO_POINT,
-    WALK_TO_TARGET,
     SHIFTING,  // fast move with invulnerability
-    CASTING,  // apply some skill (atack, fro example)
+    CASTING,  // apply some skill
     STAN,  // can not do anythong
     ACTIVATE_DEFENCE,
     DEFENCE,  // stay at defence position
@@ -24,10 +23,28 @@ export enum MOVE_STATUS {
     SHIFT
 }
 
-export enum ACTION {
-    SHIFT,
-}
-
 export enum COOLDAWN {
     SHIFT,
+    MELEE_ATTACK,
+}
+
+// this enum used to define the action at the end of user click
+export enum TARGET_ACTION {
+    NONE,
+    ATACK,
+}
+
+// this enum define the type of cast
+export enum CAST_ACTION {
+    MELEE_ATACK,
+    RANGE_ATACK
+}
+
+export enum START_CAST_STATUS {
+    OK,
+    FAIL,  // in general sence
+    FAIL_COOLDAWN,
+    FAIL_DISTANCE,
+    FAIL_WRONG_CAST,  // try to start wrong cast type
+    FAIL_FORBIDDEN,  // when the entity already in cast state, or in state where we can not start the cast
 }

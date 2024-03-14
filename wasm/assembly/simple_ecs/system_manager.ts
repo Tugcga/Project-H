@@ -89,6 +89,10 @@ export class System {
             local_ecs.add_component<T>(entity, component);
         }
     }
+
+    get_ecs(): ECS | null {
+        return this.m_ecs;
+    }
 }
 
 export class SystemManager {

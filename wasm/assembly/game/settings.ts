@@ -38,7 +38,9 @@ export class ConstantsSettings {
     neighborhood_quad_size: f32 = 1.5;  // this quad size used for building neighborhood grid and use it in rvo (for finding close actors)
     tiles_visible_radius: i32 = 12;
     player_radius: f32 = 0.5;
+    player_atack_distance: f32 = 0.85;  // these constants should defined by character equip
     monster_radius: f32 = 0.35;
+    monster_atack_distance: f32 = 0.5;
     player_speed: f32 = 5.0;
     monster_speed: f32 = 3.5;
     player_rotation_speed: f32 = 10.0;
@@ -46,11 +48,21 @@ export class ConstantsSettings {
     rvo_time_horizon: f32 = 0.5;
     monster_random_walk_target_radius: f32 = 3.0;  // radius where we select next random point to walk in
     monster_iddle_time: Array<f32> = [1.0, 5.0];  // in seconds
-    monsters_per_room: Array<i32> = [3, 7];
+    monsters_per_room: Array<u32> = [3, 7];
     path_recalculate_time: f32 = 1.0;  // in seconds, after this time we should calculate the path to the target point
+    path_to_target_recalculate_time: f32 = 0.1; // in seconds, time for recalculate path when the entity follow to the target actor (it can move, so, we should update the path)
     player_shift_speed_multiplier: f32 = 5.0;
     player_shift_distance: f32 = 2.0;
     player_shift_cooldawn: f32 = 0.5;
+    radius_select_delta: f32 = 0.25;  // this value is add to the entity radius to define select circle
+    player_melle_atack_time_span: f32 = 1.0;  // how long the atack cast
+    monster_melle_atack_time_span: f32 = 1.2;
+    player_melee_atack_cooldawn: f32 = 2.0;
+    monster_melee_atack_cooldawn: f32 = 2.0;
+    player_melee_damage_spread: f32 = 1.75;
+    player_melee_damage_distance: f32 = 1.5;  // the size of the cone for melee damage
+    monster_melee_damage_spread: f32 = 0.785;
+    monster_melee_damage_distance: f32 = 0.5;
 
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;
@@ -64,10 +76,36 @@ export class ConstantsSettings {
         this.path_recalculate_time = in_value;
     }
 
+    set_monster_iddle_time(in_min: f32, in_max: f32): void {
+        this.monster_iddle_time[0] = in_min;
+        this.monster_iddle_time[1] = in_max;
+    }
+
     set_player_shift(in_multiplier: f32, in_distance: f32, in_cooldawn: f32): void {
         this.player_shift_speed_multiplier = in_multiplier;
         this.player_shift_distance = in_distance;
         this.player_shift_cooldawn = in_cooldawn;
+    }
+
+    set_player_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+        this.player_atack_distance = distance;
+        this.player_melle_atack_time_span = time_span;
+        this.player_melee_atack_cooldawn = cooldawn;
+        this.player_melee_damage_spread = damage_spread;
+        this.player_melee_damage_distance = damage_distance;
+    }
+
+    set_monster_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+        this.monster_atack_distance = distance;
+        this.monster_melle_atack_time_span = time_span;
+        this.monster_melee_atack_cooldawn = cooldawn;
+        this.monster_melee_damage_spread = damage_spread;
+        this.monster_melee_damage_distance = damage_distance;
+    }
+
+    set_monsters_per_room(min_count: u32, max_count: u32): void {
+        this.monsters_per_room[0] = min_count;
+        this.monsters_per_room[1] = max_count;
     }
 }
 

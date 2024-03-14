@@ -143,3 +143,9 @@ export function get_navmesh_path(navmesh: Navmesh, start_x: f32, start_y: f32, f
     const path: StaticArray<f32> = navmesh.search_path(start_x, 0.0, start_y, finish_x, 0.0, finish_y);
     return offset_path(path, OFFSET_DELTA);
 }
+
+export function distance(start_x: f32, start_y: f32, end_x: f32, end_y: f32): f32 {
+    const delta_x = end_x - start_x;
+    const delta_y = end_y - start_y;
+    return Mathf.sqrt(delta_x * delta_x + delta_y * delta_y);
+}
