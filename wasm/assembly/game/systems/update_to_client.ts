@@ -9,6 +9,8 @@ import { ActorTypeComponent } from "../components/actor_type";
 import { UpdateToClientComponent } from "../components/update_to_client";
 import { MoveTagComponent } from "../components/move";
 import { VisibleQuadGridNeighborhoodComponent } from "../components/visible_quad_grid_neighborhood";
+import { LifeComponent } from "../components/life";
+import { ShieldComponent } from "../components/shield";
 
 import { external_define_entity_changes,
          external_define_total_update_entities } from "../../external";
@@ -58,9 +60,13 @@ export class UpdateToClientSystem extends System {
                                 const move: MoveTagComponent | null = this.get_component<MoveTagComponent>(entity);
                                 const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
                                 const angle: AngleComponent | null = this.get_component<AngleComponent>(entity);
+                                const life: LifeComponent | null = this.get_component<LifeComponent>(entity);
+                                const shield: ShieldComponent | null = this.get_component<ShieldComponent>(entity);
 
-                                if (move && position && angle) {
-                                    external_define_entity_changes(entity, position.x(), position.y(), angle.value(), move.status());
+                                if (move && position && angle && life && shield) {
+                                    external_define_entity_changes(entity, position.x(), position.y(), angle.value(), move.status(),
+                                                                   life.life(), life.max_life(),
+                                                                   shield.shield(), shield.max_shield());
                                 }
                             }
 

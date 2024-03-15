@@ -24,10 +24,8 @@ export class StateComponent {
             return "casting";
         } else if (this.m_state == STATE.STAN) {
             return "stanning";
-        } else if (this.m_state == STATE.ACTIVATE_DEFENCE) {
-            return "activate defence";
-        } else if (this.m_state == STATE.DEFENCE) {
-            return "defence";
+        } else if (this.m_state == STATE.SHIELD) {
+            return "shield";
         } else if (this.m_state == STATE.TALK) {
             return "talk";
         } else {
@@ -190,5 +188,21 @@ export class StateCastComponent {
 
     active(): bool {
         return this.m_active;
+    }
+}
+
+export class StateShieldComponent {
+    private m_time: f32;
+
+    constructor() {
+        this.m_time = 0.0;
+    }
+
+    increase_time(dt: f32): void {
+        this.m_time += dt;
+    }
+
+    time(): f32 {
+        return this.m_time;
     }
 }

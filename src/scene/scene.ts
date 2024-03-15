@@ -179,6 +179,55 @@ export class Scene {
     set_entity_life(id: number, life: number, max_life: number) {
         if (this.m_player_id == id) {
             this.m_player.set_life(life, max_life);
+        } else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_life(life, max_life);
+                }
+            } else {
+                const monster = new Monster(id);
+                monster.set_life(life, max_life);
+    
+                this.m_monsters.set(id, monster);
+            }
+        }
+    }
+
+    set_entity_activate_shield(id: number, is_active: boolean) {
+        if (this.m_player_id == id) {
+            this.m_player.set_active_shield(is_active);
+            this.m_click_cursor.deactivate();
+        } else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_active_shield(is_active);
+                }
+            } else {
+                const monster = new Monster(id);
+                monster.set_active_shield(is_active);
+    
+                this.m_monsters.set(id, monster);
+            }
+        }
+    }
+
+    set_entity_shield(id: number, shield: number, max_shield: number) {
+        if (this.m_player_id == id) {
+            this.m_player.set_shield(shield, max_shield);
+        } else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_shield(shield, max_shield);
+                }
+            } else {
+                const monster = new Monster(id);
+                monster.set_shield(shield, max_shield);
+    
+                this.m_monsters.set(id, monster);
+            }
         }
     }
 

@@ -63,6 +63,12 @@ export class ConstantsSettings {
     player_melee_damage_distance: f32 = 1.5;  // the size of the cone for melee damage
     monster_melee_damage_spread: f32 = 0.785;
     monster_melee_damage_distance: f32 = 0.5;
+    player_life: u32 = 24;
+    monster_life: u32 = 8;
+    player_shield: f32 = 4.0;
+    monster_shield: f32 = 3.0;
+    player_shield_resurect: f32 = 1.0;
+    monster_shield_resurect: f32 = 0.5;
 
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;
@@ -106,6 +112,24 @@ export class ConstantsSettings {
     set_monsters_per_room(min_count: u32, max_count: u32): void {
         this.monsters_per_room[0] = min_count;
         this.monsters_per_room[1] = max_count;
+    }
+
+    set_player_life(in_value: u32): void {
+        this.player_life = in_value;
+    }
+
+    set_player_shield(in_shield: f32, in_resurect: f32): void {
+        this.player_shield = in_shield;
+        this.player_shield_resurect = in_resurect;
+    }
+
+    set_mosnter_life(in_value: u32): void {
+        this.monster_life = in_value;
+    }
+
+    set_monster_shield(in_shield: f32, in_resurect: f32): void {
+        this.monster_shield = in_shield;
+        this.monster_shield_resurect = in_resurect;
     }
 }
 

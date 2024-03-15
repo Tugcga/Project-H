@@ -28,7 +28,11 @@ declare function remove_monster(entity: u32): void;
 declare function create_monster(entity: u32, radius: f32): void;
 
 @external("env", "host.define_entity_changes")
-declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32, move_status: u32): void;
+declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32,
+                                       angle: f32,
+                                       move_status: u32,
+                                       life: u32, max_life: u32,
+                                       shield: f32, max_shield: f32): void;
 
 @external("env", "host.define_total_update_entities")
 declare function define_total_update_entities(count: u32): void;
@@ -38,6 +42,12 @@ declare function entity_start_shift(entity: u32): void;
 
 @external("env", "host.entity_finish_shift")
 declare function entity_finish_shift(entity: u32): void;
+
+@external("env", "host.entity_activate_shield")
+declare function entity_activate_shield(entity: u32): void;
+
+@external("env", "host.entity_release_shield")
+declare function entity_release_shield(entity: u32): void;
 
 @external("env", "host.entity_start_melee_attack")
 declare function entity_start_melee_attack(entity: u32, time: f32, damage_distance: f32, damage_spread: f32): void;
@@ -123,7 +133,7 @@ export function external_update_entity_params(entity: u32,
     if (use_external) {
         update_entity_params(entity, life, max_life, select_radius, atack_distance, atack_time);
     } else {
-        console.log("ext -> update_entity_params: entity " + entity.toString() + " life " + life.toString() + "/" + max_life.toString() + " slect radius " + select_radius.toString() + " atack distance " + atack_distance.toString() + " attack time " + atack_time.toString());
+        console.log("ext -> update_entity_params: entity " + entity.toString() + " life " + life.toString() + "/" + max_life.toString() + " select radius " + select_radius.toString() + " atack distance " + atack_distance.toString() + " attack time " + atack_time.toString());
     }
 }
 
@@ -143,11 +153,21 @@ export function external_create_monster(entity: u32, radius: f32): void {
     }
 }
 
-export function external_define_entity_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32, move_status: u32): void {
+export function external_define_entity_changes(entity: u32, 
+                                               pos_x: f32, pos_y: f32, 
+                                               angle: f32, 
+                                               move_status: u32,
+                                               life: u32, max_life: u32,
+                                               shield: f32, max_shield: f32): void {
     if(use_external) {
-        define_entity_changes(entity, pos_x, pos_y, angle, move_status);
+        define_entity_changes(entity, pos_x, pos_y, angle, move_status, life, max_life, shield, max_shield);
     } else {
-        console.log("ext -> define_entity_changes: id " + entity.toString() + " position " + pos_x.toString() + " " + pos_y.toString() + " angle " + angle.toString() + " move " + move_status.toString());
+        console.log("ext -> define_entity_changes: id " + entity.toString() + 
+            " position " + pos_x.toString() + " " + pos_y.toString() + 
+            " angle " + angle.toString() + 
+            " move " + move_status.toString() +
+            " life " + life.toString() + "/" + max_life.toString() +
+            " shield " + shield.toString() + "/" + max_shield.toString());
     }
 }
 
@@ -172,6 +192,22 @@ export function external_entity_finish_shift(entity: u32): void {
         entity_finish_shift(entity);
     } else {
         console.log("ext -> entity_finish_shift: " + entity.toString());
+    }
+}
+
+export function external_entity_activate_shield(entity: u32): void {
+    if(use_external) {
+        entity_activate_shield(entity);
+    } else {
+        console.log("ext -> entity_activate_shield: " + entity.toString());
+    }
+}
+
+export function external_entity_release_shield(entity: u32): void {
+    if(use_external) {
+        entity_release_shield(entity);
+    } else {
+        console.log("ext -> entity_release_shield: " + entity.toString());
     }
 }
 

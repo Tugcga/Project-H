@@ -8,8 +8,11 @@ export class Person extends SceneItem {
     private m_attack_distance: number = 0.0;
     private m_life: number = 0;
     private m_max_life: number = 0;
+    private m_shield: number = 0.0;
+    private m_max_shield: number = 0.0;
     private m_move_status: MOVE_STATUS = MOVE_STATUS.NONE;
     private m_select_radius: number = 0.0;
+    private m_active_shield: boolean = false;
     private m_debug_draw: boolean = true;
 
     constructor(in_id: number) {
@@ -43,6 +46,15 @@ export class Person extends SceneItem {
         this.m_max_life = max_life;
     }
 
+    set_active_shield(in_value: boolean) {
+        this.m_active_shield = in_value;
+    }
+
+    set_shield(shield: number, max_shield: number) {
+        this.m_shield = shield;
+        this.m_max_shield = max_shield;
+    }
+
     set_select_radius(value: number) {
         this.m_select_radius = value;
     }
@@ -69,6 +81,22 @@ export class Person extends SceneItem {
 
     get_max_life(): number {
         return this.m_max_life;
+    }
+
+    get_shield(): number {
+        return this.m_shield;
+    }
+
+    get_max_shield(): number {
+        return this.m_max_shield;
+    }
+
+    get_shield_proportion(): number {
+        return this.m_shield / this.m_max_shield;
+    }
+
+    get_shield_active(): boolean {
+        return this.m_active_shield;
     }
 
     get_select_radius(): number {

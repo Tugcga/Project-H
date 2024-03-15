@@ -18,7 +18,7 @@ class ComponentArray<T> extends IComponentArray {
     }
 
     insert_data(entity: Entity, component: T): void {
-        assert(!this.m_entity_to_index_map.has(entity), "Component added to same entity more than once");
+        assert(!this.m_entity_to_index_map.has(entity), "Component " + this.m_name + " added to same entity more than once");
 
         const new_index: u32 = this.m_size;
         this.m_entity_to_index_map.set(entity, new_index);

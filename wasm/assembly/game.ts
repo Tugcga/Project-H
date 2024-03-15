@@ -24,13 +24,19 @@ import { setup_components,
          setup_monster,
          command_move_to_point,
          command_init_attack,
-         command_shift } from "./game/ecs_setup";
+         command_shift,
+         command_activate_shield,
+         command_release_shield } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
 import { RadiusSelectComponent } from "./game/components/radius";
 import { SpeedComponent } from "./game/components/speed";
 import { ActorTypeComponent } from "./game/components/actor_type";
 import { TargetActionComponent } from "./game/components/target_action";
+import { LifeComponent } from "./game/components/life";
+import { ShieldComponent } from "./game/components/shield";
+import { UpdateToClientComponent } from "./game/components/update_to_client";
+
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
 import { NeighborhoodQuadGridTrackingSystem } from "./game/systems/neighborhood_quad_grid_tracking";
@@ -101,6 +107,9 @@ export class Game {
         const player_melee_atack_cooldawn = local_constants.player_melee_atack_cooldawn;
         const player_melee_damage_distance = local_constants.player_melee_damage_distance;
         const player_melee_damage_spread = local_constants.player_melee_damage_spread;
+        const player_life = local_constants.player_life;
+        const player_shield = local_constants.player_shield;
+        const player_shield_resurect = local_constants.player_shield_resurect;
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -155,7 +164,10 @@ export class Game {
             atack_distance,
             melle_atack_timing,
             player_melee_damage_distance,
-            player_melee_damage_spread);
+            player_melee_damage_spread,
+            player_life,
+            player_shield,
+            player_shield_resurect);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -166,12 +178,13 @@ export class Game {
         
         // output player position and radius
         external_create_player(player_entity, player_radius);
-        external_define_entity_changes(player_entity, start_x, start_y, start_angle, false);
+        external_define_entity_changes(player_entity, start_x, start_y, start_angle, false, player_life, player_life, player_shield, player_shield);
         // use here melle_atack_timing but in general case we should get it from character parameters
 
         const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(player_entity);
-        if (select_radius) {
-            external_update_entity_params(player_entity, 0, 0, select_radius.value(), atack_distance, melle_atack_timing);
+        const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(player_entity);
+        if (select_radius && life) {
+            external_update_entity_params(player_entity, life.life(), life.max_life(), select_radius.value(), atack_distance, melle_atack_timing);
         }
 
         // store in the class all local instances
@@ -285,6 +298,22 @@ export class Game {
         }
     }
 
+    player_shield(): void {
+        const local_ecs = this.ecs;
+        const player_entity = this.player_entity;
+        if (local_ecs) {
+            command_activate_shield(local_ecs, player_entity);
+        }
+    }
+
+    player_release_shield(): void {
+        const local_ecs = this.ecs;
+        const player_entity = this.player_entity;
+        if (local_ecs) {
+            command_release_shield(local_ecs, player_entity);
+        }
+    }
+
     emit_one_monster(pos_x: f32, pos_y: f32, angle: f32): void {
         const local_ecs = this.ecs;
         const local_constants = this.constants;
@@ -304,8 +333,11 @@ export class Game {
             const monster_melee_atack_cooldawn = local_constants.monster_melee_atack_cooldawn;
             const monster_melee_damage_distance = local_constants.monster_melee_damage_distance;
             const monster_melee_damage_spread = local_constants.monster_melee_damage_spread;
+            const mosnter_life = local_constants.monster_life;
+            const monster_shield = local_constants.monster_shield;
+            const monster_shield_resurect = local_constants.monster_shield_resurect;
 
-            const mosnter_entity = setup_monster(local_ecs, 
+            const monster_entity = setup_monster(local_ecs, 
                                                  pos_x, 
                                                  pos_y, 
                                                  angle, 
@@ -321,11 +353,15 @@ export class Game {
                                                  atack_distance,
                                                  melle_atack_timing,
                                                  monster_melee_damage_distance,
-                                                 monster_melee_damage_spread);
+                                                 monster_melee_damage_spread,
+                                                 mosnter_life,
+                                                 monster_shield,
+                                                 monster_shield_resurect);
 
-            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(mosnter_entity);
-            if (select_radius) {
-                external_update_entity_params(mosnter_entity, 0, 0, select_radius.value(), atack_distance, melle_atack_timing);
+            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(monster_entity);
+            const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(monster_entity);
+            if (select_radius && life) {
+                external_update_entity_params(monster_entity, life.life(), life.max_life(), select_radius.value(), atack_distance, melle_atack_timing);
             }
         }
     }
@@ -397,6 +433,25 @@ export class Game {
                             command_init_attack(local_ecs, local_navmesh, entity, player_entity);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    //for test only
+    demage_all_shields(damage: u32): void {
+        const local_ecs = this.ecs;
+
+        if (local_ecs) {
+            const rvo_entities: Array<Entity> = local_ecs.get_entities<RVOSystem>();
+            const damage_f32: f32 = <f32>damage;
+            for (let i = 0, len = rvo_entities.length; i < len; i++) {
+                const entity: Entity = rvo_entities[i];
+                const entity_shield: ShieldComponent | null = local_ecs.get_component<ShieldComponent>(entity);
+                const entity_update: UpdateToClientComponent | null = local_ecs.get_component<UpdateToClientComponent>(entity);
+                if (entity_shield && entity_update) {
+                    entity_shield.damage(damage_f32);
+                    entity_update.set_value(true);
                 }
             }
         }

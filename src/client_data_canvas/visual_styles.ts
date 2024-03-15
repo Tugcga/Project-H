@@ -45,6 +45,11 @@ export const DEBUG_RECT_LINE_WIDTH = 1.0;
 export const DEBUG_VISIBILITY_RECT_COLOR = "rgb(111, 156, 227)";
 export const DEBUG_NEIGHBOURHOOD_RECT_COLOR = "rgb(134, 227, 111)";
 
+export const SHIELD_ACTIVE_COLOR = "rgba(45, 71, 77, 0.75)";
+export const SHIELD_ACTIVE_WIDTH = 4.0;
+export const SHIELD_PASSIVE_COLOR = "rgba(45, 71, 77, 0.25)";
+export const SHIELD_PASSIVE_WIDTH = 2.0;
+
 // each cooldawn drawn as circle arc
 export const COOLDAWN_SHIFT_COLOR = "rgba(255, 255, 255, 0.25)";
 export const COOLDAWN_SHIFT_WIDTH = 2.0;

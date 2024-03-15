@@ -51,8 +51,8 @@ export class RVOSystem extends System {
             if (velocity && pref_velocity && actor_type && state) {
                 const actor_type_value = actor_type.type();
                 const state_value = state.state();
-                if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || actor_type_value == ACTOR.PLAYER) {
-                    // entities in shift state does not effected by rvo (move at streight)
+                if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || state_value == STATE.SHIELD || actor_type_value == ACTOR.PLAYER) {
+                    // entities in shift state does not effected by rvo (move at straight)
                     // also casting entities stay at place and should not move
                     // for player we simply copy velocity
                     rvo_velocities.push(pref_velocity.x());

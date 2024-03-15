@@ -103,10 +103,22 @@ export function game_client_shift(game: Game, cursor_x: f32, cursor_y: f32): voi
     game.player_shift(cursor_x, cursor_y);
 }
 
+export function game_client_shield(game: Game): void {
+    game.player_shield();
+}
+
+export function game_client_release_shield(game: Game): void {
+    game.player_release_shield();
+}
+
 export function game_add_monsters(game: Game): void {
     game.add_monsters();
 }
 
 export function game_make_aggressive(game: Game): void {
     game.make_aggressive();
+}
+
+export function game_damage_all_shields(game: Game, damage: u32): void {
+    game.demage_all_shields(damage);
 }

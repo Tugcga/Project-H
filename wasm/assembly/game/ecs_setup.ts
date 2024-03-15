@@ -19,7 +19,7 @@ import { VisibleQuadGridNeighborhoodComponent } from "./components/visible_quad_
 import { RadiusComponent, RadiusSelectComponent } from "./components/radius";
 import { RotationSpeedComponent } from "./components/rotation_speed";
 import { SpeedComponent } from "./components/speed";
-import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent } from "./components/state";
+import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent, StateShieldComponent } from "./components/state";
 import { PlayerComponent, MonsterComponent } from "./components/tags";
 import { TargetAngleComponent } from "./components/target_angle";
 import { TilePositionComponent } from "./components/tile_position";
@@ -38,6 +38,8 @@ import { AtackTimeComponent } from "./components/atack_time";
 import { MeleeAttackCooldawnComponent } from "./components/melee_attack_cooldawn";
 import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent } from "./components/damage";
 import { CastMeleeDamageComponent } from "./components/cast";
+import { LifeComponent } from "./components/life";
+import { ShieldComponent, ShieldIncreaseComponent } from "./components/shield";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
@@ -52,6 +54,7 @@ import { RVOSystem } from "./systems/rvo";
 import { PrefToVelocitySystem } from "./systems/pref_velocity";
 import { PostVelocitySystem } from "./systems/post_velocity";
 import { MoveSystem } from "./systems/move";
+import { ShieldSystem, ShieldIncreaseSystem } from "./systems/shield";
 import { ResetVelocitySystem } from "./systems/reset_velocity";
 import { WalkToPointSwitchSystem, ShiftSwitchSystem, CastSwitchSystem, IddleWaitSwitchSystem } from "./systems/state_switch";
 import { UpdateToClientComponent } from "./components/update_to_client";
@@ -62,7 +65,9 @@ import { BuffTimerShiftCooldawnSystem, BuffTimerMeleeAttackCooldawnSystem } from
 import { external_entity_start_shift,
          external_entity_start_melee_attack,
          external_entity_finish_melee_attack,
-         external_entity_start_cooldawn } from "../external";
+         external_entity_start_cooldawn,
+         external_entity_activate_shield,
+         external_entity_release_shield } from "../external";
 
 import { DebugSettings, EngineSettings } from "./settings";
 
@@ -197,6 +202,7 @@ export function setup_components(ecs: ECS): void {
     //               RotateSystem (get state to rotate if it equal to cast)
     //               MoveSystem (move only when we in walk to point state)
     //               RVOSystem (to check should we use rvo or not)
+    //               ShieldIncreaseSystem (to check that shield increase outisde of the SHIELD state)
     // write systems: IddleWaitSwitchSystem (change state when it should switch to other)
     //                WalkToPointSwitchSystem
     //                ShiftSwitchSystem
@@ -237,6 +243,13 @@ export function setup_components(ecs: ECS): void {
     // created at the end of walk to point state (when the character comes to the action distance)
     ecs.register_component<StateCastComponent>();
 
+    // assign: player and monster when activate the shield
+    // read systems: ShieldIncreaseSystem (this system executes WITHOUT this component)
+    // write systems: ShieldSystem (update shield time)
+    // comment: this component does not store actual shield value
+    // is uses to measure the shield time (for attack interrupt effect)
+    ecs.register_component<StateShieldComponent>();
+
     // assigned: player, monsters
     // read systems: PostVelocitySystem (read and write to modify)
     //               MoveSystem (use velocity for actual move of the entity)
@@ -274,6 +287,7 @@ export function setup_components(ecs: ECS): void {
     // read systems: UpdateToClientSystem
     // write systems: MoveTrackingSystem (activate if the entity change position), 
     //                RotateSystem (activate when the entity change the angle)
+    //                ShieldIncreaseSystem (when update the shield)
     // comment: contains the flag (bool value) is the data about the entity should be updated on the client
     // at the end of the update call the system UpdateToClientSystem check each component
     // if it contains active flag, then it update data about corresponding entity at the client
@@ -353,6 +367,26 @@ export function setup_components(ecs: ECS): void {
     // comment: data component, assign to entity when it start casting melee atack
     // contains data for post-cast process (apply damage and so on)
     ecs.register_component<CastMeleeDamageComponent>();
+
+    // assigned: all players and monsters
+    // read systems: -
+    // write systems: -
+    // comment: stire the pair life/max life of the entity
+    // these values are u32
+    ecs.register_component<LifeComponent>();
+
+    // assigned: all players and monsters
+    // read systems: -
+    // write systems: ShieldIncreaseSystem
+    // comment: store the pair shield/ max shield for each entity
+    // values are f32, the shield value incereased every time when entity in non-shield state
+    ecs.register_component<ShieldComponent>();
+
+    // assigned: all player and monsters
+    // read systems: ShieldIncreaseSystem
+    // write systems: -
+    // comment: data component, define the value for increase the shield value each second
+    ecs.register_component<ShieldIncreaseComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -393,6 +427,16 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<ShiftSystem, SpeedComponent>();
     ecs.set_system_with_component<ShiftSystem, ShiftSpeedMultiplierComponent>();
     ecs.set_system_with_component<ShiftSystem, PreferredVelocityComponent>();
+
+    ecs.register_system<ShieldSystem>(new ShieldSystem());
+    ecs.set_system_with_component<ShieldSystem, StateShieldComponent>();
+
+    ecs.register_system<ShieldIncreaseSystem>(new ShieldIncreaseSystem());
+    ecs.set_system_with_component<ShieldIncreaseSystem, ShieldComponent>();
+    ecs.set_system_with_component<ShieldIncreaseSystem, ShieldIncreaseComponent>();
+    ecs.set_system_with_component<ShieldIncreaseSystem, StateComponent>();
+    ecs.set_system_with_component<ShieldIncreaseSystem, UpdateToClientComponent>();  // mark entity to update when update the shield
+    ecs.set_system_without_component<ShieldIncreaseSystem, StateShieldComponent>();
 
     // calculate quad index (used for neigborhoods) from the position of the player and monsters
     // store it in the component
@@ -568,7 +612,10 @@ export function setup_player(ecs: ECS,
                              atack_distance: f32,
                              melee_timing: f32,
                              melee_damage_distance: f32,
-                             melee_damage_spread: f32): Entity {
+                             melee_damage_spread: f32,
+                             life: u32,
+                             shield: f32,
+                             shield_resurect: f32): Entity {
     const player_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(player_entity, new ActorTypeComponent(ACTOR.PLAYER));
     ecs.add_component<PlayerComponent>(player_entity, new PlayerComponent());
@@ -599,6 +646,9 @@ export function setup_player(ecs: ECS,
     ecs.add_component<AtackDistanceComponent>(player_entity, new AtackDistanceComponent(atack_distance));
     ecs.add_component<MeleeDamageDistanceComponent>(player_entity, new MeleeDamageDistanceComponent(melee_damage_distance));
     ecs.add_component<MeleeDamageSpreadComponent>(player_entity, new MeleeDamageSpreadComponent(melee_damage_spread));
+    ecs.add_component<LifeComponent>(player_entity, new LifeComponent(life));
+    ecs.add_component<ShieldComponent>(player_entity, new ShieldComponent(shield));
+    ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
 
     return player_entity;
 }
@@ -619,7 +669,10 @@ export function setup_monster(ecs: ECS,
                               atack_distance: f32,
                               melee_timing: f32,
                               melee_damage_distance: f32,
-                              melee_damage_spread: f32): Entity {
+                              melee_damage_spread: f32,
+                              life: u32,
+                              shield: f32,
+                              shield_resurect: f32): Entity {
     const monster_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
@@ -647,6 +700,9 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<MeleeAttackCooldawnComponent>(monster_entity, new MeleeAttackCooldawnComponent(melee_attack_cooldaw));
     ecs.add_component<MeleeDamageDistanceComponent>(monster_entity, new MeleeDamageDistanceComponent(melee_damage_distance));
     ecs.add_component<MeleeDamageSpreadComponent>(monster_entity, new MeleeDamageSpreadComponent(melee_damage_spread));
+    ecs.add_component<LifeComponent>(monster_entity, new LifeComponent(life));
+    ecs.add_component<ShieldComponent>(monster_entity, new ShieldComponent(shield));
+    ecs.add_component<ShieldIncreaseComponent>(monster_entity, new ShieldIncreaseComponent(shield_resurect));
 
     return monster_entity;
 }
@@ -660,6 +716,8 @@ export function clear_state_components(ecs: ECS, state_value: STATE, entity: Ent
         ecs.remove_component<StateShiftComponent>(entity);
     } else if (state_value == STATE.CASTING) {
         ecs.remove_component<StateCastComponent>(entity);
+    } else if (state_value == STATE.SHIELD) {
+        ecs.remove_component<StateShieldComponent>(entity);
     }
 }
 
@@ -701,7 +759,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
                                        target_radius: RadiusComponent,
                                        target_state: StateComponent): START_CAST_STATUS {
     const state_value = state.state();
-    if (state_value == STATE.SHIFTING || state_value == STATE.CASTING) {
+    if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || state_value == STATE.SHIELD) {
         return START_CAST_STATUS.FAIL_FORBIDDEN;
     }
 
@@ -745,13 +803,16 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
     }
 }
 
-// return true if correctly swith to iddle
+// return true if correctly switch to iddle
 // false if something is not ok
 function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: StateComponent): boolean {
     const state_value = entity_state.state();
-    if (state_value == STATE.IDDLE || state_value == STATE.IDDLE_WAIT) {
+    if (state_value == STATE.IDDLE) {
         // nothing to do
         // start as usual
+    } else if (state_value == STATE.IDDLE_WAIT) {
+        entity_state.set_state(STATE.IDDLE);
+        clear_state_components(ecs, STATE.IDDLE_WAIT, entity);
     } else if (state_value == STATE.WALK_TO_POINT) {
         // switch to iddle
         entity_state.set_state(STATE.IDDLE);  // iddle does not required any additional component
@@ -781,6 +842,10 @@ function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: StateCompone
             // something wrong
             return false;
         }
+    } else if (state_value == STATE.SHIELD) {
+        entity_state.set_state(STATE.IDDLE);
+        clear_state_components(ecs, STATE.SHIELD, entity);
+        external_entity_release_shield(entity);
     } else {
         // unknown state
         return false;
@@ -875,6 +940,8 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
                         // unknown type of cast action
                     }
                 }
+            } else if (entity_state_value == STATE.SHIELD) {
+                // from shield we can start move action
             }
 
             // entity make the same, nothing to do
@@ -1005,7 +1072,9 @@ export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor
 
                     // switch the state
                     // delete state component
-                    if (state_value == STATE.WALK_TO_POINT) {
+                    // TODO: switch to iidle by common function
+                    // and then switch to shift
+                    /*if (state_value == STATE.WALK_TO_POINT) {
                         ecs.remove_component<StateWalkToPointComponent>(entity);
                         // reset the action
                         target_action.reset();
@@ -1021,15 +1090,45 @@ export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor
                             }
                         }
                         ecs.remove_component<StateCastComponent>(entity);
+                    }*/
+                    const is_interrupt = interrupt_to_iddle(ecs, entity, state);
+                    if (is_interrupt) {
+                        // assign new state
+                        state.set_state(STATE.SHIFTING);
+                        // add the component
+                        ecs.add_component<StateShiftComponent>(entity, shift);
+                        external_entity_start_shift(entity);
                     }
-                    
-                    // assign new state
-                    state.set_state(STATE.SHIFTING);
-                    // add the component
-                    ecs.add_component<StateShiftComponent>(entity, shift);
-                    external_entity_start_shift(entity);
                 }
             }
         }
+    }
+}
+
+export function command_activate_shield(ecs: ECS, entity: Entity): void {
+    const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
+    if (state) {
+        // entity can start shield state at iddle, walk and cast
+        const state_value = state.state();
+        if (state_value == STATE.IDDLE || state_value == STATE.IDDLE_WAIT || state_value == STATE.WALK_TO_POINT || state_value == STATE.CASTING) {
+            const is_interrupt = interrupt_to_iddle(ecs, entity, state);
+            if (is_interrupt) {
+                // now entity at iddle state
+                state.set_state(STATE.SHIELD);
+                const shield: StateShieldComponent = new StateShieldComponent();
+                ecs.add_component<StateShieldComponent>(entity, shield);
+
+                external_entity_activate_shield(entity);
+            }
+        }
+    }
+}
+
+export function command_release_shield(ecs: ECS, entity: Entity): void {
+    const shield: StateShieldComponent | null = ecs.get_component<StateShieldComponent>(entity);
+    const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
+    if (shield && state) {
+        // should not require to send external call, because it already called from interrupt function
+        interrupt_to_iddle(ecs, entity, state);
     }
 }

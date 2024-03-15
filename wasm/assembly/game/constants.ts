@@ -7,8 +7,7 @@ export enum STATE {
     SHIFTING,  // fast move with invulnerability
     CASTING,  // apply some skill
     STAN,  // can not do anythong
-    ACTIVATE_DEFENCE,
-    DEFENCE,  // stay at defence position
+    SHIELD,  // stay at defence position with active shield
     TALK,  // player talk with npc
 }
 

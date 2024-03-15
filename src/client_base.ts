@@ -32,7 +32,8 @@ export abstract class ClientBase {
     m_map: SceneMap;
     m_wtc_tfm: Transform = new Transform();
     m_wtc_scale: number = 1.0;
-    m_is_mouse_press: boolean = false;
+    m_is_left_mouse_press: boolean = false;
+    m_is_right_mouse_press: boolean = false;
     m_mouse_event: MouseEvent;
     m_last_touch_time: number = performance.now();
     m_last_touch_coords: [number, number] = [0, 0];
@@ -66,6 +67,8 @@ export abstract class ClientBase {
     abstract scene_remove_monster(entity: number): void;
     abstract scene_entity_start_shift(entity: number): void;
     abstract scene_entity_finish_shift(entity: number): void;
+    abstract scene_entity_activate_shield(entity: number): void;
+    abstract scene_entity_release_shield(entity: number): void;
     abstract scene_entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number): void;
     abstract scene_entity_finish_melee_attack(entity: number): void;
     abstract scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void;
@@ -95,6 +98,8 @@ export abstract class ClientBase {
             define_total_update_entities: this.define_total_update_entities.bind(this),
             entity_start_shift: this.entity_start_shift.bind(this),
             entity_finish_shift: this.entity_finish_shift.bind(this),
+            entity_activate_shield: this.entity_activate_shield.bind(this),
+            entity_release_shield: this.entity_release_shield.bind(this),
             entity_start_melee_attack: this.entity_start_melee_attack.bind(this),
             entity_finish_melee_attack: this.entity_finish_melee_attack.bind(this),
             entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
@@ -344,22 +349,39 @@ export abstract class ClientBase {
 
     mouse_press_event(event: MouseEvent) {
         this.m_mouse_event = event;
+        const is_left_click = event.button == 0;
+        const is_right_click = event.button == 2;
         if (this.m_is_start && this.m_is_game_active) {
-            this.m_is_mouse_press = true;
+            if (is_left_click) {
+                this.m_is_left_mouse_press = true;
     
-            const c = cursor_coordinates(this.m_scene_canvas, event);
-            const c_world = this.point_to_world(c[0], c[1]);
-            const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
-            if (is_send) {
-                this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
+                const c = cursor_coordinates(this.m_scene_canvas, event);
+                const c_world = this.point_to_world(c[0], c[1]);
+                const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
+                if (is_send) {
+                    this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
+                }
+            }
+            if (is_right_click) {
+                this.m_is_right_mouse_press = true;
+                this.m_module.game_client_shield(this.m_game_ptr);
             }
         }
     }
 
     mouse_release_event(event: MouseEvent) {
+        const is_left_release = event.button == 0;
+        const is_right_release = event.button == 2;
         if(this.m_is_start) {
-            this.m_is_mouse_press = false;
-            this.m_scene.reset_click();
+            if (is_left_release) {
+                this.m_is_left_mouse_press = false;
+                this.m_scene.reset_click();
+            }
+            if(is_right_release) {
+                this.m_is_right_mouse_press = false;
+                this.m_module.game_client_release_shield(this.m_game_ptr);
+            }
+            
         }
     }
 
@@ -375,6 +397,8 @@ export abstract class ClientBase {
                     this.m_module.game_add_monsters(this.m_game_ptr);
                 } else if(key == "a") {
                     this.m_module.game_make_aggressive(this.m_game_ptr);
+                } else if(key == "d") {
+                    this.m_module.game_damage_all_shields(this.m_game_ptr, 1.5);
                 } else if(key == "m") {
                     this.m_map.toggle_active();
                 } else if(key == "+") {
@@ -395,7 +419,7 @@ export abstract class ClientBase {
             // update game only when tab is active
             // in non-active tab the delta time is nearly 2 seconds
             // it's too big value for correct behaviour
-            if(this.m_is_mouse_press && this.m_mouse_event && this.m_scene_canvas) {
+            if(this.m_is_left_mouse_press && this.m_mouse_event && this.m_scene_canvas) {
                 const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
                 const c_world = this.point_to_world(c[0], c[1]);
                 const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], false);
@@ -503,10 +527,17 @@ export abstract class ClientBase {
         this.scene_create_monster(entity, radius);
     }
 
-    define_entity_changes(entity: number, pos_x: number, pos_y: number, angle: number, move_status: number) {
+    define_entity_changes(entity: number, 
+                          pos_x: number, pos_y: 
+                          number, angle: number, 
+                          move_status: number,
+                          life: number, max_life: number,
+                          shield: number, max_shield: number) {
         this.m_scene.set_entity_position(entity, pos_x, pos_y);
         this.m_scene.set_entity_angle(entity, angle);
         this.m_scene.set_entity_move(entity, move_status);
+        this.m_scene.set_entity_life(entity, life, max_life);
+        this.m_scene.set_entity_shield(entity, shield, max_shield);
 
         if (this.m_scene.is_player(entity)) {
             this.scene_define_player_changes(pos_x, pos_y, angle, move_status);
@@ -531,6 +562,16 @@ export abstract class ClientBase {
 
     entity_finish_shift(entity: number) {
         this.scene_entity_finish_shift(entity);
+    }
+
+    entity_activate_shield(entity: number) {
+        this.m_scene.set_entity_activate_shield(entity, true);
+        this.scene_entity_activate_shield(entity);
+    }
+
+    entity_release_shield(entity: number) {
+        this.m_scene.set_entity_activate_shield(entity, false);
+        this.scene_entity_release_shield(entity);
     }
 
     entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number) {
