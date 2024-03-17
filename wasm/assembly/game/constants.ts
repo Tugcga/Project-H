@@ -2,7 +2,6 @@ export const EPSILON: f32 = 0.0001;
 
 export enum STATE {
     IDDLE,
-    IDDLE_WAIT,  // used for monsters, when it shoul start to move after some time
     WALK_TO_POINT,
     SHIFTING,  // fast move with invulnerability
     CASTING,  // apply some skill

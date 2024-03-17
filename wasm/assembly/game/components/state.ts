@@ -14,8 +14,6 @@ export class StateComponent {
     toString(): string {
         if (this.m_state == STATE.IDDLE) {
             return "iddle";
-        } else if (this.m_state == STATE.IDDLE_WAIT) {
-            return "iddle wait";
         } else if (this.m_state == STATE.WALK_TO_POINT) {
             return "walk to point";
         } else if (this.m_state == STATE.SHIFTING) {
@@ -33,32 +31,6 @@ export class StateComponent {
         } else {
             return "unknown";
         }
-    }
-}
-
-export class StateIddleWaitComponent {
-    private m_wait_time: f32 = 0.0;  // how many times we should hold this state
-    private m_current_time: f32 = 0.0;  // how many time we already hold this state
-
-    constructor(in_wait: f32 = 1.0) {
-        this.m_wait_time = in_wait;
-    }
-
-    is_over(): bool {
-        return this.m_current_time > this.m_wait_time;
-    }
-
-    increase_time(dt: f32): void {
-        this.m_current_time += dt;
-    }
-
-    reset(in_time: f32): void {
-        this.m_wait_time = in_time;
-        this.m_current_time = 0.0;
-    }
-
-    toString(): string {
-        return `state[${this.m_wait_time}:${this.m_current_time}]`;
     }
 }
 

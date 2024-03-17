@@ -20,7 +20,6 @@ import { RadiusComponent, RadiusSelectComponent } from "./components/radius";
 import { RotationSpeedComponent } from "./components/rotation_speed";
 import { SpeedComponent } from "./components/speed";
 import { StateComponent, 
-         StateIddleWaitComponent,
          StateWalkToPointComponent,
          StateShiftComponent,
          StateCastComponent,
@@ -66,8 +65,7 @@ import { ResetVelocitySystem } from "./systems/reset_velocity";
 import { WalkToPointSwitchSystem,
          ShiftSwitchSystem,
          CastSwitchSystem,
-         StunSwitchSystem,
-         IddleWaitSwitchSystem } from "./systems/state_switch";
+         StunSwitchSystem } from "./systems/state_switch";
 import { UpdateToClientComponent } from "./components/update_to_client";
 import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
@@ -104,7 +102,6 @@ export function setup_components(ecs: ECS): void {
     //               NeighborhoodQuadGridTrackingSystem
     //               RVOSystem
     //               PostVelocitySystem
-    //               IddleWaitSwitchSystem (to define path if we switch to the walk state)
     //               PositionToTileSystem (obtain tile index)
     //               MoveTrackingSystem (check is entity is move by compare with previuos position)
     //               VisibleQuadGridTrackingSystem
@@ -219,8 +216,7 @@ export function setup_components(ecs: ECS): void {
     //               RVOSystem (to check should we use rvo or not)
     //               ShieldIncreaseSystem (to check that shield increase outisde of the SHIELD state)
     //               UpdateToClientSystem (get dead state)
-    // write systems: IddleWaitSwitchSystem (change state when it should switch to other)
-    //                WalkToPointSwitchSystem
+    // write systems: WalkToPointSwitchSystem
     //                ShiftSwitchSystem
     //                StunSwitchSystem
     //                ApplyDamageSystem (if the entity is dead), also read to define is shield activated o not
@@ -229,14 +225,6 @@ export function setup_components(ecs: ECS): void {
     // if the state is not IDDLE, then the entity should contains additional component what describe the properties of the selected state
     // used in all switch systems
     ecs.register_component<StateComponent>();
-
-    // assigned: monsters (at create), monsters (as result of state switch, after walt to point)
-    // read systems: IddleWaitSwitchSystem (check the time and then switch to walk state)
-    // write systems: IddleWaitSwitchSystem (increase iddle time)
-    // comment: data state component
-    // describe iddle wait state (in this state the entity wait some time and then switch to move state)
-    // assigne only to monster (when create), player use simple iddle state
-    ecs.register_component<StateIddleWaitComponent>();
 
     // assigned: player, monsters (as result of state switch to WALK_TO_POINT)
     // read systems: WalkToPointSystem (to get target position in the trajectory)
@@ -296,7 +284,6 @@ export function setup_components(ecs: ECS): void {
 
     // assigned: player, monster
     // read systems: RVOSystem (for player we should not apply rvo), 
-    //               IddleWaitSwitchSystem,
     //               WalkToPointSwitchSystem (for player and monster we should apply different strategise for state switches), 
     //               ShiftSwitchSystem
     //               UpdateToClientSystem (to call different method to update data for player or monsters)
@@ -482,18 +469,9 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, NeighborhoodQuadGridIndexComponent>();
 
-    // check the time in the state component
-    // if it over, dwitch to the walk state
-    // we present ActorComponent, but it never realy used, because in our case only monster contains StateIddleWaitComponent
-    ecs.register_system<IddleWaitSwitchSystem>(new IddleWaitSwitchSystem(navmesh, random, monster_random_walk_target_radius));
-    ecs.set_system_with_component<IddleWaitSwitchSystem, StateIddleWaitComponent>();  // this component assigned only to monsters
-    ecs.set_system_with_component<IddleWaitSwitchSystem, ActorTypeComponent>();
-    ecs.set_system_with_component<IddleWaitSwitchSystem, StateComponent>();
-    ecs.set_system_with_component<IddleWaitSwitchSystem, PositionComponent>();
-
     // check is the entity comes to the target point of the path
     // if yes, switch to the iddle state (for the player) or iddle wait state (for mosnters)
-    ecs.register_system<WalkToPointSwitchSystem>(new WalkToPointSwitchSystem(random, monster_iddle_time));
+    ecs.register_system<WalkToPointSwitchSystem>(new WalkToPointSwitchSystem());
     ecs.set_system_with_component<WalkToPointSwitchSystem, StateWalkToPointComponent>();
     ecs.set_system_with_component<WalkToPointSwitchSystem, StateComponent>();
     ecs.set_system_with_component<WalkToPointSwitchSystem, ActorTypeComponent>();
@@ -509,21 +487,21 @@ export function setup_systems(ecs: ECS,
     // controll when the action shift is over and change the entity state to iddle
     // for player to simple iddle
     // for monster to wait iddle (and that's why we need random and iddle times)
-    ecs.register_system<ShiftSwitchSystem>(new ShiftSwitchSystem(random, monster_iddle_time));
+    ecs.register_system<ShiftSwitchSystem>(new ShiftSwitchSystem());
     ecs.set_system_with_component<ShiftSwitchSystem, StateComponent>();
     ecs.set_system_with_component<ShiftSwitchSystem, StateShiftComponent>();
     ecs.set_system_with_component<ShiftSwitchSystem, ShiftCooldawnComponent>();
     ecs.set_system_with_component<ShiftSwitchSystem, ActorTypeComponent>();
 
     // tracking_system required to find closed entities to the attacker entity
-    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(neighborhood_tracking_system, random, navmesh, monster_iddle_time));
+    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(neighborhood_tracking_system, navmesh));
     ecs.set_system_with_component<CastSwitchSystem, StateComponent>();
     ecs.set_system_with_component<CastSwitchSystem, StateCastComponent>();
     ecs.set_system_with_component<CastSwitchSystem, ActorTypeComponent>();
     ecs.set_system_with_component<CastSwitchSystem, TargetAngleComponent>();
     ecs.set_system_with_component<CastSwitchSystem, PositionComponent>();
 
-    ecs.register_system<StunSwitchSystem>(new StunSwitchSystem(random, monster_iddle_time));
+    ecs.register_system<StunSwitchSystem>(new StunSwitchSystem());
     ecs.set_system_with_component<StunSwitchSystem, StateComponent>();
     ecs.set_system_with_component<StunSwitchSystem, ActorTypeComponent>();
     ecs.set_system_with_component<StunSwitchSystem, StateStunComponent>();
@@ -732,9 +710,8 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
     const monster_state = new StateComponent();
-    monster_state.set_state(STATE.IDDLE_WAIT);
+    monster_state.set_state(STATE.IDDLE);
     ecs.add_component<StateComponent>(monster_entity, monster_state);
-    ecs.add_component<StateIddleWaitComponent>(monster_entity, new StateIddleWaitComponent(iddle_wait_time));
     ecs.add_component<PreferredVelocityComponent>(monster_entity, new PreferredVelocityComponent());
     ecs.add_component<VelocityComponent>(monster_entity, new VelocityComponent());
     ecs.add_component<PositionComponent>(monster_entity, new PositionComponent(pos_x, pos_y));
@@ -764,9 +741,7 @@ export function setup_monster(ecs: ECS,
 }
 
 export function clear_state_components(ecs: ECS, state_value: STATE, entity: Entity): void {
-    if (state_value == STATE.IDDLE_WAIT) {
-        ecs.remove_component<StateIddleWaitComponent>(entity);
-    } else if (state_value == STATE.WALK_TO_POINT) {
+    if (state_value == STATE.WALK_TO_POINT) {
         ecs.remove_component<StateWalkToPointComponent>(entity);
     } else if (state_value == STATE.SHIFTING) {
         ecs.remove_component<StateShiftComponent>(entity);
@@ -870,9 +845,6 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
     if (state_value == STATE.IDDLE) {
         // nothing to do
         // start as usual
-    } else if (state_value == STATE.IDDLE_WAIT) {
-        entity_state.set_state(STATE.IDDLE);
-        clear_state_components(ecs, STATE.IDDLE_WAIT, entity);
     } else if (state_value == STATE.WALK_TO_POINT) {
         // switch to iddle
         entity_state.set_state(STATE.IDDLE);  // iddle does not required any additional component
@@ -1166,7 +1138,7 @@ export function command_activate_shield(ecs: ECS, entity: Entity): void {
     if (state) {
         // entity can start shield state at iddle, walk and cast
         const state_value = state.state();
-        if (state_value == STATE.IDDLE || state_value == STATE.IDDLE_WAIT || state_value == STATE.WALK_TO_POINT || state_value == STATE.CASTING) {
+        if (state_value == STATE.IDDLE || state_value == STATE.WALK_TO_POINT || state_value == STATE.CASTING) {
             const is_interrupt = interrupt_to_iddle(ecs, entity, state);
             if (is_interrupt) {
                 // now entity at iddle state
