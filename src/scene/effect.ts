@@ -1,35 +1,51 @@
-import { ACTION_EFFECT } from "../constants";
+import { EFFECT } from "../constants";
 
-export class ActionEffect {
+export class EffectsCollection {
     // key - entity id
     // value - array of effects over this entity
-    private m_effects: Map<number, Array<ActionEffectBase>> = new Map<number, Array<ActionEffectBase>>();
+    private m_effects: Map<number, Array<EffectBase>> = new Map<number, Array<EffectBase>>();
 
-    add_melee_attack(entity: number, time: number, distance: number, spread: number) {
-        if (!this.m_effects.has(entity)) {
-            this.m_effects.set(entity, new Array<ActionEffectBase>());
+    private add_effect(id: number, effect: EffectBase) {
+        if (!this.m_effects.has(id)) {
+            this.m_effects.set(id, new Array<EffectBase>());
         }
 
-        const effects = this.m_effects.get(entity);
+        const effects = this.m_effects.get(id);
         if (effects) {
-            effects.push(new MeleeAttackActionEffect(time, ACTION_EFFECT.MELEE_ATTACK, distance, spread));
+            effects.push(effect);
         }
     }
 
-    remove_melee_attack(entity: number) {
-        const effects = this.m_effects.get(entity);
+    private remove_by_type(id: number, type: EFFECT) {
+        const effects = this.m_effects.get(id);
         // select all effects of the current entity
         if (effects) {
             let i = effects.length - 1;
             while (i >= 0) {
                 const effect = effects[i];
                 // remove all effects which are melee attack
-                if (effect.type() == ACTION_EFFECT.MELEE_ATTACK) {
+                if (effect.type() == type) {
                     effects.splice(i, 1);
                 }
                 i--;
             }
         }
+    }
+
+    add_melee_attack(entity: number, time: number, distance: number, spread: number) {
+        this.add_effect(entity, new MeleeAttackEffect(time, distance, spread));
+    }
+
+    add_stun(entity: number, duration: number) {
+        this.add_effect(entity, new StunEffect(duration));
+    }
+
+    remove_melee_attack(entity: number) {
+        this.remove_by_type(entity, EFFECT.MELEE_ATTACK);
+    }
+
+    remove_stun(entity: number) {
+        this.remove_by_type(entity, EFFECT.STUN);
     }
 
     update(dt: number) {
@@ -46,7 +62,7 @@ export class ActionEffect {
         }
     }
 
-    get_entity_effects(entity: number): Array<ActionEffectBase> {
+    get_entity_effects(entity: number): Array<EffectBase> {
         const effects = this.m_effects.get(entity);
         if (effects) {
             return effects;
@@ -56,13 +72,13 @@ export class ActionEffect {
     }
 }
 
-export class ActionEffectBase {
+export class EffectBase {
     private m_total_time: number;
     private m_spend_time: number
-    private m_type: ACTION_EFFECT;
+    private m_type: EFFECT;
 
     constructor(in_total_time: number,
-                in_type: ACTION_EFFECT) {
+                in_type: EFFECT) {
         this.m_total_time = in_total_time;
         this.m_spend_time = 0.0;
         this.m_type = in_type;
@@ -79,7 +95,7 @@ export class ActionEffectBase {
         return true;
     }
 
-    type(): ACTION_EFFECT {
+    type(): EFFECT {
         return this.m_type;
     }
 
@@ -88,15 +104,14 @@ export class ActionEffectBase {
     }
 }
 
-export class MeleeAttackActionEffect extends ActionEffectBase {
+export class MeleeAttackEffect extends EffectBase {
     private m_distance: number;
     private m_spread: number;
 
     constructor(in_total_time: number,
-                in_type: ACTION_EFFECT,
                 in_distance: number,
                 in_spread: number) {
-        super(in_total_time, in_type);
+        super(in_total_time, EFFECT.MELEE_ATTACK);
 
         this.m_distance = in_distance;
         this.m_spread = in_spread;
@@ -108,5 +123,11 @@ export class MeleeAttackActionEffect extends ActionEffectBase {
 
     spread(): number {
         return this.m_spread;
+    }
+}
+
+export class StunEffect extends EffectBase {
+    constructor(duration: number) {
+        super(duration, EFFECT.STUN);
     }
 }

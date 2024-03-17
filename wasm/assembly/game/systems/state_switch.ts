@@ -8,7 +8,7 @@ import { direction_to_angle, get_navmesh_path, distance } from "../utilities";
 import { try_start_melee_attack, clear_state_components, command_init_attack, interrupt_to_iddle, command_move_to_point } from "../ecs_setup";
 
 import { ActorTypeComponent } from "../components/actor_type";
-import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent } from "../components/state";
+import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent, StateStunComponent } from "../components/state";
 import { PositionComponent } from "../components/position";
 import { BuffShiftCooldawnComponent, BuffMeleeAttackCooldawnComponent } from "../components/buffs";
 import { ShiftCooldawnComponent } from "../components/shift_cooldawn";
@@ -27,7 +27,8 @@ import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tra
 
 import { external_entity_finish_shift,
          external_entity_start_cooldawn,
-         external_entity_finish_melee_attack } from "../../external";
+         external_entity_finish_melee_attack,
+         external_entity_finish_stun } from "../../external";
 
 function assign_iddle_state(system: System,
                             random: PseudoRandom,
@@ -207,16 +208,14 @@ export class ShiftSwitchSystem extends System {
                         external_entity_start_cooldawn(entity, COOLDAWN.SHIFT, cooldawn_value);
                     }
 
-                    const actor: ActorTypeComponent | null = this.get_component<ActorTypeComponent>(entity);
-                    if (actor) {
-                        const actor_value = actor.type();
-                        if (actor_value == ACTOR.PLAYER) {
-                            state.set_state(STATE.IDDLE);
-                        } else if (actor_value == ACTOR.MONSTER) {
-                            state.set_state(STATE.IDDLE_WAIT);
-                            const wait_time = <f32>local_random.next_float(monster_iddle_start, monster_iddle_end);
-                            this.add_component(entity, new StateIddleWaitComponent(wait_time));
-                        }
+                    const actor_type: ActorTypeComponent | null = this.get_component<ActorTypeComponent>(entity);
+                    if (actor_type) {
+                        assign_iddle_state(this,
+                                       local_random,
+                                       [this.m_monster_iddle_start, this.m_monster_iddle_end],
+                                       entity,
+                                       actor_type,
+                                       state);
                     }
                 }
             }
@@ -292,6 +291,7 @@ export class CastSwitchSystem extends System {
 
                 if (!cast.active()) {
                     // cast is finish
+                    const cast_duration = cast.time_length();
                     // we should apply post cast action, delete cast action component and switch to the iddle state
                     if (cast_type == CAST_ACTION.MELEE_ATACK) {
                         external_entity_finish_melee_attack(entity, false);
@@ -343,9 +343,9 @@ export class CastSwitchSystem extends System {
                                                 // add damage component
                                                 const neigh_entity_damage: ApplyDamageComponent | null = this.get_component<ApplyDamageComponent>(neigh_entity);
                                                 if (neigh_entity_damage) {
-                                                    neigh_entity_damage.extend(entity, melee_damage, DAMAGE_TYPE.MELEE);
+                                                    neigh_entity_damage.extend(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration);
                                                 } else {
-                                                    this.add_component<ApplyDamageComponent>(neigh_entity, new ApplyDamageComponent(entity, melee_damage, DAMAGE_TYPE.MELEE));
+                                                    this.add_component<ApplyDamageComponent>(neigh_entity, new ApplyDamageComponent(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration));
                                                 }
                                             }
                                         }
@@ -380,6 +380,53 @@ export class CastSwitchSystem extends System {
 
                     } else {
                         // unknown cast action
+                    }
+                }
+            }
+        }
+    }
+}
+
+export class StunSwitchSystem extends System {
+    private m_random: PseudoRandom;
+    private m_monster_iddle_start: f32;
+    private m_monster_iddle_end: f32;
+
+    constructor(in_random: PseudoRandom, in_monster_iddle_time: Array<f32>) {
+        super();
+
+        this.m_random = in_random;
+        this.m_monster_iddle_start = in_monster_iddle_time[0];
+        this.m_monster_iddle_end = in_monster_iddle_time[1];
+    }
+
+    update(dt: f32): void {
+        const entities = this.entities();
+        const local_random = this.m_random;
+        const monster_iddle_start = this.m_monster_iddle_start;
+        const monster_iddle_end = this.m_monster_iddle_end;
+
+        for (let i = 0, len = entities.length; i < len; i++) {
+            const entity: Entity = entities[i];
+
+            const state: StateComponent | null = this.get_component<StateComponent>(entity);
+            const actor_type: ActorTypeComponent | null = this.get_component<ActorTypeComponent>(entity);
+            const stun: StateStunComponent | null = this.get_component<StateStunComponent>(entity);
+
+            if (state && actor_type && stun) {
+                const state_value = state.state();
+                if (state_value == STATE.STUN) {
+                    stun.update(dt);
+                    if (stun.is_over()) {
+                        this.remove_component<StateStunComponent>(entity);
+
+                        assign_iddle_state(this,
+                                           local_random,
+                                           [monster_iddle_start, monster_iddle_end],
+                                           entity,
+                                           actor_type,
+                                           state);
+                        external_entity_finish_stun(entity);
                     }
                 }
             }

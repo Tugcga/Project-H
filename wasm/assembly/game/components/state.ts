@@ -188,6 +188,10 @@ export class StateCastComponent {
         }
     }
 
+    time_length(): f32 {
+        return this.m_time_length;
+    }
+
     active(): bool {
         return this.m_active;
     }
@@ -206,5 +210,27 @@ export class StateShieldComponent {
 
     time(): f32 {
         return this.m_time;
+    }
+}
+
+export class StateStunComponent {
+    private m_duration: f32;
+    private m_spend_time: f32;
+
+    constructor(in_duration: f32) {
+        this.m_duration = in_duration;
+        this.m_spend_time = 0.0;
+    }
+
+    update(dt: f32): void {
+        this.m_spend_time += dt;
+    }
+
+    is_over(): bool {
+        return this.m_spend_time >= this.m_duration;
+    }
+
+    toString(): str {
+        return `stun[${this.m_spend_time}/${this.m_duration}]`;
     }
 }

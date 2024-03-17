@@ -65,7 +65,7 @@ export abstract class ClientBase {
     abstract scene_update_entity_move_status(id: number, move_status: MOVE_STATUS): void;
     abstract scene_update_entity_life(id: number, life: number, max_life: number): void;
     abstract scene_update_entity_shield(id: number, shield: number, max_shield: number): void;
-    abstract scene_update_entity_params(entity: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number): void;
+    abstract scene_update_entity_params(entity: number, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number): void;
     abstract scene_create_monster(entity: number, radius: number): void;
     abstract scene_remove_monster(entity: number): void;
     abstract scene_entity_start_shift(entity: number): void;
@@ -79,13 +79,15 @@ export abstract class ClientBase {
     abstract scene_click_position(pos_x: number, pos_y: number): void;
     abstract scene_entity_damaged(attacker_entity: number, target_entity: number, damage: number, damage_type: DAMAGE_TYPE): void;
     abstract scene_entity_dead(entity: number): void;
+    abstract scene_entity_start_stun(entity: number, duration: number): void;
+    abstract scene_entity_finish_stun(entity: number): void;
     // debug callbacks
     // if debug is off, then these callbacks are not required
     // it never called from the module
     abstract debug_entity_trajectory(entity: number, coordinates: Float32Array): void;
     abstract debug_close_entity_pair(entity_a: number, a_pos_x: number, a_pos_y: number, entity_b: number, b_pos_x: number, b_pos_y: number): void;
     abstract debug_player_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
-    abstract debug_player_neighborhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
+    abstract debug_player_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
 
     constructor() {
         // define host functions for external calls from the wasm module
@@ -108,6 +110,8 @@ export abstract class ClientBase {
             entity_start_melee_attack: this.entity_start_melee_attack.bind(this),
             entity_finish_melee_attack: this.entity_finish_melee_attack.bind(this),
             entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
+            entity_start_stun: this.entity_start_stun.bind(this),
+            entity_finish_stun: this.entity_finish_stun.bind(this),
             click_entity: this.click_entity.bind(this),
             click_position: this.click_position.bind(this),
             entity_dead: this.entity_dead.bind(this),
@@ -115,7 +119,7 @@ export abstract class ClientBase {
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
-            debug_neighborhood_quad: this.debug_neighbourhood_quad.bind(this)
+            debug_neighbourhood_quad: this.debug_neighbourhood_quad.bind(this)
         };
 
         // setup ui
@@ -201,7 +205,7 @@ export abstract class ClientBase {
                 // controllable seed ↓ for test
                 module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
-                module.settings_set_neighborhood_quad_size(settings_ptr, 2.0);  // tweak this for greater radius for search close entities
+                module.settings_set_neighbourhood_quad_size(settings_ptr, 2.0);  // tweak this for greater radius for search close entities
                 module.settings_set_generate(settings_ptr,
                     22,  // level size
                     2, 4,  // min and max room size
@@ -409,6 +413,8 @@ export abstract class ClientBase {
                     this.m_module.game_make_aggressive(this.m_game_ptr);
                 } else if(key == "d") {
                     this.m_module.game_damage_all_entities(this.m_game_ptr, 1.5);
+                } else if (key == "t") {
+                    this.m_module.game_stun_all_entities(this.m_game_ptr, 1.0);
                 } else if(key == "m") {
                     this.m_map.toggle_active();
                 } else if(key == "+") {
@@ -452,9 +458,7 @@ export abstract class ClientBase {
                 this.m_module.game_update(this.m_game_ptr, dt);
             }
 
-            this.m_scene.get_cooldawns().update(dt);
-            this.m_scene.get_action_effects().update(dt);
-            this.m_scene.get_click_cursor().update(dt);
+            this.m_scene.update(dt);
 
             this.m_ui.update(dt);
             this.m_ui.update_count_values(this.m_total_level_entities, this.m_scene.get_monsters().size);
@@ -524,12 +528,12 @@ export abstract class ClientBase {
         this.scene_create_player(radius);
     }
 
-    update_entity_params(id: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number) {
-        this.m_scene.set_entity_atack_distance(id, atack_distance);
+    update_entity_params(id: number, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number) {
+        this.m_scene.set_entity_attack_distance(id, attack_distance);
         this.m_scene.set_entity_life(id, life, max_life);
         this.m_scene.set_entity_attack_time(id, attack_time);
         this.m_scene.set_entity_select_radius(id, select_radius);
-        this.scene_update_entity_params(id, life, max_life, select_radius, atack_distance, attack_time);
+        this.scene_update_entity_params(id, life, max_life, select_radius, attack_distance, attack_time);
     }
 
     create_monster(entity: number, radius: number) {
@@ -587,12 +591,12 @@ export abstract class ClientBase {
     }
 
     entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number) {
-        this.m_scene.get_action_effects().add_melee_attack(entity, time, damage_distance, damage_spread);
+        this.m_scene.entity_start_melee_attack(entity, time, damage_distance, damage_spread);
         this.scene_entity_start_melee_attack(entity, time, damage_distance, damage_spread);
     }
 
     entity_finish_melee_attack(entity: number, interrupt: boolean) {
-        this.m_scene.get_action_effects().remove_melee_attack(entity);
+        this.m_scene.entity_finish_melee_attack(entity);
         this.scene_entity_finish_melee_attack(entity);
     }
 
@@ -620,6 +624,16 @@ export abstract class ClientBase {
         this.scene_entity_damaged(attacker_entity, target_entity, damage, damage_type);
     }
 
+    entity_start_stun(entity: number, duration: number) {
+        this.m_scene.entity_start_stun(entity, duration);
+        this.scene_entity_start_stun(entity, duration);
+    }
+
+    entity_finish_stun(entity: number) {
+        this.m_scene.entity_finish_stun(entity);
+        this.scene_entity_finish_stun(entity);
+    }
+
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {
         const coordinates = new Float32Array(points.length);
         for(let i = 0; i < coordinates.length; i++) {
@@ -637,6 +651,6 @@ export abstract class ClientBase {
     }
 
     debug_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
-        this.debug_player_neighborhood_quad(start_x, start_y, end_x, end_y);
+        this.debug_player_neighbourhood_quad(start_x, start_y, end_x, end_y);
     }
 }

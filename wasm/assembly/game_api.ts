@@ -37,7 +37,7 @@ export function settings_set_debug_flags(settings: Settings,
     debug.show_neighborhood_quad = in_show_neighborhood;
 }
 
-export function settings_set_neighborhood_quad_size(settings: Settings, in_size: f32): void {
+export function settings_set_neighbourhood_quad_size(settings: Settings, in_size: f32): void {
     const constants = settings.get_constants();
     constants.set_neighborhood_quad_size(in_size);
 }
@@ -107,6 +107,11 @@ export function settings_set_monster_life(settings: Settings, value: u32): void 
     constants.set_monster_life(value);
 }
 
+export function settings_set_default_melee_stun(settings: Settings, value: f32): void {
+    const constants = settings.get_constants();
+    constants.set_default_melee_stun(value);
+}
+
 export function create_game(settings: Settings): Game {
     return new Game(settings);
 }
@@ -141,4 +146,8 @@ export function game_make_aggressive(game: Game): void {
 
 export function game_damage_all_entities(game: Game, damage: u32): void {
     game.damage_all_entities(damage);
+}
+
+export function game_stun_all_entities(game: Game, duration: f32): void {
+    game.stun_all_entities(duration);
 }

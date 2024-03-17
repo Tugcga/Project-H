@@ -19,7 +19,13 @@ import { VisibleQuadGridNeighborhoodComponent } from "./components/visible_quad_
 import { RadiusComponent, RadiusSelectComponent } from "./components/radius";
 import { RotationSpeedComponent } from "./components/rotation_speed";
 import { SpeedComponent } from "./components/speed";
-import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent, StateShieldComponent } from "./components/state";
+import { StateComponent, 
+         StateIddleWaitComponent,
+         StateWalkToPointComponent,
+         StateShiftComponent,
+         StateCastComponent,
+         StateShieldComponent,
+         StateStunComponent } from "./components/state";
 import { PlayerComponent, MonsterComponent } from "./components/tags";
 import { TargetAngleComponent } from "./components/target_angle";
 import { TilePositionComponent } from "./components/tile_position";
@@ -57,7 +63,11 @@ import { PostVelocitySystem } from "./systems/post_velocity";
 import { MoveSystem } from "./systems/move";
 import { ShieldSystem, ShieldIncreaseSystem } from "./systems/shield";
 import { ResetVelocitySystem } from "./systems/reset_velocity";
-import { WalkToPointSwitchSystem, ShiftSwitchSystem, CastSwitchSystem, IddleWaitSwitchSystem } from "./systems/state_switch";
+import { WalkToPointSwitchSystem,
+         ShiftSwitchSystem,
+         CastSwitchSystem,
+         StunSwitchSystem,
+         IddleWaitSwitchSystem } from "./systems/state_switch";
 import { UpdateToClientComponent } from "./components/update_to_client";
 import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
@@ -69,7 +79,8 @@ import { external_entity_start_shift,
          external_entity_finish_melee_attack,
          external_entity_start_cooldawn,
          external_entity_activate_shield,
-         external_entity_release_shield } from "../external";
+         external_entity_release_shield,
+         external_entity_start_stun } from "../external";
 
 import { DebugSettings, EngineSettings } from "./settings";
 
@@ -211,6 +222,7 @@ export function setup_components(ecs: ECS): void {
     // write systems: IddleWaitSwitchSystem (change state when it should switch to other)
     //                WalkToPointSwitchSystem
     //                ShiftSwitchSystem
+    //                StunSwitchSystem
     //                ApplyDamageSystem (if the entity is dead), also read to define is shield activated o not
     // comment: store the action state of the entity
     // this component never delete from the entity
@@ -256,6 +268,12 @@ export function setup_components(ecs: ECS): void {
     // is uses to measure the shield time (for attack interrupt effect)
     ecs.register_component<StateShieldComponent>();
 
+    // assign: player and monsters, when turn into stun state
+    // read systems: StateStunComponent (measure stun time)
+    // write systems: -
+    // comment: measure the stun time
+    ecs.register_component<StateStunComponent>();
+
     // assigned: player, monsters
     // read systems: PostVelocitySystem (read and write to modify)
     //               MoveSystem (use velocity for actual move of the entity)
@@ -283,6 +301,7 @@ export function setup_components(ecs: ECS): void {
     //               ShiftSwitchSystem
     //               UpdateToClientSystem (to call different method to update data for player or monsters)
     //               UpdateDebugSystem
+    //               StunSwitchSystem (define switch to iddle or iddle wait)
     // write systems: -, the data assigned at create time and does not changed during the game
     // comment: data component
     // describe the type of the actor entity
@@ -419,6 +438,7 @@ export function setup_systems(ecs: ECS,
                               monster_iddle_time: Array<f32>,
                               path_recalculate_time: f32,
                               path_to_target_recalculate_time: f32,
+                              default_melee_stun: f32,
                               debug_settings: DebugSettings,
                               engine_settings: EngineSettings): void {
     // reset to zero preferred velocities for all movable entities (player, mosnters)
@@ -502,7 +522,11 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<CastSwitchSystem, ActorTypeComponent>();
     ecs.set_system_with_component<CastSwitchSystem, TargetAngleComponent>();
     ecs.set_system_with_component<CastSwitchSystem, PositionComponent>();
-    // ecs.set_system_with_component<CastSwitchSystem, MeleeAttackCooldawnComponent>();
+
+    ecs.register_system<StunSwitchSystem>(new StunSwitchSystem(random, monster_iddle_time));
+    ecs.set_system_with_component<StunSwitchSystem, StateComponent>();
+    ecs.set_system_with_component<StunSwitchSystem, ActorTypeComponent>();
+    ecs.set_system_with_component<StunSwitchSystem, StateStunComponent>();
 
     if (engine_settings.use_rvo) {
         // system for rvo algorithm
@@ -530,7 +554,7 @@ export function setup_systems(ecs: ECS,
         ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
     }
 
-    ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem());
+    ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem(default_melee_stun));
     ecs.set_system_with_component<ApplyDamageSystem, UpdateToClientComponent>();  // if life or shield is changed, activate update
     ecs.set_system_with_component<ApplyDamageSystem, LifeComponent>();
     ecs.set_system_with_component<ApplyDamageSystem, ShieldComponent>();
@@ -750,6 +774,8 @@ export function clear_state_components(ecs: ECS, state_value: STATE, entity: Ent
         ecs.remove_component<StateCastComponent>(entity);
     } else if (state_value == STATE.SHIELD) {
         ecs.remove_component<StateShieldComponent>(entity);
+    } else if(state_value == STATE.STUN) {
+        ecs.remove_component<StateStunComponent>(entity);
     }
 }
 
@@ -792,7 +818,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
                                        target_radius: RadiusComponent,
                                        target_state: StateComponent): START_CAST_STATUS {
     const state_value = state.state();
-    if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || state_value == STATE.SHIELD || state_value == STATE.DEAD) {
+    if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || state_value == STATE.SHIELD || state_value == STATE.DEAD || state_value == STATE.STUN) {
         return START_CAST_STATUS.FAIL_FORBIDDEN;
     }
 
@@ -883,6 +909,8 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
     } else if (state_value == STATE.DEAD) {
         // fail to switch dead state to iddle
         return false;
+    } else if (state_value == STATE.STUN) {
+        return false;
     } else {
         // unknown state
         return false;
@@ -896,8 +924,8 @@ export function command_move_to_point(ecs: ECS, navmesh: Navmesh, entity: Entity
     const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
     if (state) {
         const state_value = state.state();
-        if (state_value == STATE.DEAD) {
-            // can not move in dead state
+        if (state_value == STATE.DEAD || state_value == STATE.STUN) {
+            // can not move in dead or stun state
             return false;
         }
 
@@ -986,6 +1014,9 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
                 }
             } else if (entity_state_value == STATE.SHIELD) {
                 // from shield we can start move action
+            } else if (entity_state_value == STATE.STUN) {
+                // forbiddent to start move at stun state
+                return false;
             }
 
             // entity make the same, nothing to do
@@ -1066,7 +1097,7 @@ export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor
     if (state) {
         // we can start the shift from any state, except the actual shift and dead
         const state_value = state.state();
-        if (state_value != STATE.SHIFTING && state_value != STATE.DEAD) {
+        if (state_value != STATE.SHIFTING && state_value != STATE.DEAD && state_value != STATE.STUN) {
             // check is the player contains shift cooldawn
             const shift_cooldawn: BuffShiftCooldawnComponent | null = ecs.get_component<BuffShiftCooldawnComponent>(entity);
             if (!shift_cooldawn) {
@@ -1160,5 +1191,22 @@ export function command_release_shield(ecs: ECS, entity: Entity): void {
             // TODO: be more carefull with mosnters, because they don't move in iddle state
         }
         // if the state is another, then nothig to do
+    }
+}
+
+export function command_stun(ecs: ECS, entity: Entity, duration: f32): void {
+    const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
+    if (state) {
+        const state_value = state.state();
+
+        if (state_value != STATE.STUN && state_value != STATE.DEAD) {
+            const is_iddle = interrupt_to_iddle(ecs, entity, state);
+            if (is_iddle) {
+                state.set_state(STATE.STUN);
+                ecs.add_component<StateStunComponent>(entity, new StateStunComponent(duration));
+
+                external_entity_start_stun(entity, duration);
+            }
+        }
     }
 }

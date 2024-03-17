@@ -46,7 +46,7 @@ export class Person extends SceneItem {
         this.m_radius = radius;
     }
 
-    set_atack_distance(value: number) {
+    set_attack_distance(value: number) {
         this.m_attack_distance = value;
     }
 

@@ -7,16 +7,19 @@ export class ApplyDamageComponent {
     private m_attackers: List<Entity>;
     private m_damages: List<u32>;
     private m_types: List<DAMAGE_TYPE>;
+    private m_attack_durations: List<f32>;  // store it to apply stun interruption
     private m_count: u32;
 
-    constructor(in_attacker: Entity = 0, in_damage: u32 = 0, in_type: DAMAGE_TYPE = DAMAGE_TYPE.UNKNOWN) {
-        this.m_attackers = new List<Entity>(16);
-        this.m_damages = new List<u32>(16);
-        this.m_types = new List<DAMAGE_TYPE>(16);
+    constructor(in_attacker: Entity = 0, in_damage: u32 = 0, in_type: DAMAGE_TYPE = DAMAGE_TYPE.UNKNOWN, in_attack_duration: f32 = 0.0) {
+        this.m_attackers = new List<Entity>(4);
+        this.m_damages = new List<u32>(4);
+        this.m_types = new List<DAMAGE_TYPE>(4);
+        this.m_attack_durations = new List<f32>(4);
 
         this.m_attackers.push(in_attacker);
         this.m_damages.push(in_damage);
         this.m_types.push(in_type);
+        this.m_attack_durations.push(in_attack_duration);
 
         this.m_count = 1;
     }
@@ -37,10 +40,15 @@ export class ApplyDamageComponent {
         return this.m_types[index];
     }
 
-    extend(attacker: Entity, damage: u32, type: DAMAGE_TYPE): void {
+    duration(index: u32) : f32 {
+        return this.m_attack_durations[index];
+    }
+
+    extend(attacker: Entity, damage: u32, type: DAMAGE_TYPE, duration: f32): void {
         this.m_attackers.push(attacker);
         this.m_damages.push(damage);
         this.m_types.push(type);
+        this.m_attack_durations.push(duration);
 
         this.m_count += 1;
     }

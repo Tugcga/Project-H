@@ -71,6 +71,7 @@ export class ConstantsSettings {
     monster_shield: f32 = 3.0;
     player_shield_resurect: f32 = 1.0;
     monster_shield_resurect: f32 = 0.5;
+    default_melee_stun: f32 = 1.0;
 
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;
@@ -134,6 +135,10 @@ export class ConstantsSettings {
     set_monster_shield(in_shield: f32, in_resurect: f32): void {
         this.monster_shield = in_shield;
         this.monster_shield_resurect = in_resurect;
+    }
+
+    set_default_melee_stun(value: f32): void {
+        this.default_melee_stun = value;
     }
 }
 

@@ -8,7 +8,7 @@ export const PLAYER_MOVE_COLOR = "rgba(91, 128, 78, 0.5)";
 export const PLAYER_SHIFT_COLOR = "rgba(91, 128, 78, 0.25)";
 
 export const ENTITY_DEAD_BACK_COLOR = "rgba(145, 145, 145, 0.25)";
-export const ENTITY_LIFE_CIRCLE_DELTA = 0.9;
+export const ENTITY_LIFE_CIRCLE_DELTA = 0.8;
 
 export const MONSTER_IS_STROKE = false;
 export const MONSTER_STROKE_WIDTH = 1.0;
@@ -66,3 +66,6 @@ export const COOLDAWN_MELEE_ATTACK_RADIUS = 8.0;
 
 // action effects
 export const EFFECT_MELEE_ATTACK_COLOR = "rgba(217, 43, 20, 0.5)";
+export const EFFECT_STUN_COLOR = "rgba(40, 111, 224, 0.25)";
+export const EFFECT_STUN_STROKE_COLOR = "rgba(134, 173, 235, 1.0)";
+export const EFFECT_STUN_RADIUS_MULTIPLIER = 1.1;

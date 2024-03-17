@@ -6,7 +6,7 @@ export enum STATE {
     WALK_TO_POINT,
     SHIFTING,  // fast move with invulnerability
     CASTING,  // apply some skill
-    STAN,  // can not do anythong
+    STUN,  // can not do anything
     SHIELD,  // stay at defence position with active shield
     TALK,  // player talk with npc
     DEAD,

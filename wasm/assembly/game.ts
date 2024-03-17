@@ -26,7 +26,8 @@ import { setup_components,
          command_init_attack,
          command_shift,
          command_activate_shield,
-         command_release_shield } from "./game/ecs_setup";
+         command_release_shield,
+         command_stun } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
 import { RadiusSelectComponent } from "./game/components/radius";
@@ -113,6 +114,7 @@ export class Game {
         const player_life = local_constants.player_life;
         const player_shield = local_constants.player_shield;
         const player_shield_resurect = local_constants.player_shield_resurect;
+        const default_melee_stun = local_constants.default_melee_stun;
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -144,6 +146,7 @@ export class Game {
             monster_iddle_time,
             path_recalculate_time,
             path_to_target_recalculate_time,
+            default_melee_stun,
             debug_settings,
             engine_settings);
 
@@ -457,10 +460,22 @@ export class Game {
                 const entity: Entity = rvo_entities[i];
                 const entity_damage: ApplyDamageComponent | null = local_ecs.get_component<ApplyDamageComponent>(entity);
                 if (entity_damage) {
-                    entity_damage.extend(0, damage, DAMAGE_TYPE.UNKNOWN);
+                    entity_damage.extend(0, damage, DAMAGE_TYPE.UNKNOWN, 0.0);
                 } else {
-                    local_ecs.add_component<ApplyDamageComponent>(entity, new ApplyDamageComponent(0, damage, DAMAGE_TYPE.UNKNOWN));
+                    local_ecs.add_component<ApplyDamageComponent>(entity, new ApplyDamageComponent(0, damage, DAMAGE_TYPE.UNKNOWN, 0.0));
                 }
+            }
+        }
+    }
+
+    stun_all_entities(duration: f32): void {
+        const local_ecs = this.ecs;
+
+        if (local_ecs) {
+            const rvo_entities: Array<Entity> = local_ecs.get_entities<RVOSystem>();
+            for (let i = 0, len = rvo_entities.length; i < len; i++) {
+                const entity: Entity = rvo_entities[i];
+                command_stun(local_ecs, entity, duration);
             }
         }
     }

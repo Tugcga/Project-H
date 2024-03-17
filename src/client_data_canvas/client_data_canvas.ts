@@ -1,6 +1,6 @@
 import { ClientBase } from "../client_base";
 import { CAMERA_LERP_COEFFICIENT, COOLDAWN, DAMAGE_TYPE, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
-import { draw_background, draw_cursor, draw_level_tile, draw_monster, draw_neighborhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
+import { draw_background, draw_cursor, draw_level_tile, draw_monster, draw_neighbourhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
 
 // this version of the client application
 // use 2d canvas as draw device
@@ -17,8 +17,8 @@ export class ClientDataCanvas extends ClientBase {
 
     m_is_draw_visible_rect: boolean = false;
     m_debug_visible_rect: Float32Array = new Float32Array(4);
-    m_is_draw_neighborhood_rect: boolean = false;
-    m_debug_neighborhood_rect: Float32Array = new Float32Array(4);
+    m_is_draw_neighbourhood_rect: boolean = false;
+    m_debug_neighbourhood_rect: Float32Array = new Float32Array(4);
 
     constructor() {
         super();
@@ -82,6 +82,8 @@ export class ClientDataCanvas extends ClientBase {
     scene_click_position(pos_x: number, pos_y: number): void {}
     scene_entity_damaged(attacker_entity: number, target_entity: number, damage: number, damage_type: DAMAGE_TYPE): void {}
     scene_entity_dead(entity: number): void {}
+    scene_entity_start_stun(entity: number, duration: number): void {}
+    scene_entity_finish_stun(entity: number): void {}
 
     debug_entity_trajectory(entity: number, coordinates: Float32Array): void {
         // store coordinates in temporary map
@@ -105,12 +107,12 @@ export class ClientDataCanvas extends ClientBase {
         this.m_is_draw_visible_rect = true;
     }
 
-    debug_player_neighborhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
-        this.m_debug_neighborhood_rect[0] = start_x;
-        this.m_debug_neighborhood_rect[1] = start_y;
-        this.m_debug_neighborhood_rect[2] = end_x;
-        this.m_debug_neighborhood_rect[3] = end_y;
-        this.m_is_draw_neighborhood_rect = true;
+    debug_player_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        this.m_debug_neighbourhood_rect[0] = start_x;
+        this.m_debug_neighbourhood_rect[1] = start_y;
+        this.m_debug_neighbourhood_rect[2] = end_x;
+        this.m_debug_neighbourhood_rect[3] = end_y;
+        this.m_is_draw_neighbourhood_rect = true;
     }
 
     update_process() {
@@ -167,9 +169,9 @@ export class ClientDataCanvas extends ClientBase {
         if (this.m_is_draw_visible_rect) {
             draw_visibility_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_visible_rect);
         }
-        // neighborhood rect
-        if (this.m_is_draw_neighborhood_rect) {
-            draw_neighborhood_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_neighborhood_rect);
+        // neighbourhood rect
+        if (this.m_is_draw_neighbourhood_rect) {
+            draw_neighbourhood_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_neighbourhood_rect);
         }
     }
 }

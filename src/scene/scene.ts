@@ -4,7 +4,7 @@ import { SceneTile } from "./scene_tile";
 import { Player } from "./player";
 import { Monster } from "./monster";
 import { Cooldawn } from "./cooldawn";
-import { ActionEffect, ActionEffectBase } from "./action_effect";
+import { EffectsCollection, EffectBase } from "./effect";
 import { Person } from "./person";
 
 // the Scene instance contains data of objects in the game
@@ -21,7 +21,7 @@ export class Scene {
     private m_player_id: number = 0;
     private m_monsters: Map<number, Monster> = new Map<number, Monster>();
     private m_cooldawns: Cooldawn = new Cooldawn();
-    private m_effects: ActionEffect = new ActionEffect();
+    private m_effects: EffectsCollection = new EffectsCollection();
 
     constructor(level_width: number,
                 level_height: number,
@@ -29,6 +29,12 @@ export class Scene {
         this.m_level_width = level_width;
         this.m_level_height = level_height;
         this.m_level_tile_size = level_tile_size;
+    }
+
+    update(dt: number) {
+        this.m_cooldawns.update(dt);
+        this.m_effects.update(dt);
+        this.m_click_cursor.update(dt);
     }
 
     // return true if we should send the click to the game
@@ -85,15 +91,11 @@ export class Scene {
         return this.m_cooldawns;
     }
 
-    get_action_effects(): ActionEffect {
-        return this.m_effects;
-    }
-
     get_person_cooldawns(entity: number): Map<COOLDAWN, [number, number]> {
         return this.m_cooldawns.get_cooldawns(entity);
     }
 
-    get_person_effects(entity: number): Array<ActionEffectBase> {
+    get_person_effects(entity: number): Array<EffectBase> {
         return this.m_effects.get_entity_effects(entity);
     }
 
@@ -170,9 +172,9 @@ export class Scene {
         this.m_player.set_radius(radius);
     }
 
-    set_entity_atack_distance(id: number, value: number) {
+    set_entity_attack_distance(id: number, value: number) {
         if (this.m_player_id == id) {
-            this.m_player.set_atack_distance(value);
+            this.m_player.set_attack_distance(value);
         }
     }
 
@@ -350,6 +352,26 @@ export class Scene {
                 this.m_monsters.set(entity, monster);
             }
         }
+    }
+
+    entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number) {
+        this.m_effects.add_melee_attack(entity, time, damage_distance, damage_spread);
+    }
+
+    entity_finish_melee_attack(entity: number) {
+        this.m_effects.remove_melee_attack(entity);
+    }
+
+    entity_start_stun(id: number, duration: number) {
+        if (id == this.m_player_id) {
+            this.m_click_cursor.deactivate_enemy_select();
+        }
+
+        this.m_effects.add_stun(id, duration);
+    }
+
+    entity_finish_stun(id: number) {
+        this.m_effects.remove_stun(id);
     }
 
     remove_monster(entity: number) {

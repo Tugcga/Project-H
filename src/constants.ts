@@ -16,8 +16,9 @@ export const OTHER_MOUSE_CLICK_DELTA: number = 30;  // in milliseconds
 export const DOUBLE_TOUCH_DELTA: number = 200;
 export const DOUBLE_TOUCH_CURSOR_DELTA: number = 2.0; // if second click outside of the square with side = 2 x value, then interpret click as single click
 
-export enum ACTION_EFFECT {
-    MELEE_ATTACK
+export enum EFFECT {
+    MELEE_ATTACK,
+    STUN,
 }
 
 // the same as in wasm-side
