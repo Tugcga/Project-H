@@ -3,9 +3,9 @@ import { PseudoRandom } from "../../promethean/pseudo_random"
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { ECS } from "../../simple_ecs/simple_ecs";
-import { EPSILON, STATE, ACTOR, COOLDAWN, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS } from "../constants";
+import { EPSILON, STATE, ACTOR, COOLDAWN, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, DAMAGE_TYPE } from "../constants";
 import { direction_to_angle, get_navmesh_path, distance } from "../utilities";
-import { try_start_melee_attack, clear_state_components, command_init_attack } from "../ecs_setup";
+import { try_start_melee_attack, clear_state_components, command_init_attack, interrupt_to_iddle, command_move_to_point } from "../ecs_setup";
 
 import { ActorTypeComponent } from "../components/actor_type";
 import { StateComponent, StateIddleWaitComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent } from "../components/state";
@@ -17,10 +17,13 @@ import { RadiusComponent } from "../components/radius";
 import { AtackDistanceComponent } from "../components/atack_distance";
 import { AtackTimeComponent } from "../components/atack_time";
 import { MeleeAttackCooldawnComponent } from "../components/melee_attack_cooldawn";
-import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent } from "../components/damage";
+import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent, MeleeDamageDamageComponent } from "../components/damage";
 import { CastMeleeDamageComponent } from "../components/cast";
 import { TargetAngleComponent } from "../components/target_angle";
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
+import { ApplyDamageComponent } from "../components/apply_damage";
+
+import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
 
 import { external_entity_finish_shift,
          external_entity_start_cooldawn,
@@ -91,8 +94,9 @@ export class WalkToPointSwitchSystem extends System {
             
             const damage_distance: MeleeDamageDistanceComponent | null = this.get_component<MeleeDamageDistanceComponent>(entity);
             const damage_spread: MeleeDamageSpreadComponent | null = this.get_component<MeleeDamageSpreadComponent>(entity);
+            const damage_damage: MeleeDamageDamageComponent | null = this.get_component<MeleeDamageDamageComponent>(entity);
 
-            if (pref_velocity && walk_to_point && actor_type && state && entity_target_action && position && attack_distance && attack_time && damage_distance && damage_spread) {
+            if (pref_velocity && walk_to_point && actor_type && state && entity_target_action && position && attack_distance && attack_time && damage_distance && damage_spread && damage_damage) {
                 if (entity_target_action.type() == TARGET_ACTION.ATACK) {
                     const local_ecs: ECS | null = this.get_ecs();
                     const target_entity: Entity = entity_target_action.entity();
@@ -102,32 +106,46 @@ export class WalkToPointSwitchSystem extends System {
                     const target_state: StateComponent | null = this.get_component<StateComponent>(target_entity);
 
                     if (local_ecs && target_position && target_radius && target_state) {
-                        const prev_state_value = state.state();
-                        const melee_status = try_start_melee_attack(local_ecs, entity, target_entity,
-                                                                    position,
-                                                                    attack_distance,
-                                                                    attack_time,
-                                                                    damage_distance,
-                                                                    damage_spread,
-                                                                    state,
-                                                                    entity_target_action,
-                                                                    target_position,
-                                                                    target_radius,
-                                                                    target_state);
-                        if (melee_status == START_CAST_STATUS.OK) {
-                            pref_velocity.set(0.0, 0.0);
-                            clear_state_components(local_ecs, prev_state_value, entity);
+                        const target_state_value = target_state.state();
+                        if (target_state_value == STATE.DEAD) {
+                            // target is dead
+                            // stop walking to the target
+                            const is_iddle = interrupt_to_iddle(local_ecs, entity, state);
+                            assign_iddle_state(this,
+                                               local_random,
+                                               [this.m_monster_iddle_start, this.m_monster_iddle_end],
+                                               entity,
+                                               actor_type,
+                                               state);
                         } else {
-                            // there are several reasons to fial the cast start
-                            if(melee_status == START_CAST_STATUS.FAIL_COOLDAWN) {
-                                // distance is ok, but the cast is not ready
-                                // wait at place, reset the velocity
+                            const prev_state_value = state.state();
+                            const melee_status = try_start_melee_attack(local_ecs, entity, target_entity,
+                                                                        position,
+                                                                        attack_distance,
+                                                                        attack_time,
+                                                                        damage_damage,
+                                                                        damage_distance,
+                                                                        damage_spread,
+                                                                        state,
+                                                                        entity_target_action,
+                                                                        target_position,
+                                                                        target_radius,
+                                                                        target_state);
+                            if (melee_status == START_CAST_STATUS.OK) {
                                 pref_velocity.set(0.0, 0.0);
-                                // we are not casting, the state is still walk to point
-                                // in this case in rvo actual velocity can be changed
+                                clear_state_components(local_ecs, prev_state_value, entity);
                             } else {
-                                // in all other cases simply make a step
-                                // nothing to do special
+                                // there are several reasons to fial the cast start
+                                if(melee_status == START_CAST_STATUS.FAIL_COOLDAWN) {
+                                    // distance is ok, but the cast is not ready
+                                    // wait at place, reset the velocity
+                                    pref_velocity.set(0.0, 0.0);
+                                    // we are not casting, the state is still walk to point
+                                    // in this case in rvo actual velocity can be changed
+                                } else {
+                                    // in all other cases simply make a step
+                                    // nothing to do special
+                                }
                             }
                         }
                     }
@@ -211,20 +229,23 @@ export class CastSwitchSystem extends System {
     private m_navmesh: Navmesh;  // used to call attack after cast is finish
     private m_monster_iddle_start: f32;
     private m_monster_iddle_end: f32;
+    private m_tracking_system: NeighborhoodQuadGridTrackingSystem;
 
-    constructor(in_random: PseudoRandom, in_navmesh: Navmesh, in_monster_iddle_time: Array<f32>) {
+    constructor(in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_random: PseudoRandom, in_navmesh: Navmesh, in_monster_iddle_time: Array<f32>) {
         super();
 
         this.m_random = in_random;
         this.m_navmesh = in_navmesh;
         this.m_monster_iddle_start = in_monster_iddle_time[0];
         this.m_monster_iddle_end = in_monster_iddle_time[1];
+        this.m_tracking_system = in_tracking_system;
     }
 
     update(dt: f32): void {
         const local_random = this.m_random;
         const monster_iddle_start = this.m_monster_iddle_start;
         const monster_iddle_end = this.m_monster_iddle_end;
+        const tracking_system = this.m_tracking_system;
 
         const entities = this.entities();
 
@@ -237,7 +258,10 @@ export class CastSwitchSystem extends System {
             const target_angle: TargetAngleComponent | null = this.get_component<TargetAngleComponent>(entity);
             const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
 
-            if (state && cast && actor_type && target_angle && position/* && melee_cooldawn*/) {
+            if (state && cast && actor_type && target_angle && position) {
+                const position_x = position.x();
+                const position_y = position.y();
+
                 cast.increase(dt);
                 const cast_type = cast.type();
 
@@ -252,9 +276,9 @@ export class CastSwitchSystem extends System {
                             // get position of the target entity
                             const target_position: PositionComponent | null = this.get_component<PositionComponent>(target_entity);
                             if (target_position) {
-                                let dir_x = target_position.x() - position.x();
-                                let dir_y = target_position.y() - position.y();
-                                const dir_length = <f32>Math.sqrt(dir_x * dir_x + dir_y * dir_y);
+                                let dir_x = target_position.x() - position_x;
+                                let dir_y = target_position.y() - position_y;
+                                const dir_length = Mathf.sqrt(dir_x * dir_x + dir_y * dir_y);
                                 if (dir_length > EPSILON) {
                                     dir_x /= dir_length;
                                     dir_y /= dir_length;
@@ -273,11 +297,61 @@ export class CastSwitchSystem extends System {
                         external_entity_finish_melee_attack(entity, false);
                         const cast_melee: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
                         const cast_target = cast_melee ? cast_melee.target() : 0;
-                        let cast_target_correct = cast_melee ? true : false;  // if the target is ded after damage, make it false
+                        let cast_target_correct = cast_melee ? true : false;
                         if (cast_melee) {
-                            // TODO: apply damage
-                            const melee_damage = cast_melee.damage();
+                            const target_position: PositionComponent | null = this.get_component<PositionComponent>(cast_target);
+                            if (target_position) {
+                                // find direction to the target
+                                let to_target_x = target_position.x() - position_x;
+                                let to_target_y = target_position.y() - position_y;
+                                // normalize
+                                const to_target_length = Mathf.sqrt(to_target_x * to_target_x + to_target_y * to_target_y);
+                                if (to_target_length > EPSILON) {
+                                    to_target_x /= to_target_length;
+                                    to_target_y /= to_target_length;
+                                }
 
+                                const melee_damage = cast_melee.damage();
+                                const melee_spread = cast_melee.spread();
+                                const melee_distance = cast_melee.distance();
+                                const spread_limit = Mathf.cos(melee_spread / 2.0);
+                                // we should find all close entities
+                                // for melee attack we get entities from current attacker position
+                                const closed_entities = tracking_system.get_items_from_position(position_x, position_y);
+                                for (let j = 0, j_len = closed_entities.length; j < j_len; j++) {
+                                    const neigh_entity = closed_entities[j];
+                                    if (neigh_entity != entity) {
+                                        const neigh_entity_position: PositionComponent | null = this.get_component<PositionComponent>(neigh_entity);
+                                        const neigh_entity_radius: RadiusComponent | null = this.get_component<RadiusComponent>(neigh_entity);
+                                        if (neigh_entity_position && neigh_entity_radius) {
+                                            const neigh_entity_radius_value = neigh_entity_radius.value();
+                                            // find to entity vector
+                                            let to_x = neigh_entity_position.x() - position_x;
+                                            let to_y = neigh_entity_position.y() - position_y;
+                                            // normalize
+                                            const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+                                            if (to_length > EPSILON) {
+                                                to_x /= to_length;
+                                                to_y /= to_length;
+                                            }
+
+                                            // calculate dot-product between to target and to entity vectors
+                                            const to_entity_dot = to_x * to_target_x + to_y * to_target_y;
+                                            // if this product is greater than cos(spread / 2), then entity in the cone
+                                            if ((to_entity_dot >= spread_limit) && (to_length <= melee_distance + neigh_entity_radius_value)) {
+                                                // entity inside the cone
+                                                // add damage component
+                                                const neigh_entity_damage: ApplyDamageComponent | null = this.get_component<ApplyDamageComponent>(neigh_entity);
+                                                if (neigh_entity_damage) {
+                                                    neigh_entity_damage.extend(entity, melee_damage, DAMAGE_TYPE.MELEE);
+                                                } else {
+                                                    this.add_component<ApplyDamageComponent>(neigh_entity, new ApplyDamageComponent(entity, melee_damage, DAMAGE_TYPE.MELEE));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // remove cast melee damage component
@@ -297,6 +371,8 @@ export class CastSwitchSystem extends System {
                         const ecs = this.get_ecs();
                         if (cast_target_correct && ecs) {
                             const local_navmesh = this.m_navmesh;
+                            // TODO: in this case we can start attack even if the target entity is dead
+                            // but with cooldawns it is not the case
                             const is_attack = command_init_attack(ecs, local_navmesh, entity, cast_target);
                         } else {
                             // target is invalid, nothing to do
@@ -329,6 +405,7 @@ export class IddleWaitSwitchSystem extends System {
         const local_navmesh = this.m_navmesh;
         const local_random = this.m_random;
         const random_target_radius = this.m_random_target_radius;
+        const local_ecs = this.get_ecs();
 
         for (let i = 0, len = entities.length; i < len; i++) {
             const entity: Entity = entities[i];
@@ -338,7 +415,7 @@ export class IddleWaitSwitchSystem extends System {
             const state: StateComponent | null = this.get_component<StateComponent>(entity);
             const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
 
-            if (iddle_wait && actor_type && state && position) {
+            if (iddle_wait && actor_type && state && position && local_ecs) {
                 iddle_wait.increase_time(dt);
                 const actor_type_value = actor_type.type();
                 if (iddle_wait.is_over() && actor_type_value == ACTOR.MONSTER) {
@@ -348,15 +425,17 @@ export class IddleWaitSwitchSystem extends System {
                     const target_x = <f32>local_random.next_float(pos_x - random_target_radius, pos_x + random_target_radius);
                     const target_y = <f32>local_random.next_float(pos_y - random_target_radius, pos_y + random_target_radius);
 
-                    const path = get_navmesh_path(local_navmesh, pos_x, pos_y, target_x, target_y);
-                    // check is the path is valid
-                    // it can be invalid if we select random target point outside of the walkable area
-                    if (path.length > 0) {
-                        this.remove_component<StateIddleWaitComponent>(entity);
-                        state.set_state(STATE.WALK_TO_POINT);
-                        const walk_to_point = new StateWalkToPointComponent();
-                        walk_to_point.define_path(path);
-                        this.add_component<StateWalkToPointComponent>(entity, walk_to_point);
+                    const is_define_move = command_move_to_point(local_ecs, local_navmesh, entity, target_x, target_y);
+                    if (!is_define_move) {
+                        // fail to define the path
+                        // add back iddle wait component
+                        const temp_iddle_wait: StateIddleWaitComponent | null = this.get_component<StateIddleWaitComponent>(entity);
+                        if (temp_iddle_wait) {
+                            this.remove_component<StateIddleWaitComponent>(entity);
+                        }
+
+                        this.add_component<StateIddleWaitComponent>(entity, iddle_wait);
+                        state.set_state(STATE.IDDLE_WAIT);
                     }
                 }
             }

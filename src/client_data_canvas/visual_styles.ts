@@ -1,15 +1,20 @@
 export const PLAYER_IS_STROKE = false;
 export const PLAYER_STROKE_WIDTH = 1.0;
 export const PLAYER_STROKE_COLOR = "rgb(74, 193, 33)";
-export const PLAYER_SECONDARY_STROKE_COLOR = "rgb(74, 193, 33, 0.25)";
+export const PLAYER_SECONDARY_STROKE_COLOR = "rgba(74, 193, 33, 0.25)";
+export const PLAYER_LIVE_BACK_COLOR = "rgba(114, 186, 89, 0.5)";
 export const PLAYER_IDLE_COLOR = "rgba(91, 128, 78, 0.75)";
 export const PLAYER_MOVE_COLOR = "rgba(91, 128, 78, 0.5)";
 export const PLAYER_SHIFT_COLOR = "rgba(91, 128, 78, 0.25)";
+
+export const ENTITY_DEAD_BACK_COLOR = "rgba(145, 145, 145, 0.25)";
+export const ENTITY_LIFE_CIRCLE_DELTA = 0.9;
 
 export const MONSTER_IS_STROKE = false;
 export const MONSTER_STROKE_WIDTH = 1.0;
 export const MONSTER_STROKE_COLOR = "rgb(226, 55, 27)";
 export const MONSTER_SECONDARY_STROKE_COLOR = "rgb(226, 55, 27, 0.15)";
+export const MONSTER_LIVE_BACK_COLOR = "rgba(171, 105, 73, 0.5)";
 export const MONSTER_IDLE_COLOR = "rgba(196, 94, 45, 0.75)";
 export const MONSTER_MOVE_COLOR = "rgba(196, 94, 45, 0.5)";
 export const MONSTER_SHIFT_COLOR = "rgba(196, 94, 45, 0.25)";

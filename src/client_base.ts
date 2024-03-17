@@ -1,8 +1,8 @@
-import { __Internref12, __Internref19, instantiate } from "../wasm/build/game_api";
+import { __Internref19, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
-import { COOLDAWN, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
+import { COOLDAWN, DAMAGE_TYPE, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
 import { cursor_coordinates, touch_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
 
@@ -59,10 +59,13 @@ export abstract class ClientBase {
     abstract scene_tile_create(pos_x: number, pos_y: number, index: number, type: number): void;
     // define player methods called after the module update player properties
     // it should be used in the client to update player shape
-    abstract scene_define_player_changes(pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void;
     abstract scene_create_player(radius: number): void;
+    abstract scene_update_entity_position(id: number, pos_x: number, pos_y: number): void;
+    abstract scene_update_entity_angle(id: number, angle: number): void;
+    abstract scene_update_entity_move_status(id: number, move_status: MOVE_STATUS): void;
+    abstract scene_update_entity_life(id: number, life: number, max_life: number): void;
+    abstract scene_update_entity_shield(id: number, shield: number, max_shield: number): void;
     abstract scene_update_entity_params(entity: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number): void;
-    abstract scene_define_entity_changes(entity: number, pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void;
     abstract scene_create_monster(entity: number, radius: number): void;
     abstract scene_remove_monster(entity: number): void;
     abstract scene_entity_start_shift(entity: number): void;
@@ -74,6 +77,8 @@ export abstract class ClientBase {
     abstract scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void;
     abstract scene_click_entity(entity: number, action_id: TARGET_ACTION): void;
     abstract scene_click_position(pos_x: number, pos_y: number): void;
+    abstract scene_entity_damaged(attacker_entity: number, target_entity: number, damage: number, damage_type: DAMAGE_TYPE): void;
+    abstract scene_entity_dead(entity: number): void;
     // debug callbacks
     // if debug is off, then these callbacks are not required
     // it never called from the module
@@ -105,6 +110,8 @@ export abstract class ClientBase {
             entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
             click_entity: this.click_entity.bind(this),
             click_position: this.click_position.bind(this),
+            entity_dead: this.entity_dead.bind(this),
+            entity_damaged: this.entity_damaged.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
@@ -194,7 +201,7 @@ export abstract class ClientBase {
                 // controllable seed ↓ for test
                 module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
-                module.settings_set_neighborhood_quad_size(settings_ptr, 1.0);
+                module.settings_set_neighborhood_quad_size(settings_ptr, 2.0);  // tweak this for greater radius for search close entities
                 module.settings_set_generate(settings_ptr,
                     22,  // level size
                     2, 4,  // min and max room size
@@ -216,13 +223,16 @@ export abstract class ClientBase {
                 module.settings_set_player_melee_attack(settings_ptr, 1.25,  // attack distance
                                                                       0.75,  // how long attack cast
                                                                       1.0,  // cooldawn, start after attack is finish
+                                                                      5,  // damage
                                                                       Math.PI / 2.0,  // angles spread
                                                                       1.5);  // damage cone size
                 module.settings_set_monster_melee_attack(settings_ptr, 0.75,  // distance
                                                                        0.75,  // how long
                                                                        0.75,  // cooldawn
+                                                                       3,  // damage
                                                                        Math.PI / 4,  // spread
                                                                        1.0);  // cone size
+                module.settings_set_player_shield(settings_ptr, 15.0, 5.0);
                 
                 // create the game
                 // this method calls some callbacks:
@@ -398,7 +408,7 @@ export abstract class ClientBase {
                 } else if(key == "a") {
                     this.m_module.game_make_aggressive(this.m_game_ptr);
                 } else if(key == "d") {
-                    this.m_module.game_damage_all_shields(this.m_game_ptr, 1.5);
+                    this.m_module.game_damage_all_entities(this.m_game_ptr, 1.5);
                 } else if(key == "m") {
                     this.m_map.toggle_active();
                 } else if(key == "+") {
@@ -528,22 +538,24 @@ export abstract class ClientBase {
     }
 
     define_entity_changes(entity: number, 
-                          pos_x: number, pos_y: 
-                          number, angle: number, 
+                          pos_x: number, pos_y: number,
+                          angle: number, 
                           move_status: number,
                           life: number, max_life: number,
-                          shield: number, max_shield: number) {
+                          shield: number, max_shield: number,
+                          is_dead: boolean) {
         this.m_scene.set_entity_position(entity, pos_x, pos_y);
         this.m_scene.set_entity_angle(entity, angle);
         this.m_scene.set_entity_move(entity, move_status);
         this.m_scene.set_entity_life(entity, life, max_life);
         this.m_scene.set_entity_shield(entity, shield, max_shield);
+        this.m_scene.set_entity_dead(entity, is_dead);
 
-        if (this.m_scene.is_player(entity)) {
-            this.scene_define_player_changes(pos_x, pos_y, angle, move_status);
-        } else {
-            this.scene_define_entity_changes(entity, pos_x, pos_y, angle, move_status);
-        }
+        this.scene_update_entity_position(entity, pos_x, pos_y);
+        this.scene_update_entity_angle(entity, angle);
+        this.scene_update_entity_move_status(entity, move_status);
+        this.scene_update_entity_life(entity, life, max_life);
+        this.scene_update_entity_shield(entity, shield, max_shield);
     }
 
     remove_monster(entity: number) {
@@ -597,6 +609,15 @@ export abstract class ClientBase {
     click_position(pos_x: number, pos_y: number) {
         this.m_scene.input_click_position(pos_x, pos_y);
         this.scene_click_position(pos_x, pos_y);
+    }
+
+    entity_dead(entity: number) {
+        this.m_scene.set_entity_dead(entity, true);
+        this.scene_entity_dead(entity);
+    }
+
+    entity_damaged(attacker_entity: number, target_entity: number, damage: number, damage_type: number) {
+        this.scene_entity_damaged(attacker_entity, target_entity, damage, damage_type);
     }
 
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {

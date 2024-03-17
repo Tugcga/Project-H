@@ -23,7 +23,8 @@ export class RotateSystem extends System {
             const state: StateComponent | null = this.get_component<StateComponent>(entity);
 
             if (move && angle && target_angle && speed && should_update && state) {
-                if (move.status() == MOVE_STATUS.WALK || state.state() == STATE.CASTING) {
+                const state_value = state.state();
+                if (move.status() == MOVE_STATUS.WALK || state_value == STATE.CASTING || state_value == STATE.SHIELD) {
                     // item is moving, so, we should rotate the angle to snap with target angle
                     const a = angle.value();  // curent angle
                     const ta = target_angle.value();  // target angle

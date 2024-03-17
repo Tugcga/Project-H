@@ -36,10 +36,11 @@ import { TargetActionComponent } from "./components/target_action";
 import { AtackDistanceComponent } from "./components/atack_distance";
 import { AtackTimeComponent } from "./components/atack_time";
 import { MeleeAttackCooldawnComponent } from "./components/melee_attack_cooldawn";
-import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent } from "./components/damage";
+import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent, MeleeDamageDamageComponent } from "./components/damage";
 import { CastMeleeDamageComponent } from "./components/cast";
 import { LifeComponent } from "./components/life";
 import { ShieldComponent, ShieldIncreaseComponent } from "./components/shield";
+import { ApplyDamageComponent } from "./components/apply_damage";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
@@ -61,6 +62,7 @@ import { UpdateToClientComponent } from "./components/update_to_client";
 import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
 import { BuffTimerShiftCooldawnSystem, BuffTimerMeleeAttackCooldawnSystem } from "./systems/buff_timer";
+import { ApplyDamageSystem } from "./systems/apply_damage";
 
 import { external_entity_start_shift,
          external_entity_start_melee_attack,
@@ -99,6 +101,7 @@ export function setup_components(ecs: ECS): void {
     //               UpdateToClientSystem (update data on cleint about the entity)
     //               UpdateDebugSystem (for debugging close positions)
     //               CastSwitchSystem (for rotate to target)
+    //               ApplyDamageSystem (for rotate to attacker)
     // write systems: MoveSystem (make actual move)
     //                ShiftSystem (move at shift action)
     // comment: define the spatial position of the entity in the level
@@ -156,6 +159,7 @@ export function setup_components(ecs: ECS): void {
     // read systems: RotateSystem (component define the target rotation)
     // write systems: MoveTrackingSystem (define target rotation as direction where the entity is move on)
     //                CastSwitchSystem (when cast some action we should rotate to the target)
+    //                ApplyDamageSystem (when shield is active, rotate to attacker)
     // comment: define the final target angle (for lerping between current angle and target angle) of the entity
     ecs.register_component<TargetAngleComponent>();
 
@@ -203,9 +207,11 @@ export function setup_components(ecs: ECS): void {
     //               MoveSystem (move only when we in walk to point state)
     //               RVOSystem (to check should we use rvo or not)
     //               ShieldIncreaseSystem (to check that shield increase outisde of the SHIELD state)
+    //               UpdateToClientSystem (get dead state)
     // write systems: IddleWaitSwitchSystem (change state when it should switch to other)
     //                WalkToPointSwitchSystem
     //                ShiftSwitchSystem
+    //                ApplyDamageSystem (if the entity is dead), also read to define is shield activated o not
     // comment: store the action state of the entity
     // this component never delete from the entity
     // if the state is not IDDLE, then the entity should contains additional component what describe the properties of the selected state
@@ -288,6 +294,7 @@ export function setup_components(ecs: ECS): void {
     // write systems: MoveTrackingSystem (activate if the entity change position), 
     //                RotateSystem (activate when the entity change the angle)
     //                ShieldIncreaseSystem (when update the shield)
+    //                ApplyDamageSystem (after apply damage life or shield is changed)
     // comment: contains the flag (bool value) is the data about the entity should be updated on the client
     // at the end of the update call the system UpdateToClientSystem check each component
     // if it contains active flag, then it update data about corresponding entity at the client
@@ -360,6 +367,7 @@ export function setup_components(ecs: ECS): void {
     // comment: data components for damage cone
     ecs.register_component<MeleeDamageDistanceComponent>();
     ecs.register_component<MeleeDamageSpreadComponent>();
+    ecs.register_component<MeleeDamageDamageComponent>();
 
     // assigned: player, mosnters
     // read systems: -
@@ -370,7 +378,7 @@ export function setup_components(ecs: ECS): void {
 
     // assigned: all players and monsters
     // read systems: -
-    // write systems: -
+    // write systems: ApplyDamageSystem
     // comment: stire the pair life/max life of the entity
     // these values are u32
     ecs.register_component<LifeComponent>();
@@ -378,6 +386,7 @@ export function setup_components(ecs: ECS): void {
     // assigned: all players and monsters
     // read systems: -
     // write systems: ShieldIncreaseSystem
+    //                ApplyDamageSystem
     // comment: store the pair shield/ max shield for each entity
     // values are f32, the shield value incereased every time when entity in non-shield state
     ecs.register_component<ShieldComponent>();
@@ -387,6 +396,14 @@ export function setup_components(ecs: ECS): void {
     // write systems: -
     // comment: data component, define the value for increase the shield value each second
     ecs.register_component<ShieldIncreaseComponent>();
+
+    // assigned: player and monsters when we should apply damage
+    // read systems: -
+    // write systems: -
+    // comment: this component used for setting damage to entity
+    // actual damage apply process executed in separate system in the same frame
+    // after it the component is removed
+    ecs.register_component<ApplyDamageComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -467,6 +484,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<WalkToPointSwitchSystem, AtackDistanceComponent>();
     ecs.set_system_with_component<WalkToPointSwitchSystem, MeleeDamageDistanceComponent>();
     ecs.set_system_with_component<WalkToPointSwitchSystem, MeleeDamageSpreadComponent>();
+    ecs.set_system_with_component<WalkToPointSwitchSystem, MeleeDamageDamageComponent>();
 
     // controll when the action shift is over and change the entity state to iddle
     // for player to simple iddle
@@ -477,7 +495,8 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<ShiftSwitchSystem, ShiftCooldawnComponent>();
     ecs.set_system_with_component<ShiftSwitchSystem, ActorTypeComponent>();
 
-    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(random, navmesh, monster_iddle_time));
+    // tracking_system required to find closed entities to the attacker entity
+    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(neighborhood_tracking_system, random, navmesh, monster_iddle_time));
     ecs.set_system_with_component<CastSwitchSystem, StateComponent>();
     ecs.set_system_with_component<CastSwitchSystem, StateCastComponent>();
     ecs.set_system_with_component<CastSwitchSystem, ActorTypeComponent>();
@@ -510,6 +529,15 @@ export function setup_systems(ecs: ECS,
         ecs.register_system<PostVelocitySystem>(new PostVelocitySystem(navmesh));
         ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
     }
+
+    ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem());
+    ecs.set_system_with_component<ApplyDamageSystem, UpdateToClientComponent>();  // if life or shield is changed, activate update
+    ecs.set_system_with_component<ApplyDamageSystem, LifeComponent>();
+    ecs.set_system_with_component<ApplyDamageSystem, ShieldComponent>();
+    ecs.set_system_with_component<ApplyDamageSystem, StateComponent>();  // target entity can switch to another state
+    ecs.set_system_with_component<ApplyDamageSystem, ApplyDamageComponent>();  // store actual damage
+    ecs.set_system_with_component<ApplyDamageSystem, TargetAngleComponent>();  // to rotate entity to attacker with active shield
+    ecs.set_system_with_component<ApplyDamageSystem, PositionComponent>();
 
     // move entities by using calculated velocities and curent positions
     // navmesh used for snapping to the walkable area
@@ -611,6 +639,7 @@ export function setup_player(ecs: ECS,
                              radius_select_delta: f32,
                              atack_distance: f32,
                              melee_timing: f32,
+                             melee_damage_damage: u32,
                              melee_damage_distance: f32,
                              melee_damage_spread: f32,
                              life: u32,
@@ -644,6 +673,7 @@ export function setup_player(ecs: ECS,
     ecs.add_component<TargetActionComponent>(player_entity, new TargetActionComponent(0, TARGET_ACTION.NONE));
     ecs.add_component<AtackTimeComponent>(player_entity, new AtackTimeComponent(melee_timing));
     ecs.add_component<AtackDistanceComponent>(player_entity, new AtackDistanceComponent(atack_distance));
+    ecs.add_component<MeleeDamageDamageComponent>(player_entity, new MeleeDamageDamageComponent(melee_damage_damage));
     ecs.add_component<MeleeDamageDistanceComponent>(player_entity, new MeleeDamageDistanceComponent(melee_damage_distance));
     ecs.add_component<MeleeDamageSpreadComponent>(player_entity, new MeleeDamageSpreadComponent(melee_damage_spread));
     ecs.add_component<LifeComponent>(player_entity, new LifeComponent(life));
@@ -668,6 +698,7 @@ export function setup_monster(ecs: ECS,
                               radius_select_delta: f32,
                               atack_distance: f32,
                               melee_timing: f32,
+                              melee_damage_damage: u32,
                               melee_damage_distance: f32,
                               melee_damage_spread: f32,
                               life: u32,
@@ -698,6 +729,7 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<AtackTimeComponent>(monster_entity, new AtackTimeComponent(melee_timing));
     ecs.add_component<AtackDistanceComponent>(monster_entity, new AtackDistanceComponent(atack_distance));
     ecs.add_component<MeleeAttackCooldawnComponent>(monster_entity, new MeleeAttackCooldawnComponent(melee_attack_cooldaw));
+    ecs.add_component<MeleeDamageDamageComponent>(monster_entity, new MeleeDamageDamageComponent(melee_damage_damage));
     ecs.add_component<MeleeDamageDistanceComponent>(monster_entity, new MeleeDamageDistanceComponent(melee_damage_distance));
     ecs.add_component<MeleeDamageSpreadComponent>(monster_entity, new MeleeDamageSpreadComponent(melee_damage_spread));
     ecs.add_component<LifeComponent>(monster_entity, new LifeComponent(life));
@@ -751,6 +783,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
                                        position: PositionComponent,
                                        attack_distance: AtackDistanceComponent,
                                        attack_time: AtackTimeComponent,
+                                       damage_damage: MeleeDamageDamageComponent,
                                        damage_distance: MeleeDamageDistanceComponent,
                                        damage_spread: MeleeDamageSpreadComponent,
                                        state: StateComponent,
@@ -759,7 +792,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
                                        target_radius: RadiusComponent,
                                        target_state: StateComponent): START_CAST_STATUS {
     const state_value = state.state();
-    if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || state_value == STATE.SHIELD) {
+    if (state_value == STATE.SHIFTING || state_value == STATE.CASTING || state_value == STATE.SHIELD || state_value == STATE.DEAD) {
         return START_CAST_STATUS.FAIL_FORBIDDEN;
     }
 
@@ -776,6 +809,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
         const attack_time_value = attack_time.value();
         const damage_distance_value = damage_distance.value();
         const damage_spread_value = damage_spread.value();
+        const damage_damage_value = damage_damage.value();
 
         const cast_state: START_CAST_STATUS = assign_cast_state(ecs, entity, attack_time_value, target_entity, state, CAST_ACTION.MELEE_ATACK);
         if (cast_state == START_CAST_STATUS.OK) {
@@ -784,7 +818,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
             entity_target_action.reset();
             external_entity_start_melee_attack(entity, attack_time_value, damage_distance_value, damage_spread_value);
             // add component with post-cast data
-            ecs.add_component(entity, new CastMeleeDamageComponent(target_entity, damage_distance_value, damage_spread_value, 0));
+            ecs.add_component(entity, new CastMeleeDamageComponent(target_entity, damage_distance_value, damage_spread_value, damage_damage_value));
 
             // add melee cooldawn
             const melee_cooldawn: MeleeAttackCooldawnComponent | null = ecs.get_component<MeleeAttackCooldawnComponent>(entity);
@@ -805,7 +839,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
 
 // return true if correctly switch to iddle
 // false if something is not ok
-function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: StateComponent): boolean {
+export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: StateComponent): boolean {
     const state_value = entity_state.state();
     if (state_value == STATE.IDDLE) {
         // nothing to do
@@ -846,6 +880,9 @@ function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: StateCompone
         entity_state.set_state(STATE.IDDLE);
         clear_state_components(ecs, STATE.SHIELD, entity);
         external_entity_release_shield(entity);
+    } else if (state_value == STATE.DEAD) {
+        // fail to switch dead state to iddle
+        return false;
     } else {
         // unknown state
         return false;
@@ -858,6 +895,12 @@ export function command_move_to_point(ecs: ECS, navmesh: Navmesh, entity: Entity
     // get state
     const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
     if (state) {
+        const state_value = state.state();
+        if (state_value == STATE.DEAD) {
+            // can not move in dead state
+            return false;
+        }
+
         const is_interrupt = interrupt_to_iddle(ecs, entity, state);
         if (is_interrupt == false) {
             return false;
@@ -897,6 +940,7 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
         const entity_position: PositionComponent | null = ecs.get_component<PositionComponent>(entity);
         const entity_attack_distance: AtackDistanceComponent | null = ecs.get_component<AtackDistanceComponent>(entity);
         const entity_attack_time: AtackTimeComponent | null = ecs.get_component<AtackTimeComponent>(entity);
+        const entity_damage_damage: MeleeDamageDamageComponent | null = ecs.get_component<MeleeDamageDamageComponent>(entity);
         const entity_damage_distance: MeleeDamageDistanceComponent | null = ecs.get_component<MeleeDamageDistanceComponent>(entity);
         const entity_damage_spread: MeleeDamageSpreadComponent | null = ecs.get_component<MeleeDamageSpreadComponent>(entity);
         const entity_state: StateComponent | null = ecs.get_component<StateComponent>(entity);
@@ -907,7 +951,7 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
         const target_radius: RadiusComponent | null = ecs.get_component<RadiusComponent>(target_entity);
         const target_state: StateComponent | null = ecs.get_component<StateComponent>(target_entity);
 
-        if (entity_position && entity_attack_distance && entity_attack_time && entity_damage_distance && entity_damage_spread && entity_state && entity_target_action &&
+        if (entity_position && entity_attack_distance && entity_attack_time && entity_damage_damage && entity_damage_distance && entity_damage_spread && entity_state && entity_target_action &&
             target_position && target_radius && target_state) {
             const entity_state_value = entity_state.state();
             
@@ -961,6 +1005,7 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
                                                         entity_position,
                                                         entity_attack_distance,
                                                         entity_attack_time,
+                                                        entity_damage_damage,
                                                         entity_damage_distance,
                                                         entity_damage_spread,
                                                         entity_state,
@@ -1019,9 +1064,9 @@ export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor
     // chek the sate of the entity
     const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
     if (state) {
-        // we can start the shift from any state, except the actual shift
+        // we can start the shift from any state, except the actual shift and dead
         const state_value = state.state();
-        if (state_value != STATE.SHIFTING) {
+        if (state_value != STATE.SHIFTING && state_value != STATE.DEAD) {
             // check is the player contains shift cooldawn
             const shift_cooldawn: BuffShiftCooldawnComponent | null = ecs.get_component<BuffShiftCooldawnComponent>(entity);
             if (!shift_cooldawn) {
@@ -1071,26 +1116,6 @@ export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor
                     const shift = new StateShiftComponent(pos_x + dir_x * (distance * mod_t - EPSILON), pos_y + dir_y * (distance * mod_t - EPSILON));
 
                     // switch the state
-                    // delete state component
-                    // TODO: switch to iidle by common function
-                    // and then switch to shift
-                    /*if (state_value == STATE.WALK_TO_POINT) {
-                        ecs.remove_component<StateWalkToPointComponent>(entity);
-                        // reset the action
-                        target_action.reset();
-                    } else if (state_value == STATE.CASTING) {
-                        // iterrupt the casting
-                        // we shold get the type of the cast
-                        const cast_state: StateCastComponent | null = ecs.get_component<StateCastComponent>(entity);
-                        if (cast_state) {
-                            const cast_action: CAST_ACTION = cast_state.type();
-                            if (cast_action == CAST_ACTION.MELEE_ATACK) {
-                                ecs.remove_component<CastMeleeDamageComponent>(entity);
-                                external_entity_finish_melee_attack(entity, true);
-                            }
-                        }
-                        ecs.remove_component<StateCastComponent>(entity);
-                    }*/
                     const is_interrupt = interrupt_to_iddle(ecs, entity, state);
                     if (is_interrupt) {
                         // assign new state
@@ -1128,7 +1153,12 @@ export function command_release_shield(ecs: ECS, entity: Entity): void {
     const shield: StateShieldComponent | null = ecs.get_component<StateShieldComponent>(entity);
     const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
     if (shield && state) {
-        // should not require to send external call, because it already called from interrupt function
-        interrupt_to_iddle(ecs, entity, state);
+        const state_value = state.state();
+        if (state_value == STATE.SHIELD) {
+            // should not require to send external call, because it already called from interrupt function
+            interrupt_to_iddle(ecs, entity, state);
+            // TODO: be more carefull with mosnters, because they don't move in iddle state
+        }
+        // if the state is another, then nothig to do
     }
 }

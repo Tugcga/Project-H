@@ -28,6 +28,8 @@ export class StateComponent {
             return "shield";
         } else if (this.m_state == STATE.TALK) {
             return "talk";
+        } else if (this.m_state == STATE.DEAD) {
+            return "dead";
         } else {
             return "unknown";
         }

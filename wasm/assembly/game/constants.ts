@@ -9,6 +9,7 @@ export enum STATE {
     STAN,  // can not do anythong
     SHIELD,  // stay at defence position with active shield
     TALK,  // player talk with npc
+    DEAD,
 }
 
 export enum ACTOR {
@@ -37,6 +38,12 @@ export enum TARGET_ACTION {
 export enum CAST_ACTION {
     MELEE_ATACK,
     RANGE_ATACK
+}
+
+export enum DAMAGE_TYPE {
+    UNKNOWN,
+    MELEE,
+    RANGE
 }
 
 export enum START_CAST_STATUS {

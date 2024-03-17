@@ -231,6 +231,31 @@ export class Scene {
         }
     }
 
+    set_entity_dead(id: number, is_dead: boolean) {
+        if (this.m_player_id == id) {
+            this.m_player.set_is_dead(is_dead);
+            if (is_dead) {
+                this.m_click_cursor.deactivate_enemy_select();
+            }
+        } else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_is_dead(is_dead);
+                }
+            } else {
+                const monster = new Monster(id);
+                monster.set_is_dead(is_dead);
+    
+                this.m_monsters.set(id, monster);
+            }
+
+            if (is_dead) {
+                this.m_click_cursor.deactivate_by_entity_remove(id);
+            }
+        }
+    }
+
     set_entity_attack_time(id: number, value: number) {
         if (this.m_player_id == id) {
             

@@ -11,6 +11,7 @@ export class Person extends SceneItem {
     private m_shield: number = 0.0;
     private m_max_shield: number = 0.0;
     private m_move_status: MOVE_STATUS = MOVE_STATUS.NONE;
+    private m_is_dead: boolean = false;
     private m_select_radius: number = 0.0;
     private m_active_shield: boolean = false;
     private m_debug_draw: boolean = true;
@@ -27,6 +28,14 @@ export class Person extends SceneItem {
 
     set_id(in_id: number) {
         this.m_entity_id = in_id;
+    }
+
+    set_is_dead(in_value: boolean) {
+        this.m_is_dead = in_value;
+    }
+
+    get_is_dead(): boolean {
+        return this.m_is_dead;
     }
 
     get_id(): number {
@@ -81,6 +90,10 @@ export class Person extends SceneItem {
 
     get_max_life(): number {
         return this.m_max_life;
+    }
+
+    get_life_proportion(): number {
+        return this.m_life / this.m_max_life;
     }
 
     get_shield(): number {

@@ -63,6 +63,8 @@ export class ConstantsSettings {
     player_melee_damage_distance: f32 = 1.5;  // the size of the cone for melee damage
     monster_melee_damage_spread: f32 = 0.785;
     monster_melee_damage_distance: f32 = 0.5;
+    player_melee_damage: u32 = 5;
+    monster_melee_damage: u32 = 3;
     player_life: u32 = 24;
     monster_life: u32 = 8;
     player_shield: f32 = 4.0;
@@ -93,20 +95,22 @@ export class ConstantsSettings {
         this.player_shift_cooldawn = in_cooldawn;
     }
 
-    set_player_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+    set_player_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
         this.player_atack_distance = distance;
         this.player_melle_atack_time_span = time_span;
         this.player_melee_atack_cooldawn = cooldawn;
         this.player_melee_damage_spread = damage_spread;
         this.player_melee_damage_distance = damage_distance;
+        this.player_melee_damage = damage;
     }
 
-    set_monster_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+    set_monster_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
         this.monster_atack_distance = distance;
         this.monster_melle_atack_time_span = time_span;
         this.monster_melee_atack_cooldawn = cooldawn;
         this.monster_melee_damage_spread = damage_spread;
         this.monster_melee_damage_distance = damage_distance;
+        this.monster_melee_damage = damage;
     }
 
     set_monsters_per_room(min_count: u32, max_count: u32): void {
@@ -123,7 +127,7 @@ export class ConstantsSettings {
         this.player_shield_resurect = in_resurect;
     }
 
-    set_mosnter_life(in_value: u32): void {
+    set_monster_life(in_value: u32): void {
         this.monster_life = in_value;
     }
 

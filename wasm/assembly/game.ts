@@ -6,7 +6,7 @@ import { Level } from "./promethean/level";
 
 import { generate_level, generate_navmesh } from "./game/generate";
 import { Settings, ConstantsSettings } from "./game/settings";
-import { EPSILON, ACTOR, TARGET_ACTION } from "./game/constants";
+import { EPSILON, ACTOR, TARGET_ACTION, STATE, DAMAGE_TYPE } from "./game/constants";
 import { distance } from "./game/utilities";
 
 import { external_define_level,
@@ -36,6 +36,8 @@ import { TargetActionComponent } from "./game/components/target_action";
 import { LifeComponent } from "./game/components/life";
 import { ShieldComponent } from "./game/components/shield";
 import { UpdateToClientComponent } from "./game/components/update_to_client";
+import { ApplyDamageComponent } from "./game/components/apply_damage";
+import { StateComponent } from "./game/components/state"
 
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
@@ -105,6 +107,7 @@ export class Game {
         const atack_distance = local_constants.player_atack_distance;
         const melle_atack_timing = local_constants.player_melle_atack_time_span;
         const player_melee_atack_cooldawn = local_constants.player_melee_atack_cooldawn;
+        const player_melee_damage = local_constants.player_melee_damage;
         const player_melee_damage_distance = local_constants.player_melee_damage_distance;
         const player_melee_damage_spread = local_constants.player_melee_damage_spread;
         const player_life = local_constants.player_life;
@@ -163,6 +166,7 @@ export class Game {
             radius_select_delta,
             atack_distance,
             melle_atack_timing,
+            player_melee_damage,
             player_melee_damage_distance,
             player_melee_damage_spread,
             player_life,
@@ -178,7 +182,7 @@ export class Game {
         
         // output player position and radius
         external_create_player(player_entity, player_radius);
-        external_define_entity_changes(player_entity, start_x, start_y, start_angle, false, player_life, player_life, player_shield, player_shield);
+        external_define_entity_changes(player_entity, start_x, start_y, start_angle, false, player_life, player_life, player_shield, player_shield, false);
         // use here melle_atack_timing but in general case we should get it from character parameters
 
         const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(player_entity);
@@ -260,17 +264,20 @@ export class Game {
                         // check is we click inside the select radius
                         const pos: PositionComponent | null = local_ecs.get_component<PositionComponent>(e);
                         const sel_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(e);
-                        if (pos && sel_radius) {
-                            // calculate the distance between click point and actor position
-                            const pos_x = pos.x();
-                            const pos_y = pos.y();
-                            const d = distance(pos_x, pos_y, in_x, in_y);
-                            if (d < sel_radius.value()) {
-                                // find the first actor near the click point
-                                // try to start the action
-                                assign_target = command_init_attack(local_ecs, local_navmesh, player_entity, e);
-                                if (assign_target) {
-                                    external_click_entity(e, TARGET_ACTION.ATACK);
+                        const st: StateComponent | null = local_ecs.get_component<StateComponent>(e);
+                        if (pos && sel_radius && st) {
+                            if (st.state() != STATE.DEAD) {
+                                // calculate the distance between click point and actor position
+                                const pos_x = pos.x();
+                                const pos_y = pos.y();
+                                const d = distance(pos_x, pos_y, in_x, in_y);
+                                if (d < sel_radius.value()) {
+                                    // find the first actor near the click point
+                                    // try to start the action
+                                    assign_target = command_init_attack(local_ecs, local_navmesh, player_entity, e);
+                                    if (assign_target) {
+                                        external_click_entity(e, TARGET_ACTION.ATACK);
+                                    }
                                 }
                             }
                         }
@@ -333,6 +340,7 @@ export class Game {
             const monster_melee_atack_cooldawn = local_constants.monster_melee_atack_cooldawn;
             const monster_melee_damage_distance = local_constants.monster_melee_damage_distance;
             const monster_melee_damage_spread = local_constants.monster_melee_damage_spread;
+            const monster_melee_damage = local_constants.monster_melee_damage;
             const mosnter_life = local_constants.monster_life;
             const monster_shield = local_constants.monster_shield;
             const monster_shield_resurect = local_constants.monster_shield_resurect;
@@ -352,6 +360,7 @@ export class Game {
                                                  radius_select_delta,
                                                  atack_distance,
                                                  melle_atack_timing,
+                                                 monster_melee_damage,
                                                  monster_melee_damage_distance,
                                                  monster_melee_damage_spread,
                                                  mosnter_life,
@@ -439,19 +448,18 @@ export class Game {
     }
 
     //for test only
-    demage_all_shields(damage: u32): void {
+    damage_all_entities(damage: u32): void {
         const local_ecs = this.ecs;
 
         if (local_ecs) {
             const rvo_entities: Array<Entity> = local_ecs.get_entities<RVOSystem>();
-            const damage_f32: f32 = <f32>damage;
             for (let i = 0, len = rvo_entities.length; i < len; i++) {
                 const entity: Entity = rvo_entities[i];
-                const entity_shield: ShieldComponent | null = local_ecs.get_component<ShieldComponent>(entity);
-                const entity_update: UpdateToClientComponent | null = local_ecs.get_component<UpdateToClientComponent>(entity);
-                if (entity_shield && entity_update) {
-                    entity_shield.damage(damage_f32);
-                    entity_update.set_value(true);
+                const entity_damage: ApplyDamageComponent | null = local_ecs.get_component<ApplyDamageComponent>(entity);
+                if (entity_damage) {
+                    entity_damage.extend(0, damage, DAMAGE_TYPE.UNKNOWN);
+                } else {
+                    local_ecs.add_component<ApplyDamageComponent>(entity, new ApplyDamageComponent(0, damage, DAMAGE_TYPE.UNKNOWN));
                 }
             }
         }

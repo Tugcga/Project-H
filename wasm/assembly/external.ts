@@ -32,7 +32,8 @@ declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32,
                                        angle: f32,
                                        move_status: u32,
                                        life: u32, max_life: u32,
-                                       shield: f32, max_shield: f32): void;
+                                       shield: f32, max_shield: f32,
+                                       is_dead: bool): void;
 
 @external("env", "host.define_total_update_entities")
 declare function define_total_update_entities(count: u32): void;
@@ -63,6 +64,12 @@ declare function click_entity(entity: u32, action: u32): void;
 
 @external("env", "host.click_position")
 declare function click_position(pos_x: f32, pos_y: f32): void;
+
+@external("env", "host.entity_dead")
+declare function entity_dead(entity: u32): void;
+
+@external("env", "host.entity_damaged")
+declare function entity_damaged(attacker_entity: u32, target_entity: u32, damage: u32, damage_type: u32): void;
 
 @external("env", "host.debug_entity_walk_path")
 declare function debug_entity_walk_path(entity: u32, points: StaticArray<f32>): void;
@@ -158,16 +165,18 @@ export function external_define_entity_changes(entity: u32,
                                                angle: f32, 
                                                move_status: u32,
                                                life: u32, max_life: u32,
-                                               shield: f32, max_shield: f32): void {
+                                               shield: f32, max_shield: f32,
+                                               is_dead: bool): void {
     if(use_external) {
-        define_entity_changes(entity, pos_x, pos_y, angle, move_status, life, max_life, shield, max_shield);
+        define_entity_changes(entity, pos_x, pos_y, angle, move_status, life, max_life, shield, max_shield, is_dead);
     } else {
         console.log("ext -> define_entity_changes: id " + entity.toString() + 
             " position " + pos_x.toString() + " " + pos_y.toString() + 
             " angle " + angle.toString() + 
             " move " + move_status.toString() +
             " life " + life.toString() + "/" + max_life.toString() +
-            " shield " + shield.toString() + "/" + max_shield.toString());
+            " shield " + shield.toString() + "/" + max_shield.toString() +
+            " is dead " + is_dead.toString());
     }
 }
 
@@ -248,6 +257,22 @@ export function external_click_position(pos_x: f32, pos_y: f32): void {
         click_position(pos_x, pos_y);
     } else {
         console.log("ext -> click_position: " + pos_x.toString() + " " + pos_y.toString());
+    }
+}
+
+export function external_entity_dead(entity: u32): void {
+    if (use_external) {
+        entity_dead(entity);
+    } else {
+        console.log("ext -> entity_dead: " + entity.toString());
+    }
+}
+
+export function external_entity_damaged(attacker_entity: u32, target_entity: u32, damage: u32, damage_type: u32): void {
+    if (use_external) {
+        entity_damaged(attacker_entity, target_entity, damage, damage_type);
+    } else {
+        console.log("ext -> entity_damaged: " + attacker_entity.toString() + " to " + target_entity.toString() + " apply " + damage.toString() + " of type " + damage_type.toString());
     }
 }
 

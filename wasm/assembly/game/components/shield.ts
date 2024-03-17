@@ -3,8 +3,8 @@ import { OneFloatComponent } from "./one_value";
 export class ShieldComponent {
     private m_shield: f32;
     private m_max_shield: f32;
-    private m_is_over: bool;
-    private m_is_full: bool;
+    private m_is_over: bool;  // activate when shield is zero
+    private m_is_full: bool;  // activate when the shield is full
 
     constructor(in_shield: f32) {
         this.m_shield = in_shield;

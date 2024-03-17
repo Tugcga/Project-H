@@ -1,5 +1,5 @@
 import { ClientBase } from "../client_base";
-import { CAMERA_LERP_COEFFICIENT, COOLDAWN, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
+import { CAMERA_LERP_COEFFICIENT, COOLDAWN, DAMAGE_TYPE, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
 import { draw_background, draw_cursor, draw_level_tile, draw_monster, draw_neighborhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
 
 // this version of the client application
@@ -56,15 +56,20 @@ export class ClientDataCanvas extends ClientBase {
     scene_update_entity_params(id: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number): void { }
     // mouse_click(inc_x: number, inc_y: number, inw_x: number, inw_y: number): void { }
     // when define player position, we should update camera to output shapes to the canvas
-    scene_define_player_changes(pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void { 
-        // update wtc transform
-        this.m_camera_position_x = CAMERA_LERP_COEFFICIENT * pos_x + (1 - CAMERA_LERP_COEFFICIENT) * this.m_camera_position_x;
-        this.m_camera_position_y = CAMERA_LERP_COEFFICIENT * pos_y + (1 - CAMERA_LERP_COEFFICIENT) * this.m_camera_position_y;
+    scene_update_entity_position(id: number, pos_x: number, pos_y: number): void {
+        if (this.m_scene.is_player(id)) {
+            // update wtc transform
+            this.m_camera_position_x = CAMERA_LERP_COEFFICIENT * pos_x + (1 - CAMERA_LERP_COEFFICIENT) * this.m_camera_position_x;
+            this.m_camera_position_y = CAMERA_LERP_COEFFICIENT * pos_y + (1 - CAMERA_LERP_COEFFICIENT) * this.m_camera_position_y;
 
-        this.m_wtc_tfm.set_translation(this.m_canvas_width / 2 - this.m_camera_position_x * this.m_wtc_scale, this.m_canvas_height / 2 - this.m_camera_position_y * this.m_wtc_scale);
+            this.m_wtc_tfm.set_translation(this.m_canvas_width / 2 - this.m_camera_position_x * this.m_wtc_scale, this.m_canvas_height / 2 - this.m_camera_position_y * this.m_wtc_scale);
+        }
     }
+    scene_update_entity_angle(id: number, angle: number): void {}
+    scene_update_entity_move_status(id: number, move_status: MOVE_STATUS): void {}
+    scene_update_entity_life(id: number, life: number, max_life: number): void {}
+    scene_update_entity_shield(id: number, shield: number, max_shield: number): void {}
     scene_create_monster(entity: number, radius: number): void { }
-    scene_define_entity_changes(entity: number, pos_x: number, pos_y: number, angle: number, move_status: MOVE_STATUS): void { }
     scene_remove_monster(entity: number): void {}
     scene_entity_start_shift(entity: number): void {}
     scene_entity_finish_shift(entity: number): void {}
@@ -74,7 +79,9 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_finish_melee_attack(entity: number): void {}
     scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void {}
     scene_click_entity(entity: number, action_id: TARGET_ACTION): void {}
-    scene_click_position(pos_x: number, pos_y: number): void { }
+    scene_click_position(pos_x: number, pos_y: number): void {}
+    scene_entity_damaged(attacker_entity: number, target_entity: number, damage: number, damage_type: DAMAGE_TYPE): void {}
+    scene_entity_dead(entity: number): void {}
 
     debug_entity_trajectory(entity: number, coordinates: Float32Array): void {
         // store coordinates in temporary map

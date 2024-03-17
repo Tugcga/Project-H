@@ -36,3 +36,9 @@ export enum COOLDAWN {
     SHIFT,
     MELEE_ATTACK,
 }
+
+export enum DAMAGE_TYPE {
+    UNKNOWN,
+    MELEE,
+    RANGE
+}

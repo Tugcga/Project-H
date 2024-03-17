@@ -77,14 +77,34 @@ export function settings_set_monster_iddle_time(settings: Settings, min_iddle: f
     constants.set_monster_iddle_time(min_iddle, max_iddle);
 }
 
-export function settings_set_player_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+export function settings_set_player_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
     const constants = settings.get_constants();
-    constants.set_player_melee_attack(distance, time_span, cooldawn, damage_spread, damage_distance);
+    constants.set_player_melee_attack(distance, time_span, cooldawn, damage, damage_spread, damage_distance);
 }
 
-export function settings_set_monster_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage_spread: f32, damage_distance: f32): void {
+export function settings_set_monster_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
     const constants = settings.get_constants();
-    constants.set_monster_melee_attack(distance, time_span, cooldawn, damage_spread, damage_distance);
+    constants.set_monster_melee_attack(distance, time_span, cooldawn, damage, damage_spread, damage_distance);
+}
+
+export function settings_set_player_shield(settings: Settings, shield: f32, resurrect: f32): void {
+    const constants = settings.get_constants();
+    constants.set_player_shield(shield, resurrect);
+}
+
+export function settings_set_monster_shield(settings: Settings, shield: f32, resurrect: f32): void {
+    const constants = settings.get_constants();
+    constants.set_monster_shield(shield, resurrect);
+}
+
+export function settings_set_player_life(settings: Settings, value: u32): void {
+    const constants = settings.get_constants();
+    constants.set_player_life(value);
+}
+
+export function settings_set_monster_life(settings: Settings, value: u32): void {
+    const constants = settings.get_constants();
+    constants.set_monster_life(value);
 }
 
 export function create_game(settings: Settings): Game {
@@ -119,6 +139,6 @@ export function game_make_aggressive(game: Game): void {
     game.make_aggressive();
 }
 
-export function game_damage_all_shields(game: Game, damage: u32): void {
-    game.demage_all_shields(damage);
+export function game_damage_all_entities(game: Game, damage: u32): void {
+    game.damage_all_entities(damage);
 }

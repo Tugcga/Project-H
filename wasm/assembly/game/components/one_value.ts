@@ -37,6 +37,28 @@ export class OneIntComponent {
     }
 }
 
+export class OneUIntComponent {
+    private m_value: u32 = 0;
+
+    constructor(in_value: u32) {
+        this.m_value = in_value;
+    }
+
+    @inline
+    set_value(in_value: i32): void {
+        this.m_value = in_value;
+    }
+
+    @inline
+    value(): i32 {
+        return this.m_value;
+    }
+
+    toString(): string {
+        return this.m_value.toString();
+    }
+}
+
 export class OneBooleanComponent {
     private m_value: boolean = false;
 

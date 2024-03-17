@@ -2,7 +2,7 @@ import { CURSOR_TYPE, ClickCursor } from "../scene/click_cursor";
 import { ACTION_EFFECT, CLICK_CURSOR_RADIUS, CLICK_CURSOR_TIME, COOLDAWN, MOVE_STATUS } from "../constants";
 import { SceneTile } from "../scene/scene_tile";
 import { Transform } from "../transform";
-import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH } from "./visual_styles";
+import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH, ENTITY_DEAD_BACK_COLOR, PLAYER_LIVE_BACK_COLOR, MONSTER_LIVE_BACK_COLOR, ENTITY_LIFE_CIRCLE_DELTA } from "./visual_styles";
 import { Person } from "../scene/person";
 import { Player } from "../scene/player";
 import { Monster } from "../scene/monster";
@@ -131,6 +131,7 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
                      cooldawns: Map<COOLDAWN, [number, number]>,
                      effects: Array<ActionEffectBase>,
                      stroke_width: number,
+                     back_color: string,
                      walk_color: string,
                      idle_color: string,
                      shift_color: string,
@@ -165,37 +166,61 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
         draw_ctx.restore();
     }
 
-    draw_ctx.save();
-    draw_ctx.lineWidth = stroke_width;
-    draw_ctx.fillStyle = person.get_move() == MOVE_STATUS.NONE ? idle_color : 
-                         (person.get_move() == MOVE_STATUS.WALK ? walk_color : 
-                         (shift_color));
-    draw_ctx.strokeStyle = stroke_color;
-    draw_ctx.beginPath();
-    // calculate radius on canvas
+    // calculate radius of the character
     const radius = person.get_radius();
     const c_radius = tfm.apply_scale(radius);
     const p2 = tfm.multiply(radius * Math.SQRT2, 0.0);
     const a = person_tfm.rotation();
+    const is_dead = person.get_is_dead();
+
+    // draw main character
+    draw_ctx.save();
+    // at first base circle
+    draw_ctx.lineWidth = stroke_width;
+    draw_ctx.fillStyle = person.get_is_dead() ? ENTITY_DEAD_BACK_COLOR : back_color;
+    draw_ctx.strokeStyle = stroke_color;
+    draw_ctx.beginPath();
     draw_ctx.arc(c_center[0], c_center[1], c_radius, a + Math.PI / 4, 2 * Math.PI + a - Math.PI / 4);
     draw_ctx.lineTo(p2[0], p2[1]);
     draw_ctx.fill();
-    
     if(is_stroke) {
         draw_ctx.stroke();
+    }
+
+    // next life part
+    if (!is_dead) {
+        draw_ctx.fillStyle = person.get_move() == MOVE_STATUS.NONE ? idle_color : 
+                            (person.get_move() == MOVE_STATUS.WALK ? walk_color : 
+                            (shift_color));
+        draw_ctx.beginPath();
+        const life_prop = person.get_life_proportion();
+        if (life_prop >= 1.0) {
+            draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * ENTITY_LIFE_CIRCLE_DELTA), 0.0, Math.PI * 2.0);
+        } else {
+            draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * ENTITY_LIFE_CIRCLE_DELTA), a - (1.0 - life_prop) * Math.PI, a + (1.0 - life_prop) * Math.PI, true);
+        }
+        
+        draw_ctx.lineTo(c_center[0], c_center[1]);
+        draw_ctx.fill();
+        if(is_stroke) {
+            draw_ctx.stroke();
+        }
     }
     draw_ctx.restore();
 
     // shield
     const is_active = person.get_shield_active();
     const shield_prop = person.get_shield_proportion();
-    draw_ctx.save();
-    draw_ctx.strokeStyle = is_active ? SHIELD_ACTIVE_COLOR : SHIELD_PASSIVE_COLOR;
-    draw_ctx.lineWidth = is_active ? SHIELD_ACTIVE_WIDTH : SHIELD_PASSIVE_WIDTH;
-    draw_ctx.beginPath();
-    draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * Math.SQRT2), a - shield_prop * Math.PI / 2, a + shield_prop * Math.PI / 2);
-    draw_ctx.stroke();
-    draw_ctx.restore();
+    // does not draw full non-active shield
+    if (is_active || shield_prop < 1.0) {
+        draw_ctx.save();
+        draw_ctx.strokeStyle = is_active ? SHIELD_ACTIVE_COLOR : SHIELD_PASSIVE_COLOR;
+        draw_ctx.lineWidth = is_active ? SHIELD_ACTIVE_WIDTH : SHIELD_PASSIVE_WIDTH;
+        draw_ctx.beginPath();
+        draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * Math.SQRT2), a - shield_prop * Math.PI / 2, a + shield_prop * Math.PI / 2);
+        draw_ctx.stroke();
+        draw_ctx.restore();
+    }
 
     // draw cooldawns
     for (let [cooldawn, times] of cooldawns) {
@@ -238,6 +263,12 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
             draw_ctx.arc(c_center[0], c_center[1], c_radius, end_angle, start_angle, false);
             draw_ctx.closePath();
             draw_ctx.fill();
+
+            draw_ctx.beginPath();
+            draw_ctx.arc(c_center[0], c_center[1], c_distance, start_angle, start_angle - spread, true);
+            draw_ctx.arc(c_center[0], c_center[1], c_radius, start_angle - spread, start_angle, false);
+            draw_ctx.closePath();
+            draw_ctx.stroke();
             draw_ctx.restore();
         }
     }
@@ -255,6 +286,7 @@ export function draw_player(draw_ctx: CanvasRenderingContext2D,
         cooldawns,
         effects,
         PLAYER_STROKE_WIDTH,
+        PLAYER_LIVE_BACK_COLOR,
         PLAYER_MOVE_COLOR,
         PLAYER_IDLE_COLOR,
         PLAYER_SHIFT_COLOR,
@@ -275,6 +307,7 @@ export function draw_monster(draw_ctx: CanvasRenderingContext2D,
         cooldawns,
         effects,
         MONSTER_STROKE_WIDTH,
+        MONSTER_LIVE_BACK_COLOR,
         MONSTER_MOVE_COLOR,
         MONSTER_IDLE_COLOR,
         MONSTER_SHIFT_COLOR,

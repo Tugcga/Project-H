@@ -11,6 +11,7 @@ import { MoveTagComponent } from "../components/move";
 import { VisibleQuadGridNeighborhoodComponent } from "../components/visible_quad_grid_neighborhood";
 import { LifeComponent } from "../components/life";
 import { ShieldComponent } from "../components/shield";
+import { StateComponent } from "../components/state";
 
 import { external_define_entity_changes,
          external_define_total_update_entities } from "../../external";
@@ -62,11 +63,13 @@ export class UpdateToClientSystem extends System {
                                 const angle: AngleComponent | null = this.get_component<AngleComponent>(entity);
                                 const life: LifeComponent | null = this.get_component<LifeComponent>(entity);
                                 const shield: ShieldComponent | null = this.get_component<ShieldComponent>(entity);
+                                const state: StateComponent | null = this.get_component<StateComponent>(entity);
 
-                                if (move && position && angle && life && shield) {
+                                if (move && position && angle && life && shield && state) {
                                     external_define_entity_changes(entity, position.x(), position.y(), angle.value(), move.status(),
                                                                    life.life(), life.max_life(),
-                                                                   shield.shield(), shield.max_shield());
+                                                                   shield.shield(), shield.max_shield(),
+                                                                   state.state() == STATE.DEAD);
                                 }
                             }
 
