@@ -3,13 +3,15 @@ import { List } from "../../pathfinder/common/list";
 import { Entity } from "../../simple_ecs/types";
 import { is_element_new } from "../utilities";
 
+import { QuadGridTrackingSystem } from "./quad_grid_tracking";
+
 import { PositionComponent } from "../components/position";
 import { NeighborhoodQuadGridIndexComponent } from "../components/neighborhood_quad_grid_index";
 import { VisibleQuadGridTrackingSystem } from "./visible_quad_grid_tracking";
 
 // the process is the simmilar as in VisibleQuadGridTrackingSystem
 // the only difference is use of NeighborhoodQuadGridIndexComponent instead of VisibleQuadGridIndexComponent
-export class NeighborhoodQuadGridTrackingSystem extends VisibleQuadGridTrackingSystem {
+export class NeighborhoodQuadGridTrackingSystem extends QuadGridTrackingSystem {
     update(dt: f32): void {
         const items_map = this.m_items_map;
         const items_map_length = items_map.length;

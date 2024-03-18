@@ -23,6 +23,17 @@ export class List<T> extends Serializable {
         return to_return;
     }
 
+    is_contains(value: T): bool {
+        const local_array = this.m_array;
+        for (let i = 0, len = this.m_size; i < len; i++) {
+            if (local_array[i] == value) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     @inline
     reset(): void{
         this.m_size = 0;

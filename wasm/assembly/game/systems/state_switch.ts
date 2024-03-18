@@ -67,6 +67,7 @@ export class WalkToPointSwitchSystem extends System {
                             // target is dead
                             // stop walking to the target
                             const is_iddle = interrupt_to_iddle(local_ecs, entity, state);
+                            pref_velocity.set(0.0, 0.0);
                         } else {
                             const prev_state_value = state.state();
                             const melee_status = try_start_melee_attack(local_ecs, entity, target_entity,

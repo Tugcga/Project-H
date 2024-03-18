@@ -16,7 +16,7 @@ declare function tile_delete(index: u32): void;
 declare function tile_create(x: u32, y: u32, index: u32, type: u32): void;
 
 @external("env", "host.create_player")
-declare function create_player(entity: u32, radius: f32): void;
+declare function create_player(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void;
 
 @external("env", "host.update_entity_params")
 declare function update_entity_params(entity: u32, life: u32, max_life: u32, select_radius: f32, atack_distance: f32, attack_time: f32): void;
@@ -25,7 +25,7 @@ declare function update_entity_params(entity: u32, life: u32, max_life: u32, sel
 declare function remove_monster(entity: u32): void;
 
 @external("env", "host.create_monster")
-declare function create_monster(entity: u32, radius: f32): void;
+declare function create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void;
 
 @external("env", "host.define_entity_changes")
 declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32,
@@ -130,11 +130,11 @@ export function external_tile_create(x: u32, y: u32, index: u32, type: u32): voi
     }
 }
 
-export function external_create_player(entity: u32, radius: f32): void {
+export function external_create_player(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void {
     if(use_external) {
-        create_player(entity, radius);
+        create_player(entity, pos_x, pos_y, radius, team);
     } else {
-        console.log("ext -> create_player: id " + entity.toString() + " radius " + radius.toString());
+        console.log("ext -> create_player: id " + entity.toString() + " position (" + pos_x.toString() + ", " + pos_y.toString() + ") radius " + radius.toString() + " team " + team.toString());
     }
 }
 
@@ -158,11 +158,11 @@ export function external_remove_monster(entity: u32): void {
     }
 }
 
-export function external_create_monster(entity: u32, radius: f32): void {
+export function external_create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void {
     if(use_external) {
-        create_monster(entity, radius);
+        create_monster(entity, pos_x, pos_y, radius, team);
     } else {
-        console.log("ext -> create_monster: id " + entity.toString() + " radius " + radius.toString());
+        console.log("ext -> create_monster: id " + entity.toString() + " position (" + pos_x.toString() + ", " + pos_y.toString() + ") radius " + radius.toString() + " team " + team.toString());
     }
 }
 

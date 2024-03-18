@@ -9,6 +9,7 @@ import { AngleComponent } from "../components/angle";
 import { RadiusComponent } from "../components/radius";
 import { PositionComponent } from "../components/position";
 import { UpdateToClientComponent } from "../components/update_to_client";
+import { TeamComponent } from "../components/team";
 
 import { external_remove_monster,
          external_create_monster } from "../../external";
@@ -52,8 +53,10 @@ export class VisibleQuadGridNeighborhoodSystem extends System {
                 if (should_update) {
                     should_update.set_value(true);
                     const e_radius = this.get_component<RadiusComponent>(e);
-                    if (e_radius) {
-                        external_create_monster(e, e_radius.value());
+                    const e_position = this.get_component<PositionComponent>(e);
+                    const e_team = this.get_component<TeamComponent>(e);
+                    if (e_radius && e_position && e_team) {
+                        external_create_monster(e, e_position.x(), e_position.y(), e_radius.value(), e_team.team());
                     }
                 }
             }

@@ -72,6 +72,8 @@ export class ConstantsSettings {
     player_shield_resurect: f32 = 1.0;
     monster_shield_resurect: f32 = 0.5;
     default_melee_stun: f32 = 1.0;
+    player_default_team: i32 = 1;
+    monster_default_team: i32 = -1;
 
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;

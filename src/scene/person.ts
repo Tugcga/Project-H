@@ -15,6 +15,7 @@ export class Person extends SceneItem {
     private m_select_radius: number = 0.0;
     private m_active_shield: boolean = false;
     private m_debug_draw: boolean = true;
+    private m_team: number;
 
     constructor(in_id: number) {
         super();
@@ -28,6 +29,10 @@ export class Person extends SceneItem {
 
     set_id(in_id: number) {
         this.m_entity_id = in_id;
+    }
+
+    set_team(in_value: number) {
+        this.m_team = in_value;
     }
 
     set_is_dead(in_value: boolean) {

@@ -115,6 +115,7 @@ export class Game {
         const player_shield = local_constants.player_shield;
         const player_shield_resurect = local_constants.player_shield_resurect;
         const default_melee_stun = local_constants.default_melee_stun;
+        const player_team = local_constants.player_default_team;
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -174,7 +175,8 @@ export class Game {
             player_melee_damage_spread,
             player_life,
             player_shield,
-            player_shield_resurect);
+            player_shield_resurect,
+            player_team);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -184,7 +186,7 @@ export class Game {
         }
         
         // output player position and radius
-        external_create_player(player_entity, player_radius);
+        external_create_player(player_entity, start_x, start_y, player_radius, player_team);
         external_define_entity_changes(player_entity, start_x, start_y, start_angle, false, player_life, player_life, player_shield, player_shield, false);
         // use here melle_atack_timing but in general case we should get it from character parameters
 
@@ -347,6 +349,7 @@ export class Game {
             const mosnter_life = local_constants.monster_life;
             const monster_shield = local_constants.monster_shield;
             const monster_shield_resurect = local_constants.monster_shield_resurect;
+            const monster_team = local_constants.monster_default_team;
 
             const monster_entity = setup_monster(local_ecs, 
                                                  pos_x, 
@@ -368,13 +371,8 @@ export class Game {
                                                  monster_melee_damage_spread,
                                                  mosnter_life,
                                                  monster_shield,
-                                                 monster_shield_resurect);
-
-            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(monster_entity);
-            const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(monster_entity);
-            if (select_radius && life) {
-                external_update_entity_params(monster_entity, life.life(), life.max_life(), select_radius.value(), atack_distance, melle_atack_timing);
-            }
+                                                 monster_shield_resurect,
+                                                 monster_team);
         }
     }
 

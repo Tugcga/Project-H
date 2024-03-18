@@ -522,9 +522,10 @@ export abstract class ClientBase {
         this.scene_tile_create(pos_x, pos_y, index, type);
     }
 
-    create_player(id: number, radius: number) {
+    create_player(id: number, pos_x: number, pos_y: number, radius: number, team: number) {
         this.m_scene.set_player_id(id);
         this.m_scene.set_player_radius(radius);
+        this.m_scene.set_entity_position(id, pos_x, pos_y);
         this.scene_create_player(radius);
     }
 
@@ -536,8 +537,10 @@ export abstract class ClientBase {
         this.scene_update_entity_params(id, life, max_life, select_radius, attack_distance, attack_time);
     }
 
-    create_monster(entity: number, radius: number) {
+    create_monster(entity: number, pos_x: number, pos_y: number, radius: number, team: number) {
         this.m_scene.set_monster_radius(entity, radius);
+        this.m_scene.set_entity_position(entity, pos_x, pos_y);
+        this.m_scene.set_entity_team(entity, team);
         this.scene_create_monster(entity, radius);
     }
 

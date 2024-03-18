@@ -189,6 +189,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(id);
+                this.m_cooldawns.add_entity(id);
                 monster.set_life(life, max_life);
     
                 this.m_monsters.set(id, monster);
@@ -208,6 +209,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(id);
+                this.m_cooldawns.add_entity(id);
                 monster.set_active_shield(is_active);
     
                 this.m_monsters.set(id, monster);
@@ -226,6 +228,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(id);
+                this.m_cooldawns.add_entity(id);
                 monster.set_shield(shield, max_shield);
     
                 this.m_monsters.set(id, monster);
@@ -247,6 +250,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(id);
+                this.m_cooldawns.add_entity(id);
                 monster.set_is_dead(is_dead);
     
                 this.m_monsters.set(id, monster);
@@ -275,6 +279,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(id);
+                this.m_cooldawns.add_entity(id);
                 monster.set_select_radius(value);
     
                 this.m_monsters.set(id, monster);
@@ -293,6 +298,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(entity);
+                this.m_cooldawns.add_entity(entity);
                 monster.set_position(x, y);
     
                 this.m_monsters.set(entity, monster);
@@ -312,6 +318,24 @@ export class Scene {
             this.m_cooldawns.add_entity(entity);
 
             this.m_monsters.set(entity, monster);
+        }
+    }
+
+    set_entity_team(id: number, team: number) {
+        if (id == this.m_player_id) {
+            this.m_player.set_team(team);
+        } else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_team(team);
+                }
+            } else {
+                const monster = new Monster(id);
+                this.m_cooldawns.add_entity(id);
+                monster.set_team(team);
+                this.m_monsters.set(id, monster);
+            }
         }
     }
 

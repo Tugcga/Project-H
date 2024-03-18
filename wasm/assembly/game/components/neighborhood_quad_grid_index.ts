@@ -1,3 +1,3 @@
-import { VisibleQuadGridIndexComponent } from "./visible_quad_grid_index";
+import { QuadGridIndexComponent } from "./quad_grid_index";
 
-export class NeighborhoodQuadGridIndexComponent extends VisibleQuadGridIndexComponent { }
+export class NeighborhoodQuadGridIndexComponent extends QuadGridIndexComponent { }

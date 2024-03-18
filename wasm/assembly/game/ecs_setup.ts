@@ -46,6 +46,7 @@ import { CastMeleeDamageComponent } from "./components/cast";
 import { LifeComponent } from "./components/life";
 import { ShieldComponent, ShieldIncreaseComponent } from "./components/shield";
 import { ApplyDamageComponent } from "./components/apply_damage";
+import { TeamComponent } from "./components/team";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
@@ -404,12 +405,20 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<ShieldIncreaseComponent>();
 
     // assigned: player and monsters when we should apply damage
-    // read systems: -
+    // read systems: ApplyDamageSystem
     // write systems: -
     // comment: this component used for setting damage to entity
     // actual damage apply process executed in separate system in the same frame
     // after it the component is removed
     ecs.register_component<ApplyDamageComponent>();
+
+    // assgined: very player and monster
+    // read systems: -
+    // write systems: -
+    // comment: store the list of teams for each actor entity
+    // this list allows to understand is two entities are enemies for each other or friends
+    // if lsists are intersecs, then it friends, if not - then enemies
+    ecs.register_component<TeamComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -646,7 +655,8 @@ export function setup_player(ecs: ECS,
                              melee_damage_spread: f32,
                              life: u32,
                              shield: f32,
-                             shield_resurect: f32): Entity {
+                             shield_resurect: f32,
+                             team: i32): Entity {
     const player_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(player_entity, new ActorTypeComponent(ACTOR.PLAYER));
     ecs.add_component<PlayerComponent>(player_entity, new PlayerComponent());
@@ -681,6 +691,7 @@ export function setup_player(ecs: ECS,
     ecs.add_component<LifeComponent>(player_entity, new LifeComponent(life));
     ecs.add_component<ShieldComponent>(player_entity, new ShieldComponent(shield));
     ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
+    ecs.add_component<TeamComponent>(player_entity, new TeamComponent(team));
 
     return player_entity;
 }
@@ -705,7 +716,8 @@ export function setup_monster(ecs: ECS,
                               melee_damage_spread: f32,
                               life: u32,
                               shield: f32,
-                              shield_resurect: f32): Entity {
+                              shield_resurect: f32,
+                              team: i32): Entity {
     const monster_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
@@ -736,6 +748,7 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<LifeComponent>(monster_entity, new LifeComponent(life));
     ecs.add_component<ShieldComponent>(monster_entity, new ShieldComponent(shield));
     ecs.add_component<ShieldIncreaseComponent>(monster_entity, new ShieldIncreaseComponent(shield_resurect));
+    ecs.add_component<TeamComponent>(monster_entity, new TeamComponent(team));
 
     return monster_entity;
 }
