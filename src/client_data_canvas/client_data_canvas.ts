@@ -1,6 +1,6 @@
 import { ClientBase } from "../client_base";
 import { CAMERA_LERP_COEFFICIENT, COOLDAWN, DAMAGE_TYPE, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
-import { draw_background, draw_cursor, draw_level_tile, draw_monster, draw_neighbourhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
+import { draw_background, draw_cursor, draw_level_tile, draw_lines, draw_monster, draw_neighbourhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
 
 // this version of the client application
 // use 2d canvas as draw device
@@ -19,6 +19,7 @@ export class ClientDataCanvas extends ClientBase {
     m_debug_visible_rect: Float32Array = new Float32Array(4);
     m_is_draw_neighbourhood_rect: boolean = false;
     m_debug_neighbourhood_rect: Float32Array = new Float32Array(4);
+    m_debug_enemies_lines: Array<number>;  // for each enemy store 4 values: (x, y) of attacker and (x, y) of the target
 
     constructor() {
         super();
@@ -28,6 +29,7 @@ export class ClientDataCanvas extends ClientBase {
 
         this.m_debug_trajectories.clear();
         this.m_debug_pairs = new Array<number>();
+        this.m_debug_enemies_lines = new Array<number>();
     }
 
     start(): void {
@@ -115,11 +117,31 @@ export class ClientDataCanvas extends ClientBase {
         this.m_is_draw_neighbourhood_rect = true;
     }
 
+    debug_enemies_search(id: number, search_radius: number, enemy_ids: Int32Array): void {
+        const attacker = this.m_scene.get_person(id);
+        if (attacker) {
+            const attacker_position = attacker.get_translation();
+            for (let target_id of enemy_ids) {
+                const target = this.m_scene.get_person(target_id);
+                if (target) {
+                    const target_position = target.get_translation();
+                    if (attacker_position.length >= 2 && target_position.length >= 2) {
+                        this.m_debug_enemies_lines.push(attacker_position[0]);
+                        this.m_debug_enemies_lines.push(attacker_position[1]);
+                        this.m_debug_enemies_lines.push(target_position[0]);
+                        this.m_debug_enemies_lines.push(target_position[1]);
+                    }
+                }
+            }
+        }
+    }
+
     update_process() {
         // clear debug before update
         // because at update it calls callbacks and fill this map
         this.m_debug_trajectories.clear();
         this.m_debug_pairs.length = 0;
+        this.m_debug_enemies_lines = new Array<number>();
 
         this.update();
 
@@ -173,5 +195,7 @@ export class ClientDataCanvas extends ClientBase {
         if (this.m_is_draw_neighbourhood_rect) {
             draw_neighbourhood_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_neighbourhood_rect);
         }
+
+        draw_lines(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_enemies_lines);
     }
 }

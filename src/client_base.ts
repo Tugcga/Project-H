@@ -43,6 +43,8 @@ export abstract class ClientBase {
     m_is_game_active: boolean = true;
     m_is_pause: boolean = false;  // turn on only when pause the game manually
 
+    m_is_touch: boolean = false;
+
     // in start method current client implementation should start render loop
     // this loop should at first call update method, and only then process other stuff
     abstract start(): void;
@@ -88,6 +90,7 @@ export abstract class ClientBase {
     abstract debug_close_entity_pair(entity_a: number, a_pos_x: number, a_pos_y: number, entity_b: number, b_pos_x: number, b_pos_y: number): void;
     abstract debug_player_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
     abstract debug_player_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
+    abstract debug_enemies_search(id: number, search_radius: number, enemy_ids: Int32Array): void;
 
     constructor() {
         // define host functions for external calls from the wasm module
@@ -119,7 +122,8 @@ export abstract class ClientBase {
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
-            debug_neighbourhood_quad: this.debug_neighbourhood_quad.bind(this)
+            debug_neighbourhood_quad: this.debug_neighbourhood_quad.bind(this),
+            debug_enemies_list: this.debug_enemies_list.bind(this)
         };
 
         // setup ui
@@ -127,6 +131,8 @@ export abstract class ClientBase {
         this.m_ui.assign_fps_element("fps");
         this.m_ui.assign_count_elements("level_count", "visible_count");
         this.m_ui.assign_pause_screen("pause");
+        this.m_ui.assign_control_keyboard("control_keyboard");
+        this.m_ui.assign_control_touch("control_touch");
         this.m_ui.assign_loading("loading");
 
         // get canvas elements from html
@@ -161,11 +167,16 @@ export abstract class ClientBase {
             return !(event.key == " ");
         }
 
-        const is_touch_input = "ontouchstart" in window && navigator.maxTouchPoints;
-        if (is_touch_input) {
+        local_this.m_is_touch = "ontouchstart" in window || (navigator.maxTouchPoints > 0);
+        if (local_this.m_is_touch) {
             this.m_scene_canvas.addEventListener("touchstart", (event) => {
                 event.preventDefault();
                 local_this.touch_start_event(event);
+            });
+
+            this.m_scene_canvas.addEventListener("touchend", (event) => {
+                event.preventDefault();
+                local_this.touch_end_event(event);
             });
         } else {
             // mouse click, release and move
@@ -216,7 +227,7 @@ export abstract class ClientBase {
 
                 // activate debug info
                 module.settings_set_use_debug(settings_ptr, true);
-                module.settings_set_debug_flags(settings_ptr, true, true, false, true);
+                module.settings_set_debug_flags(settings_ptr, true, true, false, true, true);
                 module.settings_set_snap_to_navmesh(settings_ptr, true);
                 module.settings_set_use_rvo(settings_ptr, true);
                 module.settings_set_path_recalculate_time(settings_ptr, 1.0);
@@ -321,7 +332,7 @@ export abstract class ClientBase {
     deactivate() {
         this.m_is_game_active = false;
 
-        this.m_ui.on_pause();
+        this.m_ui.on_pause(this.m_is_touch);
     }
 
     toggle_activate() {
@@ -336,29 +347,42 @@ export abstract class ClientBase {
 
     touch_start_event(event: TouchEvent) {
         if (this.m_is_start && this.m_is_game_active) {
-            const c = touch_coordinates(this.m_scene_canvas, event);
-            if (c.length > 0) {
-                const touch_time = performance.now();
-                const c_world = this.point_to_world(c[0], c[1]);
-                if (touch_time - this.m_last_touch_time < DOUBLE_TOUCH_DELTA && 
-                    Math.abs(c_world[0] - this.m_last_touch_coords[0]) < DOUBLE_TOUCH_CURSOR_DELTA &&
-                    Math.abs(c_world[1] - this.m_last_touch_coords[1]) < DOUBLE_TOUCH_CURSOR_DELTA) {
-                    // this is double touch
-                    // make the shift
-                    this.m_module.game_client_shift(this.m_game_ptr, c_world[0], c_world[1]);
-                } else {
-                    // this is single touch
-                    const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
-                    if (is_send) {
-                        this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
+            if (event.touches.length == 2) {
+                this.m_module.game_client_shield(this.m_game_ptr);
+            } else if (event.touches.length == 1) {
+                const c = touch_coordinates(this.m_scene_canvas, event);
+                if (c.length > 0) {
+                    const touch_time = performance.now();
+                    const c_world = this.point_to_world(c[0], c[1]);
+                    if (touch_time - this.m_last_touch_time < DOUBLE_TOUCH_DELTA && 
+                        Math.abs(c_world[0] - this.m_last_touch_coords[0]) < DOUBLE_TOUCH_CURSOR_DELTA &&
+                        Math.abs(c_world[1] - this.m_last_touch_coords[1]) < DOUBLE_TOUCH_CURSOR_DELTA) {
+                        // this is double touch
+                        // make the shift
+                        this.m_module.game_client_shift(this.m_game_ptr, c_world[0], c_world[1]);
+                    } else {
+                        // this is single touch
+                        const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
+                        if (is_send) {
+                            this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
+                        }
                     }
-                }
 
-                this.m_last_touch_time = touch_time;
-                this.m_last_touch_coords[0] = c_world[0];
-                this.m_last_touch_coords[1] = c_world[1];
+                    this.m_last_touch_time = touch_time;
+                    this.m_last_touch_coords[0] = c_world[0];
+                    this.m_last_touch_coords[1] = c_world[1];
+                }
             }
         }
+    }
+
+    // TODO: touch end event fires even when the user still hold fingers on the screen
+    // in particular, it's impossible to hold the shield several time
+    // try to use another ux approach
+    touch_end_event(event: TouchEvent) {
+        // always release the shield
+        // on the game side it will skip the action if the shield is not active
+        this.m_module.game_client_release_shield(this.m_game_ptr);
     }
 
     mouse_press_event(event: MouseEvent) {
@@ -655,5 +679,16 @@ export abstract class ClientBase {
 
     debug_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
         this.debug_player_neighbourhood_quad(start_x, start_y, end_x, end_y);
+    }
+
+    debug_enemies_list(entity: number, search_radius: number, enemy_ids: ArrayLike<number>) {
+        const array = new Int32Array(enemy_ids.length);
+        for (let i = 0; i < array.length; i++) {
+            array[i] = enemy_ids[i];
+        }
+
+        this.m_scene.set_monster_search_radius(entity, search_radius);
+
+        this.debug_enemies_search(entity, search_radius, array);
     }
 }

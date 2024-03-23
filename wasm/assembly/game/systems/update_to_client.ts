@@ -57,7 +57,7 @@ export class UpdateToClientSystem extends System {
                         const should_update_value = should_update.value();
                         const actor_type_value = actor_type.type();
                         if (should_update_value) {
-                            if (actor_type_value == ACTOR.PLAYER || (actor_type_value == ACTOR.MONSTER) && is_ordered_list_contains(visible_entities, entity)) {
+                            if (actor_type_value == ACTOR.PLAYER || (actor_type_value == ACTOR.MONSTER) && is_ordered_list_contains<Entity>(visible_entities, entity)) {
                                 const move: MoveTagComponent | null = this.get_component<MoveTagComponent>(entity);
                                 const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
                                 const angle: AngleComponent | null = this.get_component<AngleComponent>(entity);

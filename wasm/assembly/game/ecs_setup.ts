@@ -16,7 +16,9 @@ import { PositionComponent } from "./components/position";
 import { PreviousPositionComponent } from "./components/previous_position";
 import { VisibleQuadGridIndexComponent } from "./components/visible_quad_grid_index";
 import { VisibleQuadGridNeighborhoodComponent } from "./components/visible_quad_grid_neighborhood";
-import { RadiusComponent, RadiusSelectComponent } from "./components/radius";
+import { RadiusComponent,
+         RadiusSelectComponent,
+         RadiusSearchEnemies } from "./components/radius";
 import { RotationSpeedComponent } from "./components/rotation_speed";
 import { SpeedComponent } from "./components/speed";
 import { StateComponent, 
@@ -47,6 +49,8 @@ import { LifeComponent } from "./components/life";
 import { ShieldComponent, ShieldIncreaseComponent } from "./components/shield";
 import { ApplyDamageComponent } from "./components/apply_damage";
 import { TeamComponent } from "./components/team";
+import { SearchQuadGridIndexComponent } from "./components/search_quad_grid_index";
+import { EnemiesListComponent } from "./components/enemies_list";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
@@ -72,6 +76,8 @@ import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
 import { BuffTimerShiftCooldawnSystem, BuffTimerMeleeAttackCooldawnSystem } from "./systems/buff_timer";
 import { ApplyDamageSystem } from "./systems/apply_damage";
+import { SearchQuadGridTrackingSystem } from "./systems/search_quad_grid_tracking";
+import { SearchEnemiesSystem } from "./systems/search_enemies";
 
 import { external_entity_start_shift,
          external_entity_start_melee_attack,
@@ -111,6 +117,7 @@ export function setup_components(ecs: ECS): void {
     //               UpdateDebugSystem (for debugging close positions)
     //               CastSwitchSystem (for rotate to target)
     //               ApplyDamageSystem (for rotate to attacker)
+    //               SearchEnemiesSystem
     // write systems: MoveSystem (make actual move)
     //                ShiftSystem (move at shift action)
     // comment: define the spatial position of the entity in the level
@@ -192,6 +199,12 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<RadiusSelectComponent>();
 
     // assigned: mosnters
+    // read systems: SearchEnemiesSystem
+    // wrute system: -
+    // comment: data to define the radius value for search enemies
+    ecs.register_component<RadiusSearchEnemies>();
+
+    // assigned: mosnters
     // read systems: -
     // write systems: VisibleQuadGridTrackingSystem (get quad index from monster position and write it to the component)
     //                if the quad index is different from the previous one (from previuos update call), move entity id in the system inner variable
@@ -217,6 +230,7 @@ export function setup_components(ecs: ECS): void {
     //               RVOSystem (to check should we use rvo or not)
     //               ShieldIncreaseSystem (to check that shield increase outisde of the SHIELD state)
     //               UpdateToClientSystem (get dead state)
+    //               SearchEnemiesSystem
     // write systems: WalkToPointSwitchSystem
     //                ShiftSwitchSystem
     //                StunSwitchSystem
@@ -290,6 +304,7 @@ export function setup_components(ecs: ECS): void {
     //               UpdateToClientSystem (to call different method to update data for player or monsters)
     //               UpdateDebugSystem
     //               StunSwitchSystem (define switch to iddle or iddle wait)
+    //               SearchEnemiesSystem
     // write systems: -, the data assigned at create time and does not changed during the game
     // comment: data component
     // describe the type of the actor entity
@@ -412,13 +427,25 @@ export function setup_components(ecs: ECS): void {
     // after it the component is removed
     ecs.register_component<ApplyDamageComponent>();
 
-    // assgined: very player and monster
-    // read systems: -
+    // assgined: every player and monster
+    // read systems: SearchEnemiesSystem
     // write systems: -
     // comment: store the list of teams for each actor entity
     // this list allows to understand is two entities are enemies for each other or friends
     // if lsists are intersecs, then it friends, if not - then enemies
     ecs.register_component<TeamComponent>();
+
+    // assigned: every player and monster
+    // read systems: -
+    // write systems: SearchQuadGridTrackingSystem
+    // comments: split the space into quads to help to search enemies for each entity
+    ecs.register_component<SearchQuadGridIndexComponent>();
+
+    // assigned: monsters, driven by computer
+    // read systems: -
+    // write systems: SearchEnemiesSystem (update the list values)
+    // comment: store data about monster enemies in search radius
+    ecs.register_component<EnemiesListComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -435,6 +462,7 @@ export function setup_systems(ecs: ECS,
                               path_recalculate_time: f32,
                               path_to_target_recalculate_time: f32,
                               default_melee_stun: f32,
+                              search_radius: f32,
                               debug_settings: DebugSettings,
                               engine_settings: EngineSettings): void {
     // reset to zero preferred velocities for all movable entities (player, mosnters)
@@ -477,6 +505,18 @@ export function setup_systems(ecs: ECS,
     const neighborhood_tracking_system = ecs.register_system<NeighborhoodQuadGridTrackingSystem>(new NeighborhoodQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, neighborhood_quad_size));
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, NeighborhoodQuadGridIndexComponent>();
+
+    const search_tracking_system = ecs.register_system<SearchQuadGridTrackingSystem>(new SearchQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, search_radius));
+    ecs.set_system_with_component<SearchQuadGridTrackingSystem, PositionComponent>();
+    ecs.set_system_with_component<SearchQuadGridTrackingSystem, SearchQuadGridIndexComponent>();
+
+    ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system));
+    ecs.set_system_with_component<SearchEnemiesSystem, PositionComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, ActorTypeComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, TeamComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, EnemiesListComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, RadiusSearchEnemies>();
+    ecs.set_system_with_component<SearchEnemiesSystem, StateComponent>();
 
     // check is the entity comes to the target point of the path
     // if yes, switch to the iddle state (for the player) or iddle wait state (for mosnters)
@@ -629,6 +669,9 @@ export function setup_systems(ecs: ECS,
         ecs.set_system_with_component<UpdateDebugSystem, ActorTypeComponent>();
         ecs.set_system_with_component<UpdateDebugSystem, PositionComponent>();
         ecs.set_system_with_component<UpdateDebugSystem, StateComponent>();
+        // update debug system works as for player entity and for monsters entities
+        // we need it for enemies list, which exists only for mosnters, but does not exist for player
+        // so, register system without this component and skip the player in it update
     }
 }
 
@@ -656,7 +699,8 @@ export function setup_player(ecs: ECS,
                              life: u32,
                              shield: f32,
                              shield_resurect: f32,
-                             team: i32): Entity {
+                             team: i32,
+                             search_radius: f32): Entity {
     const player_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(player_entity, new ActorTypeComponent(ACTOR.PLAYER));
     ecs.add_component<PlayerComponent>(player_entity, new PlayerComponent());
@@ -692,6 +736,7 @@ export function setup_player(ecs: ECS,
     ecs.add_component<ShieldComponent>(player_entity, new ShieldComponent(shield));
     ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
     ecs.add_component<TeamComponent>(player_entity, new TeamComponent(team));
+    ecs.add_component<SearchQuadGridIndexComponent>(player_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
 
     return player_entity;
 }
@@ -717,7 +762,8 @@ export function setup_monster(ecs: ECS,
                               life: u32,
                               shield: f32,
                               shield_resurect: f32,
-                              team: i32): Entity {
+                              team: i32,
+                              search_radius: f32): Entity {
     const monster_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
@@ -749,6 +795,9 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<ShieldComponent>(monster_entity, new ShieldComponent(shield));
     ecs.add_component<ShieldIncreaseComponent>(monster_entity, new ShieldIncreaseComponent(shield_resurect));
     ecs.add_component<TeamComponent>(monster_entity, new TeamComponent(team));
+    ecs.add_component<SearchQuadGridIndexComponent>(monster_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
+    ecs.add_component<EnemiesListComponent>(monster_entity, new EnemiesListComponent());
+    ecs.add_component<RadiusSearchEnemies>(monster_entity, new RadiusSearchEnemies(search_radius));
 
     return monster_entity;
 }

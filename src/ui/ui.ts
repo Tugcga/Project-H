@@ -9,6 +9,8 @@ export class GameUI {
     m_items: UIItems;
     m_pause_screen: UIHTMLElement;
     m_loading: UIHTMLElement;
+    m_control_keyboard: UIHTMLElement;
+    m_control_touch: UIHTMLElement;
 
     assign_fps_element(html_id: string) {
         this.m_fps = new FPSCounter(html_id);
@@ -22,6 +24,14 @@ export class GameUI {
         this.m_pause_screen = new UIHTMLElement(html_id);
     }
 
+    assign_control_keyboard(html_id: string) {
+        this.m_control_keyboard = new UIHTMLElement(html_id);
+    }
+
+    assign_control_touch(html_id: string) {
+        this.m_control_touch = new UIHTMLElement(html_id);
+    }
+
     assign_loading(html_id: string) {
         this.m_loading = new UIHTMLElement(html_id);
     }
@@ -32,12 +42,21 @@ export class GameUI {
         }
     }
 
-    on_pause() {
+    on_pause(is_touch: boolean) {
         this.m_pause_screen.show();
+        if (is_touch) {
+            this.m_control_touch.show();
+            this.m_control_keyboard.hide();
+        } else {
+            this.m_control_touch.hide();
+            this.m_control_keyboard.show();
+        }
     }
 
     off_pause() {
         this.m_pause_screen.hide();
+        this.m_control_keyboard.hide();
+        this.m_control_touch.hide();
     }
 
     loading_hide() {

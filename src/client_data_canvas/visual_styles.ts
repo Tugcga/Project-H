@@ -49,6 +49,9 @@ export const DEBUG_CLOSEST_PAIR_WIDTH = 1.0;
 export const DEBUG_RECT_LINE_WIDTH = 1.0;
 export const DEBUG_VISIBILITY_RECT_COLOR = "rgb(111, 156, 227)";
 export const DEBUG_NEIGHBOURHOOD_RECT_COLOR = "rgb(134, 227, 111)";
+export const DEBUG_SEARCH_RADIUS_COLOR = "rgba(186, 77, 19, 0.25)";
+export const DEBUG_ENEMIES_TARGET_LINE_COLOR = "rgba(186, 77, 19, 0.7)";
+export const DEBUG_ENEMIES_TARGET_LINE_WIDTH: number = 1.0;
 
 export const SHIELD_ACTIVE_COLOR = "rgba(45, 71, 77, 0.75)";
 export const SHIELD_ACTIVE_WIDTH = 4.0;

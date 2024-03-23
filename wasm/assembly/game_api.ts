@@ -29,12 +29,14 @@ export function settings_set_debug_flags(settings: Settings,
                                          in_show_path: boolean, 
                                          in_show_closest: boolean,
                                          in_show_visible: boolean,
-                                         in_show_neighborhood: boolean): void {
+                                         in_show_neighborhood: boolean,
+                                         in_show_enemy_targets: boolean): void {
     const debug = settings.get_debug();
     debug.show_path = in_show_path;
     debug.show_closest = in_show_closest;
     debug.show_visible_quad = in_show_visible;
     debug.show_neighborhood_quad = in_show_neighborhood;
+    debug.show_enemy_targets = in_show_enemy_targets;
 }
 
 export function settings_set_neighbourhood_quad_size(settings: Settings, in_size: f32): void {
@@ -110,6 +112,11 @@ export function settings_set_monster_life(settings: Settings, value: u32): void 
 export function settings_set_default_melee_stun(settings: Settings, value: f32): void {
     const constants = settings.get_constants();
     constants.set_default_melee_stun(value);
+}
+
+export function settings_set_search_radius(settings: Settings, value: f32): void {
+    const constants = settings.get_constants();
+    constants.set_search_radius(value);
 }
 
 export function create_game(settings: Settings): Game {

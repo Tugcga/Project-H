@@ -2,7 +2,7 @@ import { CURSOR_TYPE, ClickCursor } from "../scene/click_cursor";
 import { EFFECT, CLICK_CURSOR_RADIUS, CLICK_CURSOR_TIME, COOLDAWN, MOVE_STATUS } from "../constants";
 import { SceneTile } from "../scene/scene_tile";
 import { Transform } from "../transform";
-import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH, ENTITY_DEAD_BACK_COLOR, PLAYER_LIVE_BACK_COLOR, MONSTER_LIVE_BACK_COLOR, ENTITY_LIFE_CIRCLE_DELTA, EFFECT_STUN_COLOR, EFFECT_STUN_STROKE_COLOR, EFFECT_STUN_RADIUS_MULTIPLIER } from "./visual_styles";
+import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH, ENTITY_DEAD_BACK_COLOR, PLAYER_LIVE_BACK_COLOR, MONSTER_LIVE_BACK_COLOR, ENTITY_LIFE_CIRCLE_DELTA, EFFECT_STUN_COLOR, EFFECT_STUN_STROKE_COLOR, EFFECT_STUN_RADIUS_MULTIPLIER, DEBUG_SEARCH_RADIUS_COLOR, DEBUG_ENEMIES_TARGET_LINE_WIDTH, DEBUG_ENEMIES_TARGET_LINE_COLOR } from "./visual_styles";
 import { Person } from "../scene/person";
 import { Player } from "../scene/player";
 import { Monster } from "../scene/monster";
@@ -140,21 +140,24 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
                      is_stroke: boolean) {
     // construct transform from local to canvas
     const person_tfm = person.get_tfm();
+    const is_dead = person.get_is_dead();
     const tfm = wtc_tfm.compose_tfms(person_tfm);
     // calculate center on canvas
     const c_center = tfm.multiply(0.0, 0.0);
-    
-    draw_ctx.save();
-    draw_ctx.strokeStyle = SELECT_RADIUS_COLOR;
-    const select_radius = person.get_select_radius();
-    const c_select_radius = wtc_tfm.apply_scale(select_radius);
-    draw_ctx.beginPath();
-    draw_ctx.arc(c_center[0], c_center[1], c_select_radius, 0.0, 2 * Math.PI);
-    draw_ctx.stroke();
-    draw_ctx.restore();
 
     // start draw
     if (person.get_debug_draw()) {
+        if (!is_dead) {
+            draw_ctx.save();
+            draw_ctx.strokeStyle = SELECT_RADIUS_COLOR;
+            const select_radius = person.get_select_radius();
+            const c_select_radius = wtc_tfm.apply_scale(select_radius);
+            draw_ctx.beginPath();
+            draw_ctx.arc(c_center[0], c_center[1], c_select_radius, 0.0, 2 * Math.PI);
+            draw_ctx.stroke();
+            draw_ctx.restore();
+        }
+
         // draw attack radius
         draw_ctx.save();
         draw_ctx.strokeStyle = secondary_stroke_color;
@@ -164,6 +167,16 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
         draw_ctx.arc(c_center[0], c_center[1], c_attack_radius, 0.0, 2 * Math.PI);
         draw_ctx.stroke();
         draw_ctx.restore();
+
+        // search radius
+        draw_ctx.save();
+        draw_ctx.strokeStyle = is_dead ? ENTITY_DEAD_BACK_COLOR : DEBUG_SEARCH_RADIUS_COLOR;
+        draw_ctx.beginPath();
+        const search_radius = person.get_search_radius();
+        const c_search_radius = tfm.apply_scale(search_radius);
+        draw_ctx.arc(c_center[0], c_center[1], c_search_radius, 0.0, 2 * Math.PI);
+        draw_ctx.stroke();
+        draw_ctx.restore();
     }
 
     // calculate radius of the character
@@ -171,13 +184,12 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
     const c_radius = tfm.apply_scale(radius);
     const p2 = tfm.multiply(radius * Math.SQRT2, 0.0);
     const a = person_tfm.rotation();
-    const is_dead = person.get_is_dead();
 
     // draw main character
     draw_ctx.save();
     // at first base circle
     draw_ctx.lineWidth = stroke_width;
-    draw_ctx.fillStyle = person.get_is_dead() ? ENTITY_DEAD_BACK_COLOR : back_color;
+    draw_ctx.fillStyle = is_dead ? ENTITY_DEAD_BACK_COLOR : back_color;
     draw_ctx.strokeStyle = stroke_color;
     draw_ctx.beginPath();
     draw_ctx.arc(c_center[0], c_center[1], c_radius, a + Math.PI / 4, 2 * Math.PI + a - Math.PI / 4);
@@ -407,7 +419,25 @@ export function draw_visibility_rect(draw_ctx: CanvasRenderingContext2D,
 }
 
 export function draw_neighbourhood_rect(draw_ctx: CanvasRenderingContext2D, 
-                                       wtc_tfm: Transform,
-                                       coordinates: Float32Array) {
+                                        wtc_tfm: Transform,
+                                        coordinates: Float32Array) {
     draw_rect(draw_ctx, wtc_tfm, coordinates, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
+}
+
+export function draw_lines(draw_ctx: CanvasRenderingContext2D, 
+                           wtc_tfm: Transform,
+                           lines: Array<number>) {
+    draw_ctx.save();
+    draw_ctx.lineWidth =  DEBUG_ENEMIES_TARGET_LINE_WIDTH;
+    draw_ctx.strokeStyle = DEBUG_ENEMIES_TARGET_LINE_COLOR;
+    for (let line_index = 0; line_index < lines.length / 4; line_index++) {
+        draw_ctx.beginPath();
+        const s = wtc_tfm.multiply(lines[4 * line_index], lines[4 * line_index + 1]);
+        const e = wtc_tfm.multiply(lines[4 * line_index + 2], lines[4 * line_index + 3]);
+
+        draw_ctx.moveTo(s[0], s[1]);
+        draw_ctx.lineTo(e[0], e[1]);
+        draw_ctx.stroke();
+    }
+    draw_ctx.restore();
 }

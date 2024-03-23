@@ -175,6 +175,19 @@ export class Scene {
     set_entity_attack_distance(id: number, value: number) {
         if (this.m_player_id == id) {
             this.m_player.set_attack_distance(value);
+        } else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_attack_distance(value);
+                }
+            } else {
+                const monster = new Monster(id);
+                this.m_cooldawns.add_entity(id);
+                monster.set_attack_distance(value);
+    
+                this.m_monsters.set(id, monster);
+            }
         }
     }
 
@@ -318,6 +331,21 @@ export class Scene {
             this.m_cooldawns.add_entity(entity);
 
             this.m_monsters.set(entity, monster);
+        }
+    }
+
+    set_monster_search_radius(id: number, value: number) {
+        if(this.m_monsters.has(id)) {
+            const monster = this.m_monsters.get(id);
+            if(monster) {
+                monster.set_search_radius(value);
+            }
+        } else {
+            const monster = new Monster(id);
+            monster.set_search_radius(value);
+            this.m_cooldawns.add_entity(id);
+
+            this.m_monsters.set(id, monster);
         }
     }
 

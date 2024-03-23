@@ -89,6 +89,9 @@ declare function debug_visible_quad(start_x: f32, start_y: f32, end_x: f32, end_
 @external("env", "host.debug_neighbourhood_quad")
 declare function debug_neighbourhood_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void;
 
+@external("env", "host.debug_enemies_list")
+declare function debug_enemies_list(entity: u32, search_radius: f32, enemies: StaticArray<u32>): void;
+
 
 export function external_define_level(level_width: u32, level_height: u32, tile_size: f32): void {
     if(use_external) {
@@ -327,5 +330,13 @@ export function external_debug_neighborhood_quad(start_x: f32, start_y: f32, end
         debug_neighbourhood_quad(start_x, start_y, end_x, end_y);
     } else {
         console.log("ext -> debug_neighbourhood_quad: " + "(" + start_x.toString() + ", " + start_y.toString() + ") - (" + end_x.toString() + ", " + end_y.toString() + ")");
+    }
+}
+
+export function external_debug_enemies_list(entity: u32, search_radius: f32, enemies_list: StaticArray<u32>): void {
+    if (use_external) {
+        debug_enemies_list(entity, search_radius, enemies_list);
+    } else {
+        console.log("ext -> debug_enemies_list: " + entity.toString() + " search " + search_radius.toString() + " find " + enemies_list.toString());
     }
 }

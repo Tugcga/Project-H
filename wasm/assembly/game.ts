@@ -116,6 +116,7 @@ export class Game {
         const player_shield_resurect = local_constants.player_shield_resurect;
         const default_melee_stun = local_constants.default_melee_stun;
         const player_team = local_constants.player_default_team;
+        const search_radius = local_constants.search_radius;
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -148,6 +149,7 @@ export class Game {
             path_recalculate_time,
             path_to_target_recalculate_time,
             default_melee_stun,
+            search_radius,
             debug_settings,
             engine_settings);
 
@@ -176,7 +178,8 @@ export class Game {
             player_life,
             player_shield,
             player_shield_resurect,
-            player_team);
+            player_team,
+            search_radius);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -346,10 +349,11 @@ export class Game {
             const monster_melee_damage_distance = local_constants.monster_melee_damage_distance;
             const monster_melee_damage_spread = local_constants.monster_melee_damage_spread;
             const monster_melee_damage = local_constants.monster_melee_damage;
-            const mosnter_life = local_constants.monster_life;
+            const monster_life = local_constants.monster_life;
             const monster_shield = local_constants.monster_shield;
             const monster_shield_resurect = local_constants.monster_shield_resurect;
             const monster_team = local_constants.monster_default_team;
+            const search_radius = local_constants.search_radius;
 
             const monster_entity = setup_monster(local_ecs, 
                                                  pos_x, 
@@ -369,10 +373,16 @@ export class Game {
                                                  monster_melee_damage,
                                                  monster_melee_damage_distance,
                                                  monster_melee_damage_spread,
-                                                 mosnter_life,
+                                                 monster_life,
                                                  monster_shield,
                                                  monster_shield_resurect,
-                                                 monster_team);
+                                                 monster_team,
+                                                 search_radius);
+            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(monster_entity);
+            const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(monster_entity);
+            if (select_radius && life) {
+                external_update_entity_params(monster_entity, life.life(), life.max_life(), select_radius.value(), atack_distance, melle_atack_timing);
+            }
         }
     }
 

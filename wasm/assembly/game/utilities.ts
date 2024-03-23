@@ -45,43 +45,53 @@ export function array_to_etities_list(array: Array<i32>): List<Entity> {
     return to_return;
 }
 
-export function is_ordered_list_contains(array: List<Entity>, value: Entity): bool {
+// return -1 if there is no element in the array
+export function get_index_in_ordered_list<T>(array: List<T>, value: T): i32 {
     const array_length = array.length;
     if (array_length == 0) {
-        return false;
+        return -1;
     }
 
     if (array_length == 1) {
-        return value == array.get(0);
+        if (value == array[0]) {
+            return 0;
+        } else {
+            return -1;
+        }
     }
 
-    // input array is ordered
-    // so, we can use binary search to find value element
     let left: u32 = 0;
     let right: u32 = array_length - 1;
 
     const left_value = array.get(left);
     const right_value = array.get(right);
 
-    if (left_value == value || right_value == value) {
-        return true;
+    if (left_value == value) {
+        return left;
+    } else if (right_value == value) {
+        return right;
+    } else {
+        while (right - left > 1) {
+            const middle = (right + left) / 2;
+            const middle_value = array[middle];
+
+            if (middle_value == value) {
+                return middle;
+            }
+
+            if (middle_value > value) {
+                right = middle;
+            } else {
+                left = middle;
+            }
+        }
     }
 
-    while (right - left > 1) {
-        const middle = (right + left) / 2;
-        const middle_value = array.get(middle);
+    return -1;
+}
 
-        if (middle_value == value) {
-            return true;
-        }
-
-        if (middle_value > value) {
-            right = middle;
-        } else {
-            left = middle;
-        }
-    }
-    return false;
+export function is_ordered_list_contains<T>(array: List<T>, value: T): bool {
+    return get_index_in_ordered_list<T>(array, value) != -1;
 }
 
 export function offset_path(path: StaticArray<f32>, delta: f32 = 0.1): StaticArray<f32> {

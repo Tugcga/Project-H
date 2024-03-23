@@ -10,12 +10,15 @@ import { VisibleQuadGridNeighborhoodComponent } from "../components/visible_quad
 import { NeighborhoodQuadGridIndexComponent } from "../components/neighborhood_quad_grid_index";
 import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
 import { VisibleQuadGridTrackingSystem } from "./visible_quad_grid_tracking";
+import { EnemiesListComponent } from "../components/enemies_list";
+import { RadiusSearchEnemies } from "../components/radius";
 
 import { DebugSettings } from "../settings";
 import { external_debug_entity_walk_path,
          external_debug_close_entity,
          external_debug_visible_quad,
-         external_debug_neighborhood_quad } from "../../external";
+         external_debug_neighborhood_quad,
+         external_debug_enemies_list } from "../../external";
 
 export class UpdateDebugSystem extends System {
     private m_debug_settings: DebugSettings;
@@ -54,6 +57,7 @@ export class UpdateDebugSystem extends System {
             const debug_show_closest = debug.show_closest;
             const debug_show_visible_quad = debug.show_visible_quad;
             const debug_show_neighborhood_quad = debug.show_neighborhood_quad;
+            const debug_show_enemy_targets = debug.show_enemy_targets;
 
             if (visible_neighborhood) {
                 const visible_entities = visible_neighborhood.current();
@@ -70,7 +74,7 @@ export class UpdateDebugSystem extends System {
                         // output debug info about current entity
                         // it does not require active update
                         // but this entity should be visible to the player
-                        if (use_debug && (actor_type_value == ACTOR.PLAYER || is_ordered_list_contains(visible_entities, entity))) {
+                        if (use_debug && (actor_type_value == ACTOR.PLAYER || is_ordered_list_contains<Entity>(visible_entities, entity))) {
                             const state = this.get_component<StateComponent>(entity);
                             if (state) {
                                 const state_value = state.state();
@@ -156,6 +160,18 @@ export class UpdateDebugSystem extends System {
                                     const end_y = <f32>(y_index + 1) * quad_size;
 
                                     external_debug_neighborhood_quad(start_x, start_y, end_x, end_y);
+                                }
+                            }
+
+                            if (actor_type_value == ACTOR.MONSTER && debug_show_enemy_targets) {
+                                const enemies_list: EnemiesListComponent | null = this.get_component<EnemiesListComponent>(entity);
+                                const radius_search: RadiusSearchEnemies | null = this.get_component<RadiusSearchEnemies>(entity);
+                                if (enemies_list && radius_search && state) {
+                                    // each mosnter SHOULD contains these components
+                                    const state_value = state.state();
+                                    if (state_value != STATE.DEAD) {
+                                        external_debug_enemies_list(entity, radius_search.value(), enemies_list.to_static_array());
+                                    }
                                 }
                             }
                         }

@@ -12,6 +12,10 @@ export class DebugSettings {
     // for player only
     show_visible_quad: bool = true;
     show_neighborhood_quad: bool = true;
+
+    // for enemies only
+    // show virtual lines to entities from the enemies list
+    show_enemy_targets: bool = true;
 }
 
 export class EngineSettings {
@@ -74,6 +78,7 @@ export class ConstantsSettings {
     default_melee_stun: f32 = 1.0;
     player_default_team: i32 = 1;
     monster_default_team: i32 = -1;
+    search_radius: f32 = 5.0;
 
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;
@@ -141,6 +146,10 @@ export class ConstantsSettings {
 
     set_default_melee_stun(value: f32): void {
         this.default_melee_stun = value;
+    }
+
+    set_search_radius(value: f32): void {
+        this.search_radius = value;
     }
 }
 

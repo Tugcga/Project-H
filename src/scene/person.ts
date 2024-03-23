@@ -13,6 +13,7 @@ export class Person extends SceneItem {
     private m_move_status: MOVE_STATUS = MOVE_STATUS.NONE;
     private m_is_dead: boolean = false;
     private m_select_radius: number = 0.0;
+    private m_search_radius: number = 0.0;
     private m_active_shield: boolean = false;
     private m_debug_draw: boolean = true;
     private m_team: number;
@@ -49,6 +50,10 @@ export class Person extends SceneItem {
 
     set_radius(radius: number) {
         this.m_radius = radius;
+    }
+
+    set_search_radius(value: number) {
+        this.m_search_radius = value;
     }
 
     set_attack_distance(value: number) {
@@ -119,6 +124,10 @@ export class Person extends SceneItem {
 
     get_select_radius(): number {
         return this.m_select_radius;
+    }
+
+    get_search_radius(): number {
+        return this.m_search_radius;
     }
 
     get_debug_draw(): boolean {
