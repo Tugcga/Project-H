@@ -40,11 +40,6 @@ export class PseudoRandom{
         return <i32>(<f64>(in_max - in_min) * v + <f64>in_min + 0.5);
     }
 
-    /*next(in_min: i32, in_max: i32): i32{
-        const v: f64 = Math.random();
-        return <i32>(<f64>(in_max - in_min) * v + <f64>in_min + 0.5);
-    }*/
-
     next_odd(in_min: i32, in_max: i32): i32{
         const next_value: i32 = this.next(in_min, in_max);
 

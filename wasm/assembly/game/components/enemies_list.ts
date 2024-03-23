@@ -1,5 +1,4 @@
 import { Entity } from "../../simple_ecs/types";
-
 import { List } from "../../pathfinder/common/list";
 
 import { get_index_in_ordered_list } from "../utilities";
@@ -59,6 +58,11 @@ export class EnemiesListComponent {
             }
 
         }
+    }
+
+    remove_at(index: u32): void {
+        const local_targets = this.m_targets;
+        local_targets.pop(index);
     }
 
     remove_target(entity: Entity): void {

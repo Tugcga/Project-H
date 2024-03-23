@@ -77,6 +77,7 @@ export class SearchEnemiesSystem extends System {
                                         else {
                                             // current active actor meat enemy target actor
                                             // add target to the enemies list
+                                            // TODO: add target only if it in direct visibility of the active entity
                                             active_enemies_list.add_target(target_entity);
                                         }
                                     }

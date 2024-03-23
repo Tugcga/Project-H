@@ -51,6 +51,7 @@ import { ApplyDamageComponent } from "./components/apply_damage";
 import { TeamComponent } from "./components/team";
 import { SearchQuadGridIndexComponent } from "./components/search_quad_grid_index";
 import { EnemiesListComponent } from "./components/enemies_list";
+import { BehaviourComponent } from "./components/behaviour";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
@@ -78,6 +79,7 @@ import { BuffTimerShiftCooldawnSystem, BuffTimerMeleeAttackCooldawnSystem } from
 import { ApplyDamageSystem } from "./systems/apply_damage";
 import { SearchQuadGridTrackingSystem } from "./systems/search_quad_grid_tracking";
 import { SearchEnemiesSystem } from "./systems/search_enemies";
+import { BehaviourSystem } from "./systems/behaviour";
 
 import { external_entity_start_shift,
          external_entity_start_melee_attack,
@@ -446,6 +448,12 @@ export function setup_components(ecs: ECS): void {
     // write systems: SearchEnemiesSystem (update the list values)
     // comment: store data about monster enemies in search radius
     ecs.register_component<EnemiesListComponent>();
+
+    // assigned: monster, driven by computer
+    // read systems: BehaviourSystem
+    // write systems: BehaviourSystem
+    // comment: store data required for behaviours
+    ecs.register_component<BehaviourComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -517,6 +525,12 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<SearchEnemiesSystem, EnemiesListComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, RadiusSearchEnemies>();
     ecs.set_system_with_component<SearchEnemiesSystem, StateComponent>();
+
+    ecs.register_system<BehaviourSystem>(new BehaviourSystem(navmesh, random, monster_iddle_time[0], monster_iddle_time[1], monster_random_walk_target_radius));
+    ecs.set_system_with_component<BehaviourSystem, StateComponent>();
+    ecs.set_system_with_component<BehaviourSystem, EnemiesListComponent>();
+    ecs.set_system_with_component<BehaviourSystem, PositionComponent>();
+    ecs.set_system_with_component<BehaviourSystem, BehaviourComponent>();
 
     // check is the entity comes to the target point of the path
     // if yes, switch to the iddle state (for the player) or iddle wait state (for mosnters)
@@ -798,6 +812,7 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<SearchQuadGridIndexComponent>(monster_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
     ecs.add_component<EnemiesListComponent>(monster_entity, new EnemiesListComponent());
     ecs.add_component<RadiusSearchEnemies>(monster_entity, new RadiusSearchEnemies(search_radius));
+    ecs.add_component<BehaviourComponent>(monster_entity, new BehaviourComponent());
 
     return monster_entity;
 }

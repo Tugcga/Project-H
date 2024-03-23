@@ -20,7 +20,7 @@ export class StateComponent {
             return "faset shifting";
         } else if (this.m_state == STATE.CASTING) {
             return "casting";
-        } else if (this.m_state == STATE.STAN) {
+        } else if (this.m_state == STATE.STUN) {
             return "stanning";
         } else if (this.m_state == STATE.SHIELD) {
             return "shield";

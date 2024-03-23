@@ -305,7 +305,7 @@ export function external_debug_entity_walk_path(entity: u32, points: StaticArray
     if(use_external) {
         debug_entity_walk_path(entity, points);
     } else {
-        console.log("ext -> debug_entity_walk_path: " + entity.toString() + "> " + points.toString());
+        console.log("ext -> debug_entity_walk_path: " + entity.toString() + " > " + points.toString());
     }
 }
 
