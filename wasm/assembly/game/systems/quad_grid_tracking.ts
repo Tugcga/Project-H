@@ -3,12 +3,13 @@ import { List } from "../../pathfinder/common/list";
 import { Entity } from "../../simple_ecs/types";
 import { is_element_new } from "../utilities";
 
-// parent class for all quad grid systems
+// base class for all quad grid systems
 export class QuadGridTrackingSystem extends System {
     private m_items_map: StaticArray<List<Entity>>;  // store here list of entities at every grid cell
     private m_width_count: i32;
     private m_quad_size: f32;
     private m_visited_buffer: List<u32> = new List<u32>(9);
+    private m_return_buffer: List<Entity> = new List<Entity>(12);
 
     constructor(in_level_width: f32, in_level_height: f32, quad_size: f32) {
         super();
@@ -56,9 +57,11 @@ export class QuadGridTrackingSystem extends System {
 
             visited_buffer.reset();
 
-            // TODO: try to skip buffer allocation avery frame
+            // TODO: try to skip buffer allocation every frame
             // use one array and output it to function calls
-            const center = new List<Entity>();
+            //const center = new List<Entity>();
+            const center = this.m_return_buffer;
+            center.reset();
             center.copy_from(items_map[index]);
             visited_buffer.push(index);
             

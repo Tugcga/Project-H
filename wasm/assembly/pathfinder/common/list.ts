@@ -3,9 +3,11 @@ import { log_message } from "./utilities";
 import { Pair } from "./utilities";
 
 export class List<T> extends Serializable {
-    m_array: StaticArray<T>;
-    m_size: i32;
-    m_max_size: i32;
+    private m_array: StaticArray<T>;
+    private m_size: i32;
+    private m_max_size: i32;
+
+    private m_sort_stack: StaticArray<i32>;  // use in sorting
 
     constructor(start_size: i32 = 0){
         super();
@@ -13,6 +15,8 @@ export class List<T> extends Serializable {
         this.m_max_size = max_size;
         this.m_array = new StaticArray<T>(max_size);
         this.m_size = 0;
+
+        this.m_sort_stack = new StaticArray<i32>(12);
     }
 
     static from_array<T>(in_array: Array<T>): List<T> {
@@ -137,11 +141,64 @@ export class List<T> extends Serializable {
         return this.m_array[size - 1];
     }
 
+
     @inline
     sort(): void{
-        this.m_array = this.m_array.slice<StaticArray<T>>(0, this.m_size).sort();
+        /*this.m_array = this.m_array.slice<StaticArray<T>>(0, this.m_size).sort();
         this.m_size = this.m_array.length;
-        this.m_max_size = this.m_size;
+        this.m_max_size = this.m_size;*/
+
+        // use simple quick sort
+        let stack_pointer = 0;
+        let stack = this.m_sort_stack;
+        const local_array = this.m_array;
+        stack[0] = 0;
+        stack[1] = this.m_size - 1;
+
+        while (stack_pointer >= 0) {
+            const left = stack[2 * stack_pointer];
+            const right = stack[2 * stack_pointer + 1];
+            stack_pointer--;
+
+            if (right - left >= 1) {
+                const pivot = local_array[right];
+                let i = left;
+                for (let j = left; j < right; j++) {
+                    if (local_array[j] < pivot) {
+                        if (i != j) {
+                            const temp = local_array[i];
+                            local_array[i] = local_array[j];
+                            local_array[j] = temp;
+                        }
+                        i++;
+                    }
+                }
+                const temp = local_array[i];
+                local_array[i] = local_array[right];
+                local_array[right] = temp;
+
+                if (stack.length < stack_pointer * 2 + 6) {
+                    this.m_sort_stack = new StaticArray<i32>(stack_pointer * 2 + 12);
+                    // copy values
+                    for (let j = 0, j_len = stack.length; j < j_len; j++) {
+                        this.m_sort_stack[j] = stack[j];
+                    }
+                    stack = this.m_sort_stack;
+                }
+
+                if (left < i - 1) {
+                    stack_pointer += 1;
+                    stack[stack_pointer * 2] = left;
+                    stack[stack_pointer * 2 + 1] = i - 1;
+                }
+
+                if (i + 1 < right) {
+                    stack_pointer += 1;
+                    stack[stack_pointer * 2] = i + 1;
+                    stack[stack_pointer * 2 + 1] = right;
+                }
+            }
+        }
     }
 
     @inline
