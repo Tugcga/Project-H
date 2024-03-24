@@ -20,6 +20,7 @@ export class ClientDataCanvas extends ClientBase {
     m_is_draw_neighbourhood_rect: boolean = false;
     m_debug_neighbourhood_rect: Float32Array = new Float32Array(4);
     m_debug_enemies_lines: Array<number>;  // for each enemy store 4 values: (x, y) of attacker and (x, y) of the target
+    m_use_debug_draw: boolean = false;
 
     constructor() {
         super();
@@ -54,7 +55,9 @@ export class ClientDataCanvas extends ClientBase {
     // in this implementation we does not need this
     scene_tile_delete(index: number): void { }
     scene_tile_create(pos_x: number, pos_y: number, index: number, type: number): void { }
-    scene_create_player(radius: number): void { }
+    scene_create_player(radius: number): void { 
+        this.m_scene.get_player().set_debug_draw(this.m_use_debug_draw);
+    }
     scene_update_entity_params(id: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number): void { }
     // mouse_click(inc_x: number, inc_y: number, inw_x: number, inw_y: number): void { }
     // when define player position, we should update camera to output shapes to the canvas
@@ -71,7 +74,12 @@ export class ClientDataCanvas extends ClientBase {
     scene_update_entity_move_status(id: number, move_status: MOVE_STATUS): void {}
     scene_update_entity_life(id: number, life: number, max_life: number): void {}
     scene_update_entity_shield(id: number, shield: number, max_shield: number): void {}
-    scene_create_monster(entity: number, radius: number): void { }
+    scene_create_monster(entity: number, radius: number): void {
+        const p = this.m_scene.get_person(entity);
+        if (p) {
+            p.set_debug_draw(this.m_use_debug_draw);
+        }
+    }
     scene_remove_monster(entity: number): void {}
     scene_entity_start_shift(entity: number): void {}
     scene_entity_finish_shift(entity: number): void {}
@@ -88,50 +96,89 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_finish_stun(entity: number): void {}
 
     debug_entity_trajectory(entity: number, coordinates: Float32Array): void {
-        // store coordinates in temporary map
-        // draw these trajectories at draw method
-        this.m_debug_trajectories.set(entity, coordinates);
+        if (this.m_use_debug_draw) {
+            // store coordinates in temporary map
+            // draw these trajectories at draw method
+            this.m_debug_trajectories.set(entity, coordinates);
+        }
     }
 
     debug_close_entity_pair(entity_a: number, a_pos_x: number, a_pos_y: number, entity_b: number, b_pos_x: number, b_pos_y: number): void {
-        this.m_debug_pairs.push(a_pos_x);
-        this.m_debug_pairs.push(a_pos_y);
+        if (this.m_use_debug_draw) {
+            this.m_debug_pairs.push(a_pos_x);
+            this.m_debug_pairs.push(a_pos_y);
 
-        this.m_debug_pairs.push(b_pos_x);
-        this.m_debug_pairs.push(b_pos_y);
+            this.m_debug_pairs.push(b_pos_x);
+            this.m_debug_pairs.push(b_pos_y);
+        }
     }
 
     debug_player_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
-        this.m_debug_visible_rect[0] = start_x;
-        this.m_debug_visible_rect[1] = start_y;
-        this.m_debug_visible_rect[2] = end_x;
-        this.m_debug_visible_rect[3] = end_y;
-        this.m_is_draw_visible_rect = true;
+        if (this.m_use_debug_draw) {
+            this.m_debug_visible_rect[0] = start_x;
+            this.m_debug_visible_rect[1] = start_y;
+            this.m_debug_visible_rect[2] = end_x;
+            this.m_debug_visible_rect[3] = end_y;
+            this.m_is_draw_visible_rect = true;
+        }
     }
 
     debug_player_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
-        this.m_debug_neighbourhood_rect[0] = start_x;
-        this.m_debug_neighbourhood_rect[1] = start_y;
-        this.m_debug_neighbourhood_rect[2] = end_x;
-        this.m_debug_neighbourhood_rect[3] = end_y;
-        this.m_is_draw_neighbourhood_rect = true;
+        if (this.m_use_debug_draw) {
+            this.m_debug_neighbourhood_rect[0] = start_x;
+            this.m_debug_neighbourhood_rect[1] = start_y;
+            this.m_debug_neighbourhood_rect[2] = end_x;
+            this.m_debug_neighbourhood_rect[3] = end_y;
+            this.m_is_draw_neighbourhood_rect = true;
+        }
     }
 
     debug_enemies_search(id: number, search_radius: number, enemy_ids: Int32Array): void {
-        const attacker = this.m_scene.get_person(id);
-        if (attacker) {
-            const attacker_position = attacker.get_translation();
-            for (let target_id of enemy_ids) {
-                const target = this.m_scene.get_person(target_id);
-                if (target) {
-                    const target_position = target.get_translation();
-                    if (attacker_position.length >= 2 && target_position.length >= 2) {
-                        this.m_debug_enemies_lines.push(attacker_position[0]);
-                        this.m_debug_enemies_lines.push(attacker_position[1]);
-                        this.m_debug_enemies_lines.push(target_position[0]);
-                        this.m_debug_enemies_lines.push(target_position[1]);
+        if (this.m_use_debug_draw) {
+            const attacker = this.m_scene.get_person(id);
+            if (attacker) {
+                const attacker_position = attacker.get_translation();
+                for (let target_id of enemy_ids) {
+                    const target = this.m_scene.get_person(target_id);
+                    if (target) {
+                        const target_position = target.get_translation();
+                        if (attacker_position.length >= 2 && target_position.length >= 2) {
+                            this.m_debug_enemies_lines.push(attacker_position[0]);
+                            this.m_debug_enemies_lines.push(attacker_position[1]);
+                            this.m_debug_enemies_lines.push(target_position[0]);
+                            this.m_debug_enemies_lines.push(target_position[1]);
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    debug_define_draw_flag(output_debug: boolean): void {
+        this.m_use_debug_draw = output_debug;
+    }
+
+    debug_toggle_draw_flag(): void {
+        this.m_use_debug_draw = !this.m_use_debug_draw;
+
+        if (!this.m_use_debug_draw) {
+            this.m_is_draw_visible_rect = false;
+            this.m_is_draw_neighbourhood_rect = false;
+
+            // disable debug draw for all persons
+            const player = this.m_scene.get_player();
+            player.set_debug_draw(false);
+
+            for (const [id, monster] of this.m_scene.get_monsters()) {
+                monster.set_debug_draw(false);
+            }
+        } else {
+            // enable debug draw for all persons
+            const player = this.m_scene.get_player();
+            player.set_debug_draw(true);
+            
+            for (const [id, monster] of this.m_scene.get_monsters()) {
+                monster.set_debug_draw(true);
             }
         }
     }

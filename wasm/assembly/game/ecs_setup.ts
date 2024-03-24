@@ -120,6 +120,7 @@ export function setup_components(ecs: ECS): void {
     //               CastSwitchSystem (for rotate to target)
     //               ApplyDamageSystem (for rotate to attacker)
     //               SearchEnemiesSystem
+    //               BehaviourSystem
     // write systems: MoveSystem (make actual move)
     //                ShiftSystem (move at shift action)
     // comment: define the spatial position of the entity in the level
@@ -233,6 +234,7 @@ export function setup_components(ecs: ECS): void {
     //               ShieldIncreaseSystem (to check that shield increase outisde of the SHIELD state)
     //               UpdateToClientSystem (get dead state)
     //               SearchEnemiesSystem
+    //               BehaviourSystem
     // write systems: WalkToPointSwitchSystem
     //                ShiftSwitchSystem
     //                StunSwitchSystem
@@ -431,6 +433,7 @@ export function setup_components(ecs: ECS): void {
 
     // assgined: every player and monster
     // read systems: SearchEnemiesSystem
+    //               ApplyDamageSystem
     // write systems: -
     // comment: store the list of teams for each actor entity
     // this list allows to understand is two entities are enemies for each other or friends
@@ -444,7 +447,7 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<SearchQuadGridIndexComponent>();
 
     // assigned: monsters, driven by computer
-    // read systems: -
+    // read systems: BehaviourSystem
     // write systems: SearchEnemiesSystem (update the list values)
     // comment: store data about monster enemies in search radius
     ecs.register_component<EnemiesListComponent>();
@@ -518,7 +521,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, SearchQuadGridIndexComponent>();
 
-    ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system));
+    ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system, navmesh));
     ecs.set_system_with_component<SearchEnemiesSystem, PositionComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, ActorTypeComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, TeamComponent>();
@@ -603,6 +606,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<ApplyDamageSystem, ApplyDamageComponent>();  // store actual damage
     ecs.set_system_with_component<ApplyDamageSystem, TargetAngleComponent>();  // to rotate entity to attacker with active shield
     ecs.set_system_with_component<ApplyDamageSystem, PositionComponent>();
+    ecs.set_system_with_component<ApplyDamageSystem, TeamComponent>();
 
     // move entities by using calculated velocities and curent positions
     // navmesh used for snapping to the walkable area
@@ -763,7 +767,6 @@ export function setup_monster(ecs: ECS,
                               melee_attack_cooldaw: f32,
                               radius: f32, 
                               rotation_speed: f32,
-                              iddle_wait_time: f32,
                               level_width: f32, 
                               visible_quad_size: f32,
                               neighborhood_quad_size: f32,

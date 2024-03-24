@@ -63,6 +63,22 @@ p.label {
     color: rgb(196, 196, 196);
 }
 
+p.tiny_label {
+    padding: 0px;
+    margin: 0px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    font-weight: lighter;
+    color: rgb(196, 196, 196);
+}
+
+/*specify center align
+and add some padding*/
+#position {
+    text-align: center;
+    padding-top: 5px;
+}
+
 /*style for the full window screen
 it appears at the pause and in level loading*/
 .full_overlay {

@@ -39,6 +39,7 @@ import { ShieldComponent } from "./game/components/shield";
 import { UpdateToClientComponent } from "./game/components/update_to_client";
 import { ApplyDamageComponent } from "./game/components/apply_damage";
 import { StateComponent } from "./game/components/state"
+import { TeamComponent } from "./game/components/team";
 
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
@@ -294,9 +295,15 @@ export class Game {
             }
 
             if (!assign_target) {
-                const is_point = command_move_to_point(local_ecs, local_navmesh, player_entity, in_x, in_y);
-                if (is_point) {
-                    external_click_position(in_x, in_y);
+                // find valid point
+                const sample = local_navmesh.sample(in_x, 0.0, in_y);
+                if (sample.length == 4 && sample[3] > 0.5) {
+                    const pos_x = sample[0];
+                    const pos_y = sample[2];
+                    const is_point = command_move_to_point(local_ecs, local_navmesh, player_entity, pos_x, pos_y);
+                    if (is_point) {
+                        external_click_position(in_x, in_y);
+                    }
                 }
             }
         }
@@ -329,20 +336,64 @@ export class Game {
         }
     }
 
-    emit_one_monster(pos_x: f32, pos_y: f32, angle: f32): void {
+    emit_one_monster(radius: f32, position_x: f32, position_y: f32,
+                     look_angle: f32, move_speed: f32,
+                     damage: u32, damage_distance: f32, damage_spread: f32,
+                     attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
+                     life: u32, shield: f32,
+                     search_radius: f32, team: i32): Entity {
+        const local_ecs = this.ecs;
+        const local_level = this.level;
+        const local_constants = this.constants;
+        if (local_ecs && local_level && local_constants) {
+            const monster_rotation_speed = local_constants.monster_rotation_speed;
+            const tile_size = local_constants.tile_size;
+            const visible_quad_size = local_constants.visible_quad_size;
+            const neighborhood_quad_size = local_constants.neighborhood_quad_size;
+            const radius_select_delta = local_constants.radius_select_delta;
+            const monster_shield_resurect = local_constants.monster_shield_resurect;
+
+            const monster_entity = setup_monster(local_ecs, 
+                                                 position_x, 
+                                                 position_y, 
+                                                 look_angle, 
+                                                 move_speed, 
+                                                 attack_cooldawn,
+                                                 radius, 
+                                                 monster_rotation_speed, 
+                                                 <f32>local_level.width() * tile_size, 
+                                                 visible_quad_size, 
+                                                 neighborhood_quad_size,
+                                                 radius_select_delta,
+                                                 attack_distance,
+                                                 attack_time,
+                                                 damage,
+                                                 damage_distance,
+                                                 damage_spread,
+                                                 life,
+                                                 shield,
+                                                 monster_shield_resurect,
+                                                 team,
+                                                 search_radius);
+            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(monster_entity);
+            const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(monster_entity);
+            if (select_radius && life) {
+                external_update_entity_params(monster_entity, life.life(), life.max_life(), select_radius.value(), attack_distance, attack_time);
+            }
+
+            return monster_entity;
+        }
+
+        return 0;
+    }
+
+    emit_one_monster_default(pos_x: f32, pos_y: f32, angle: f32): void {
         const local_ecs = this.ecs;
         const local_constants = this.constants;
         const local_level = this.level;
-        const local_random = this.random;
-        if (local_ecs && local_level && local_random) {
+        if (local_ecs && local_level) {
             const monster_speed = local_constants.monster_speed;
             const monster_radius = local_constants.monster_radius;
-            const monster_rotation_speed = local_constants.monster_rotation_speed;
-            const visible_quad_size = local_constants.visible_quad_size;
-            const neighborhood_quad_size = local_constants.neighborhood_quad_size;
-            const tile_size = local_constants.tile_size;
-            const monster_iddle_time = local_constants.monster_iddle_time;
-            const radius_select_delta = local_constants.radius_select_delta;
             const atack_distance = local_constants.monster_atack_distance;
             const melle_atack_timing = local_constants.monster_melle_atack_time_span;
             const monster_melee_atack_cooldawn = local_constants.monster_melee_atack_cooldawn;
@@ -351,38 +402,14 @@ export class Game {
             const monster_melee_damage = local_constants.monster_melee_damage;
             const monster_life = local_constants.monster_life;
             const monster_shield = local_constants.monster_shield;
-            const monster_shield_resurect = local_constants.monster_shield_resurect;
             const monster_team = local_constants.monster_default_team;
             const search_radius = local_constants.search_radius;
 
-            const monster_entity = setup_monster(local_ecs, 
-                                                 pos_x, 
-                                                 pos_y, 
-                                                 angle, 
-                                                 monster_speed, 
-                                                 monster_melee_atack_cooldawn,
-                                                 monster_radius, 
-                                                 monster_rotation_speed, 
-                                                 <f32>local_random.next_float(monster_iddle_time[0], monster_iddle_time[1]),
-                                                 <f32>local_level.width() * tile_size, 
-                                                 visible_quad_size, 
-                                                 neighborhood_quad_size,
-                                                 radius_select_delta,
-                                                 atack_distance,
-                                                 melle_atack_timing,
-                                                 monster_melee_damage,
-                                                 monster_melee_damage_distance,
-                                                 monster_melee_damage_spread,
-                                                 monster_life,
-                                                 monster_shield,
-                                                 monster_shield_resurect,
-                                                 monster_team,
-                                                 search_radius);
-            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(monster_entity);
-            const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(monster_entity);
-            if (select_radius && life) {
-                external_update_entity_params(monster_entity, life.life(), life.max_life(), select_radius.value(), atack_distance, melle_atack_timing);
-            }
+            this.emit_one_monster(monster_radius, pos_x, pos_y,
+                                  angle, monster_speed,
+                                  monster_melee_damage, monster_melee_damage_distance, monster_melee_damage_spread,
+                                  monster_melee_atack_cooldawn, atack_distance, melle_atack_timing,
+                                  monster_life, monster_shield, search_radius, monster_team);
         }
     }
 
@@ -409,7 +436,7 @@ export class Game {
                     // and angle
                     const angle = <f32>local_random.next_float(0.0, 2.0 * Math.PI);
 
-                    this.emit_one_monster(pos_x, pos_y, angle);
+                    this.emit_one_monster_default(pos_x, pos_y, angle);
                 }
             }
         }
@@ -484,6 +511,43 @@ export class Game {
             for (let i = 0, len = rvo_entities.length; i < len; i++) {
                 const entity: Entity = rvo_entities[i];
                 command_stun(local_ecs, entity, duration);
+            }
+        }
+    }
+
+    dev_emit_one_monster(radius: f32, position_x: f32, position_y: f32, move_speed: f32,
+                         damage: u32, damage_distance: f32, damage_spread: f32,
+                         attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
+                         life: u32, shield: f32,
+                         search_radius: f32, team: i32, friend_for_player: bool): void {
+        // find valid position
+        const local_navmesh = this.navmesh;
+        const local_random = this.random;
+        if (local_navmesh && local_random) {
+            const sample = local_navmesh.sample(position_x, 0.0, position_y);
+            if (sample.length == 4 && sample[3] > 0.5) {
+                const pos_x = sample[0];
+                const pos_y = sample[2];
+
+                const look_angle = <f32>local_random.next_float(0.0, 2.0 * Math.PI);
+
+                const monster_entity = this.emit_one_monster(radius, pos_x, pos_y,
+                                                             look_angle, move_speed,
+                                                             damage, damage_distance, damage_spread,
+                                                             attack_cooldawn, attack_distance, attack_time,
+                                                             life, shield,
+                                                             search_radius, team);
+                const local_ecs = this.ecs;
+                const local_constants = this.constants
+
+                if (local_ecs && local_constants && monster_entity != 0) {
+                    const monster_team: TeamComponent | null = local_ecs.get_component<TeamComponent>(monster_entity);
+                    if (monster_team) {
+                        if (friend_for_player) {
+                            monster_team.extend(local_constants.player_default_team);
+                        }
+                    }
+                }
             }
         }
     }

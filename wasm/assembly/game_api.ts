@@ -119,6 +119,18 @@ export function settings_set_search_radius(settings: Settings, value: f32): void
     constants.set_search_radius(value);
 }
 
+export function dev_game_spawn_monster(game: Game, radius: f32, position_x: f32, position_y: f32, move_speed: f32,
+                                                   damage: u32, damage_distance: f32, damage_spread: f32,
+                                                   attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
+                                                   life: u32, shield: f32,
+                                                   search_radius: f32, team: i32, friend_for_player: bool): void {
+    game.dev_emit_one_monster(radius, position_x, position_y, move_speed,
+                              damage, damage_distance, damage_spread,
+                              attack_cooldawn, attack_distance, attack_time,
+                              life, shield,
+                              search_radius, team, friend_for_player);
+}
+
 export function create_game(settings: Settings): Game {
     return new Game(settings);
 }

@@ -1,5 +1,6 @@
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
+import { Navmesh } from "../../pathfinder/navmesh/navmesh";
 
 import { EPSILON, ACTOR, STATE } from "../constants";
 import { distance } from "../utilities";
@@ -17,15 +18,18 @@ import { SearchQuadGridTrackingSystem } from "./search_quad_grid_tracking";
 // actual remove apply in behaviour system, when select a target and this target is dead or friend
 export class SearchEnemiesSystem extends System {
     private m_tracking: SearchQuadGridTrackingSystem;
+    private m_navmesh: Navmesh;
 
-    constructor(in_tracking: SearchQuadGridTrackingSystem) {
+    constructor(in_tracking: SearchQuadGridTrackingSystem, in_navmesh: Navmesh) {
         super();
         this.m_tracking = in_tracking;
+        this.m_navmesh = in_navmesh;
     }
 
     update(dt: f32): void {
         const entities = this.entities();
         const local_tracking = this.m_tracking;
+        const local_navmesh = this.m_navmesh;
 
         for (let i = 0, len = entities.length; i < len; i++) {
             const active_entity: Entity = entities[i];
@@ -65,20 +69,25 @@ export class SearchEnemiesSystem extends System {
                                     const d = distance(pos_x, pos_y, target_pos_x, target_pos_y);
 
                                     if (target_state_value != STATE.DEAD && d < active_search_radius_value) {
-                                        if (active_team.is_friend(target_team_value)) {
-                                            // target is a friend of the active
-                                            // share with them ids from enemies list
-                                            const target_enemy_list: EnemiesListComponent | null = this.get_component<EnemiesListComponent>(target_entity);
-                                            if (target_enemy_list) {
-                                                target_enemy_list.extend(active_enemies_list.get_list());
-                                                active_enemies_list.extend(target_enemy_list.get_list());
+                                        // check is the target in direct visibility to the active
+                                        const boundary_intersect = local_navmesh.intersect_boundary(pos_x, pos_y, target_pos_x, target_pos_y);
+                                        if (boundary_intersect >= 0.9999) {
+                                            // no intersections with walls
+                                            if (active_team.is_friend(target_team_value)) {
+                                                // target is a friend of the active
+                                                // share with them ids from enemies list
+                                                const target_enemy_list: EnemiesListComponent | null = this.get_component<EnemiesListComponent>(target_entity);
+                                                if (target_enemy_list) {
+                                                    target_enemy_list.extend(active_enemies_list.get_list());
+                                                    active_enemies_list.extend(target_enemy_list.get_list());
+                                                }
                                             }
-                                        }
-                                        else {
-                                            // current active actor meat enemy target actor
-                                            // add target to the enemies list
-                                            // TODO: add target only if it in direct visibility of the active entity
-                                            active_enemies_list.add_target(target_entity);
+                                            else {
+                                                // current active actor meat enemy target actor
+                                                // add target to the enemies list
+                                                // TODO: add target only if it in direct visibility of the active entity
+                                                active_enemies_list.add_target(target_entity);
+                                            }
                                         }
                                     }
                                 }

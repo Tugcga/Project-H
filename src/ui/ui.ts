@@ -1,5 +1,6 @@
 import { FPSCounter } from "./ui_fps";
 import { UIHTMLElement } from "./ui_html_element";
+import { UIHTMLTextElement } from "./ui_html_text_element";
 import { UIItems } from "./ui_items";
 
 export class GameUI {
@@ -11,6 +12,7 @@ export class GameUI {
     m_loading: UIHTMLElement;
     m_control_keyboard: UIHTMLElement;
     m_control_touch: UIHTMLElement;
+    m_position: UIHTMLTextElement;
 
     assign_fps_element(html_id: string) {
         this.m_fps = new FPSCounter(html_id);
@@ -36,9 +38,19 @@ export class GameUI {
         this.m_loading = new UIHTMLElement(html_id);
     }
 
+    assign_position(html_id: string) {
+        this.m_position = new UIHTMLTextElement(html_id);
+    }
+
     update_count_values(total: number, visible: number) {
         if(this.m_items) {
             this.m_items.update_values(total, visible);
+        }
+    }
+
+    update_position(in_translation: number[]) {
+        if (this.m_position && in_translation.length >= 2) {
+            this.m_position.set_text("(" + in_translation[0].toFixed(2).toString() + ", " + in_translation[1].toFixed(2).toString() + ")");
         }
     }
 

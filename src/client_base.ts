@@ -91,6 +91,8 @@ export abstract class ClientBase {
     abstract debug_player_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
     abstract debug_player_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
     abstract debug_enemies_search(id: number, search_radius: number, enemy_ids: Int32Array): void;
+    abstract debug_define_draw_flag(output_debug: boolean): void;
+    abstract debug_toggle_draw_flag(): void;
 
     constructor() {
         // define host functions for external calls from the wasm module
@@ -134,6 +136,7 @@ export abstract class ClientBase {
         this.m_ui.assign_control_keyboard("control_keyboard");
         this.m_ui.assign_control_touch("control_touch");
         this.m_ui.assign_loading("loading");
+        this.m_ui.assign_position("position");
 
         // get canvas elements from html
         // for scene
@@ -223,18 +226,24 @@ export abstract class ClientBase {
                     10  // the number of rooms
                 );
                 // use these settings ↓ for development
-                module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
+                // module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
+                // another settings
+                module.settings_set_generate(settings_ptr, 12, 3, 4, 2);
 
                 // activate debug info
-                module.settings_set_use_debug(settings_ptr, true);
+                const use_debug = true;
+                module.settings_set_use_debug(settings_ptr, use_debug);
+                this.debug_define_draw_flag(use_debug);  // for the client
                 module.settings_set_debug_flags(settings_ptr, true, true, false, true, true);
+                // setup engine settings
                 module.settings_set_snap_to_navmesh(settings_ptr, true);
                 module.settings_set_use_rvo(settings_ptr, true);
                 module.settings_set_path_recalculate_time(settings_ptr, 1.0);
                 module.settings_set_velocity_boundary_control(settings_ptr, true);
+                // setup game items default parameters
                 module.settings_set_player_fast_shift(settings_ptr, 2.0, 5.0, 0.5);
                 module.settings_set_monster_iddle_time(settings_ptr, 1.0, 2.0);
-                module.settings_set_monsters_per_room(settings_ptr, 1, 1);
+                module.settings_set_monsters_per_room(settings_ptr, 0, 0);  // no random monsters
                 module.settings_set_player_melee_attack(settings_ptr, 1.25,  // attack distance
                                                                       0.75,  // how long attack cast
                                                                       1.0,  // cooldawn, start after attack is finish
@@ -431,8 +440,43 @@ export abstract class ClientBase {
             } else if(this.m_is_game_active) {
                 // read all other keys only when the game is active
                 if(key == "s") {
-                    // add monster
-                    this.m_module.game_add_monsters(this.m_game_ptr);
+                    // add monster over cursor
+                    const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
+                    const c_world = this.point_to_world(c[0], c[1]);
+                    this.m_module.dev_game_spawn_monster(this.m_game_ptr,
+                                                         0.5,  // radius
+                                                         c_world[0], c_world[1],  // position
+                                                         3.0,  // move speed
+                                                         4,  // damage
+                                                         1.5,  // damage distance
+                                                         Math.PI / 2.0,  // damage spread
+                                                         1.5,  // attack cooldawn
+                                                         0.75,  // attack distance
+                                                         0.5,  // attack time
+                                                         12,  // life
+                                                         6.0,  // shield
+                                                         5.0,  // search radius
+                                                         -1,  // team
+                                                         false);  // friend for player
+                } else if (key == "S") {
+                    // add friend to player monster over cursor
+                    const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
+                    const c_world = this.point_to_world(c[0], c[1]);
+                    this.m_module.dev_game_spawn_monster(this.m_game_ptr,
+                                                         0.4,  // radius
+                                                         c_world[0], c_world[1],  // position
+                                                         5.0,  // move speed
+                                                         1,  // damage
+                                                         1.0,  // damage distance
+                                                         Math.PI / 2.0,  // damage spread
+                                                         0.4,  // attack cooldawn
+                                                         0.5,  // attack distance
+                                                         0.3,  // attack time
+                                                         5,  // life
+                                                         6.0,  // shield
+                                                         5.0,  // search radius
+                                                         -2,  // team
+                                                         true);  // friend for player
                 } else if(key == "a") {
                     this.m_module.game_make_aggressive(this.m_game_ptr);
                 } else if(key == "d") {
@@ -441,6 +485,9 @@ export abstract class ClientBase {
                     this.m_module.game_stun_all_entities(this.m_game_ptr, 1.0);
                 } else if(key == "m") {
                     this.m_map.toggle_active();
+                } else if(key == "i") {
+                    // toggle debug draws
+                    this.debug_toggle_draw_flag();
                 } else if(key == "+") {
                     this.m_map.scale_up();
                 } else if(key == "-") {
@@ -486,6 +533,7 @@ export abstract class ClientBase {
 
             this.m_ui.update(dt);
             this.m_ui.update_count_values(this.m_total_level_entities, this.m_scene.get_monsters().size);
+            this.m_ui.update_position(this.m_scene.get_player().get_translation());
         }
 
         // draw the map, if we need

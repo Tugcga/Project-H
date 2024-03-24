@@ -15,7 +15,7 @@ export class Person extends SceneItem {
     private m_select_radius: number = 0.0;
     private m_search_radius: number = 0.0;
     private m_active_shield: boolean = false;
-    private m_debug_draw: boolean = true;
+    private m_debug_draw: boolean = false;
     private m_team: number;
 
     constructor(in_id: number) {

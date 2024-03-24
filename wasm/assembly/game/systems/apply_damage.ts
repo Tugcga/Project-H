@@ -11,6 +11,7 @@ import { ApplyDamageComponent } from "../components/apply_damage";
 import { UpdateToClientComponent } from "../components/update_to_client";
 import { TargetAngleComponent } from "../components/target_angle";
 import { PositionComponent } from "../components/position";
+import { TeamComponent } from "../components/team";
 
 import { interrupt_to_iddle, command_stun } from "../ecs_setup";
 import { external_entity_dead,
@@ -40,9 +41,11 @@ export class ApplyDamageSystem extends System {
                 const update_to_client: UpdateToClientComponent | null = this.get_component<UpdateToClientComponent>(entity);
                 const target_angle: TargetAngleComponent | null = this.get_component<TargetAngleComponent>(entity);
                 const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
+                const team: TeamComponent | null = this.get_component<TeamComponent>(entity);
 
-                if (life && shield && state && damage && update_to_client && target_angle && position) {
+                if (life && shield && state && damage && update_to_client && target_angle && position && team) {
                     const state_value = state.state();
+                    const team_value = team.team();
                     // apply damage only to live entity
                     if (state_value != STATE.DEAD) {
                         // iterate throw damages
@@ -51,6 +54,18 @@ export class ApplyDamageSystem extends System {
                             const damage_value = damage.damage(j);
                             const damage_type = damage.type(j);
                             const damage_duration = damage.duration(j);  // the of the cast for this damage
+
+                            // if current entity in the friend list of the attacker, then does not reciev the damage
+                            const attacker_team: TeamComponent | null = this.get_component<TeamComponent>(damage_attacker);
+                            if (damage_type != DAMAGE_TYPE.UNKNOWN && attacker_team) {
+                                if (attacker_team.is_friend(team_value)) {
+                                    // skip this loop step, continue with the other
+                                    continue;
+                                }
+                            }
+                            // if current entity not the friend of the attacker
+                            // or attacker team is not valid
+                            // or damage is unknown type (used for debug, for example), then apply damage
 
                             let damage_value_f32 = <f32>damage_value;
                             if (state_value == STATE.SHIELD) {
@@ -71,7 +86,7 @@ export class ApplyDamageSystem extends System {
                                     const shield_time = shield_state.time();
                                     if (damage_type == DAMAGE_TYPE.MELEE) {
                                         if (shield_time < damage_duration) {
-                                            const attacker_state: StateComponent | null = this.get_component<StateComponent>(damage_attacker);
+                                            //???const attacker_state: StateComponent | null = this.get_component<StateComponent>(damage_attacker);
                                             command_stun(local_ecs, damage_attacker, local_melee_stun);
                                         }
                                     }

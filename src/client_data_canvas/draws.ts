@@ -160,7 +160,7 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
 
         // draw attack radius
         draw_ctx.save();
-        draw_ctx.strokeStyle = secondary_stroke_color;
+        draw_ctx.strokeStyle = is_dead ? ENTITY_DEAD_BACK_COLOR : secondary_stroke_color;
         draw_ctx.beginPath();
         const attack_radius = person.get_attack_distance();
         const c_attack_radius = tfm.apply_scale(attack_radius);
@@ -235,68 +235,71 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
     }
 
     // draw cooldawns
-    for (let [cooldawn, times] of cooldawns) {
-        draw_ctx.save();
-        let cooldawn_radius = 0;
-        if (cooldawn == COOLDAWN.SHIFT) {
-            draw_ctx.lineWidth = COOLDAWN_SHIFT_WIDTH;
-            draw_ctx.strokeStyle = COOLDAWN_SHIFT_COLOR;
-            cooldawn_radius = COOLDAWN_SHIFT_RADIUS;
-        } else if (cooldawn == COOLDAWN.MELEE_ATTACK) {
-            draw_ctx.lineWidth = COOLDAWN_MELEE_ATTACK_WIDTH;
-            draw_ctx.strokeStyle = COOLDAWN_MELEE_ATTACK_COLOR;
-            cooldawn_radius = COOLDAWN_MELEE_ATTACK_RADIUS;
+    // only for alive persons
+    if (!is_dead) {
+        for (let [cooldawn, times] of cooldawns) {
+            draw_ctx.save();
+            let cooldawn_radius = 0;
+            if (cooldawn == COOLDAWN.SHIFT) {
+                draw_ctx.lineWidth = COOLDAWN_SHIFT_WIDTH;
+                draw_ctx.strokeStyle = COOLDAWN_SHIFT_COLOR;
+                cooldawn_radius = COOLDAWN_SHIFT_RADIUS;
+            } else if (cooldawn == COOLDAWN.MELEE_ATTACK) {
+                draw_ctx.lineWidth = COOLDAWN_MELEE_ATTACK_WIDTH;
+                draw_ctx.strokeStyle = COOLDAWN_MELEE_ATTACK_COLOR;
+                cooldawn_radius = COOLDAWN_MELEE_ATTACK_RADIUS;
+            }
+            draw_ctx.beginPath();
+            draw_ctx.arc(c_center[0], c_center[1], cooldawn_radius, a, 2.0 * Math.PI * (1.0 - times[1] / times[0]) + a);
+            draw_ctx.stroke();
+            draw_ctx.restore();
         }
-        draw_ctx.beginPath();
-        draw_ctx.arc(c_center[0], c_center[1], cooldawn_radius, a, 2.0 * Math.PI * (1.0 - times[1] / times[0]) + a);
-        draw_ctx.stroke();
-        draw_ctx.restore();
-    }
-
-    // draw effects
-    for (const effect of effects) {
-        const effect_type = effect.type();
-        if (effect_type == EFFECT.MELEE_ATTACK) {
-            const melee_effect: MeleeAttackEffect = effect as MeleeAttackEffect;
-            const distance: number = melee_effect.distance();
-            const spread: number = melee_effect.spread();
-            const proportion: number = melee_effect.proportion();
-
-            const c_distance = tfm.apply_scale(distance);
-            const start_angle = a + spread / 2.0;
-            const end_angle = start_angle - spread * proportion;
-
-            draw_ctx.save();
-            draw_ctx.fillStyle = EFFECT_MELEE_ATTACK_COLOR;
-            draw_ctx.strokeStyle = EFFECT_MELEE_ATTACK_COLOR;
-
-            draw_ctx.beginPath();
-            draw_ctx.arc(c_center[0], c_center[1], c_distance, start_angle, end_angle, true);
-            draw_ctx.arc(c_center[0], c_center[1], c_radius, end_angle, start_angle, false);
-            draw_ctx.closePath();
-            draw_ctx.fill();
-
-            draw_ctx.beginPath();
-            draw_ctx.arc(c_center[0], c_center[1], c_distance, start_angle, start_angle - spread, true);
-            draw_ctx.arc(c_center[0], c_center[1], c_radius, start_angle - spread, start_angle, false);
-            draw_ctx.closePath();
-            draw_ctx.stroke();
-            draw_ctx.restore();
-        } else if (effect_type == EFFECT.STUN) {
-            const proportion = 1.0 - effect.proportion();
-            // draw as circle with changed inner circle
-            draw_ctx.save();
-            draw_ctx.fillStyle = EFFECT_STUN_COLOR;
-            draw_ctx.strokeStyle = EFFECT_STUN_STROKE_COLOR;
-
-            draw_ctx.beginPath();
-            draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * EFFECT_STUN_RADIUS_MULTIPLIER), 0.0, Math.PI * 2.0);
-            draw_ctx.fill();
-
-            draw_ctx.beginPath();
-            draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * EFFECT_STUN_RADIUS_MULTIPLIER * proportion), 0.0, Math.PI * 2.0);
-            draw_ctx.stroke();
-            draw_ctx.restore();
+    
+        // draw effects
+        for (const effect of effects) {
+            const effect_type = effect.type();
+            if (effect_type == EFFECT.MELEE_ATTACK) {
+                const melee_effect: MeleeAttackEffect = effect as MeleeAttackEffect;
+                const distance: number = melee_effect.distance();
+                const spread: number = melee_effect.spread();
+                const proportion: number = melee_effect.proportion();
+    
+                const c_distance = tfm.apply_scale(distance);
+                const start_angle = a + spread / 2.0;
+                const end_angle = start_angle - spread * proportion;
+    
+                draw_ctx.save();
+                draw_ctx.fillStyle = EFFECT_MELEE_ATTACK_COLOR;
+                draw_ctx.strokeStyle = EFFECT_MELEE_ATTACK_COLOR;
+    
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], c_distance, start_angle, end_angle, true);
+                draw_ctx.arc(c_center[0], c_center[1], c_radius, end_angle, start_angle, false);
+                draw_ctx.closePath();
+                draw_ctx.fill();
+    
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], c_distance, start_angle, start_angle - spread, true);
+                draw_ctx.arc(c_center[0], c_center[1], c_radius, start_angle - spread, start_angle, false);
+                draw_ctx.closePath();
+                draw_ctx.stroke();
+                draw_ctx.restore();
+            } else if (effect_type == EFFECT.STUN) {
+                const proportion = 1.0 - effect.proportion();
+                // draw as circle with changed inner circle
+                draw_ctx.save();
+                draw_ctx.fillStyle = EFFECT_STUN_COLOR;
+                draw_ctx.strokeStyle = EFFECT_STUN_STROKE_COLOR;
+    
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * EFFECT_STUN_RADIUS_MULTIPLIER), 0.0, Math.PI * 2.0);
+                draw_ctx.fill();
+    
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * EFFECT_STUN_RADIUS_MULTIPLIER * proportion), 0.0, Math.PI * 2.0);
+                draw_ctx.stroke();
+                draw_ctx.restore();
+            }
         }
     }
 }
