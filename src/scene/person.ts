@@ -14,9 +14,12 @@ export class Person extends SceneItem {
     private m_is_dead: boolean = false;
     private m_select_radius: number = 0.0;
     private m_search_radius: number = 0.0;
+    private m_search_spread: number = 0.0;
     private m_active_shield: boolean = false;
     private m_debug_draw: boolean = false;
     private m_team: number;
+    private m_is_hide: boolean = false;
+    private m_is_visible_search_cone: boolean = false;
 
     constructor(in_id: number) {
         super();
@@ -56,6 +59,10 @@ export class Person extends SceneItem {
         this.m_search_radius = value;
     }
 
+    set_search_spread(value: number) {
+        this.m_search_spread = value;
+    }
+
     set_attack_distance(value: number) {
         this.m_attack_distance = value;
     }
@@ -80,6 +87,14 @@ export class Person extends SceneItem {
 
     set_move(in_move: MOVE_STATUS) {
         this.m_move_status = in_move;
+    }
+
+    set_is_hide(in_value: boolean) {
+        this.m_is_hide = in_value;
+    }
+
+    set_visible_search_cone(in_value: boolean) {
+        this.m_is_visible_search_cone = in_value;
     }
 
     get_move(): MOVE_STATUS {
@@ -128,6 +143,18 @@ export class Person extends SceneItem {
 
     get_search_radius(): number {
         return this.m_search_radius;
+    }
+
+    get_search_spread(): number {
+        return this.m_search_spread;
+    }
+
+    get_is_hide(): boolean {
+        return this.m_is_hide;
+    }
+
+    get_is_visible_search_cone(): boolean {
+        return this.m_is_visible_search_cone;
     }
 
     get_debug_draw(): boolean {

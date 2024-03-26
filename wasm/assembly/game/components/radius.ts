@@ -4,4 +4,4 @@ export class RadiusComponent extends OneFloatComponent { }
 
 export class RadiusSelectComponent extends OneFloatComponent { }
 
-export class RadiusSearchEnemies extends OneFloatComponent { }
+export class RadiusSearchComponent extends OneFloatComponent { }

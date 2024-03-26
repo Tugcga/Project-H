@@ -68,7 +68,7 @@ export abstract class ClientBase {
     abstract scene_update_entity_life(id: number, life: number, max_life: number): void;
     abstract scene_update_entity_shield(id: number, shield: number, max_shield: number): void;
     abstract scene_update_entity_params(entity: number, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number): void;
-    abstract scene_create_monster(entity: number, radius: number): void;
+    abstract scene_create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number): void;
     abstract scene_remove_monster(entity: number): void;
     abstract scene_entity_start_shift(entity: number): void;
     abstract scene_entity_finish_shift(entity: number): void;
@@ -83,6 +83,9 @@ export abstract class ClientBase {
     abstract scene_entity_dead(entity: number): void;
     abstract scene_entity_start_stun(entity: number, duration: number): void;
     abstract scene_entity_finish_stun(entity: number): void;
+    abstract scene_entity_switch_hide(entity: number, is_hide: boolean): void;
+    abstract scene_player_activate_hide(): void;
+    abstract scene_player_deactivate_hide(): void;
     // debug callbacks
     // if debug is off, then these callbacks are not required
     // it never called from the module
@@ -121,6 +124,7 @@ export abstract class ClientBase {
             click_position: this.click_position.bind(this),
             entity_dead: this.entity_dead.bind(this),
             entity_damaged: this.entity_damaged.bind(this),
+            entity_switch_hide: this.entity_switch_hide.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
@@ -219,6 +223,7 @@ export abstract class ClientBase {
                 // controllable seed ↓ for test
                 module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
+                module.settings_set_visible_quad_size(settings_ptr, 18.0);  // visibility radius for the player
                 module.settings_set_neighbourhood_quad_size(settings_ptr, 2.0);  // tweak this for greater radius for search close entities
                 module.settings_set_generate(settings_ptr,
                     22,  // level size
@@ -456,6 +461,7 @@ export abstract class ClientBase {
                                                          12,  // life
                                                          6.0,  // shield
                                                          5.0,  // search radius
+                                                         Math.PI / 2.0,  // search spread
                                                          -1,  // team
                                                          false);  // friend for player
                 } else if (key == "S") {
@@ -475,6 +481,7 @@ export abstract class ClientBase {
                                                          5,  // life
                                                          6.0,  // shield
                                                          5.0,  // search radius
+                                                         Math.PI / 2.0,  // search spread
                                                          -2,  // team
                                                          true);  // friend for player
                 } else if(key == "a") {
@@ -485,6 +492,8 @@ export abstract class ClientBase {
                     this.m_module.game_stun_all_entities(this.m_game_ptr, 1.0);
                 } else if(key == "m") {
                     this.m_map.toggle_active();
+                } else if(key == "h") {
+                    this.m_module.game_client_toggle_hide(this.m_game_ptr);
                 } else if(key == "i") {
                     // toggle debug draws
                     this.debug_toggle_draw_flag();
@@ -609,11 +618,13 @@ export abstract class ClientBase {
         this.scene_update_entity_params(id, life, max_life, select_radius, attack_distance, attack_time);
     }
 
-    create_monster(entity: number, pos_x: number, pos_y: number, radius: number, team: number) {
+    create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number) {
         this.m_scene.set_monster_radius(entity, radius);
         this.m_scene.set_entity_position(entity, pos_x, pos_y);
         this.m_scene.set_entity_team(entity, team);
-        this.scene_create_monster(entity, radius);
+        this.m_scene.set_monster_search_radius(entity, search_radius);
+        this.m_scene.set_monster_search_spread(entity, search_spread);
+        this.scene_create_monster(entity, pos_x, pos_y, radius, search_radius, search_spread, team);
     }
 
     define_entity_changes(entity: number, 
@@ -707,6 +718,25 @@ export abstract class ClientBase {
     entity_finish_stun(entity: number) {
         this.m_scene.entity_finish_stun(entity);
         this.scene_entity_finish_stun(entity);
+    }
+
+    entity_switch_hide(entity: number, hide_active: boolean) {
+        // TODO: use some method in UI to show the current hide mode
+        this.m_scene.set_entity_hide(entity, hide_active);
+        this.scene_entity_switch_hide(entity, hide_active);
+
+        if (this.m_scene.is_player(entity)) {
+            if (hide_active) {
+                // player activate the hide
+                // notify client that it should draw search cones for enemies
+                this.m_scene.activate_monster_search_cones();
+                this.scene_player_activate_hide();
+            } else {
+                // notify that draw cones is unnecessary
+                this.m_scene.deactivate_monster_search_cones();
+                this.scene_player_deactivate_hide();
+            }
+        }
     }
 
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {

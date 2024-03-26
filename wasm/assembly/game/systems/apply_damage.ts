@@ -13,7 +13,9 @@ import { TargetAngleComponent } from "../components/target_angle";
 import { PositionComponent } from "../components/position";
 import { TeamComponent } from "../components/team";
 
-import { interrupt_to_iddle, command_stun } from "../ecs_setup";
+import { interrupt_to_iddle,
+         command_stun,
+         command_entity_unhide } from "../ecs_setup";
 import { external_entity_dead,
          external_entity_damaged } from "../../external";
 
@@ -86,7 +88,6 @@ export class ApplyDamageSystem extends System {
                                     const shield_time = shield_state.time();
                                     if (damage_type == DAMAGE_TYPE.MELEE) {
                                         if (shield_time < damage_duration) {
-                                            //???const attacker_state: StateComponent | null = this.get_component<StateComponent>(damage_attacker);
                                             command_stun(local_ecs, damage_attacker, local_melee_stun);
                                         }
                                     }
@@ -94,8 +95,6 @@ export class ApplyDamageSystem extends System {
                                     if (shield.is_over()) {
                                         // turn the entity to the iddle state
                                         const is_iddle = interrupt_to_iddle(local_ecs, entity, state);
-                                        // TODO: monsters in iddle does not move
-                                        // controll it more carefull, but for now mosnters are not use shields
                                     }
 
                                     // rotate entity to attacker
@@ -122,6 +121,7 @@ export class ApplyDamageSystem extends System {
                             }
 
                             external_entity_damaged(damage_attacker, entity, damage_value, damage_type);
+                            command_entity_unhide(local_ecs, entity);
                         }
 
                         if (life.life() == 0) {

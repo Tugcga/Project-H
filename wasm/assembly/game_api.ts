@@ -44,6 +44,11 @@ export function settings_set_neighbourhood_quad_size(settings: Settings, in_size
     constants.set_neighborhood_quad_size(in_size);
 }
 
+export function settings_set_visible_quad_size(settings: Settings, in_size: f32): void {
+    const constants = settings.get_constants();
+    constants.set_visible_quad_size(in_size);
+}
+
 export function settings_set_rvo_time_horizon(settings: Settings, in_time: f32): void {
     const constants = settings.get_constants();
     constants.set_rvo_time_horizon(in_time);
@@ -114,21 +119,31 @@ export function settings_set_default_melee_stun(settings: Settings, value: f32):
     constants.set_default_melee_stun(value);
 }
 
-export function settings_set_search_radius(settings: Settings, value: f32): void {
+export function settings_set_search_radius_spread(settings: Settings, radius: f32, spread:f32): void {
     const constants = settings.get_constants();
-    constants.set_search_radius(value);
+    constants.set_search_radius_spread(radius, spread);
+}
+
+export function settings_set_player_speed(settings: Settings, speed: f32): void {
+    const constants = settings.get_constants();
+    constants.set_player_speed(speed);
+}
+
+export function settings_set_hide_speed_multipler(settings: Settings, value: f32): void {
+    const constants = settings.get_constants();
+    constants.set_hide_speed_multiplier(value);
 }
 
 export function dev_game_spawn_monster(game: Game, radius: f32, position_x: f32, position_y: f32, move_speed: f32,
                                                    damage: u32, damage_distance: f32, damage_spread: f32,
                                                    attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
                                                    life: u32, shield: f32,
-                                                   search_radius: f32, team: i32, friend_for_player: bool): void {
+                                                   search_radius: f32, search_spread: f32, team: i32, friend_for_player: bool): void {
     game.dev_emit_one_monster(radius, position_x, position_y, move_speed,
                               damage, damage_distance, damage_spread,
                               attack_cooldawn, attack_distance, attack_time,
                               life, shield,
-                              search_radius, team, friend_for_player);
+                              search_radius, search_spread, team, friend_for_player);
 }
 
 export function create_game(settings: Settings): Game {
@@ -153,6 +168,10 @@ export function game_client_shield(game: Game): void {
 
 export function game_client_release_shield(game: Game): void {
     game.player_release_shield();
+}
+
+export function game_client_toggle_hide(game: Game): void {
+    game.player_toggle_hide();
 }
 
 export function game_add_monsters(game: Game): void {

@@ -6,6 +6,7 @@ export const PLAYER_LIVE_BACK_COLOR = "rgba(114, 186, 89, 0.5)";
 export const PLAYER_IDLE_COLOR = "rgba(91, 128, 78, 0.75)";
 export const PLAYER_MOVE_COLOR = "rgba(91, 128, 78, 0.5)";
 export const PLAYER_SHIFT_COLOR = "rgba(91, 128, 78, 0.25)";
+export const PLAYER_HIDE_COLOR = "rgba(91, 128, 78, 0.1)";
 
 export const ENTITY_DEAD_BACK_COLOR = "rgba(145, 145, 145, 0.25)";
 export const ENTITY_LIFE_CIRCLE_DELTA = 0.8;
@@ -18,6 +19,7 @@ export const MONSTER_LIVE_BACK_COLOR = "rgba(171, 105, 73, 0.5)";
 export const MONSTER_IDLE_COLOR = "rgba(196, 94, 45, 0.75)";
 export const MONSTER_MOVE_COLOR = "rgba(196, 94, 45, 0.5)";
 export const MONSTER_SHIFT_COLOR = "rgba(196, 94, 45, 0.25)";
+export const MONSTER_HIDE_COLOR = "rgba(196, 94, 45, 0.1)";
 
 export const SELECT_RADIUS_COLOR = "rgba(64, 64, 64, 0.1)";
 
@@ -57,6 +59,10 @@ export const SHIELD_ACTIVE_COLOR = "rgba(45, 71, 77, 0.75)";
 export const SHIELD_ACTIVE_WIDTH = 4.0;
 export const SHIELD_PASSIVE_COLOR = "rgba(45, 71, 77, 0.25)";
 export const SHIELD_PASSIVE_WIDTH = 2.0;
+
+export const SEARCH_CONE_COLOR = "rgba(217, 180, 35, 0.5)";
+export const SEARCH_CONE_STROKE = "rgba(166, 111, 23, 0.5)";
+export const SEARCH_CONE_STROKE_WIDTH = 1.0;
 
 // each cooldawn drawn as circle arc
 export const COOLDAWN_SHIFT_COLOR = "rgba(255, 255, 255, 0.25)";

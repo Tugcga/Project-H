@@ -27,7 +27,8 @@ import { setup_components,
          command_shift,
          command_activate_shield,
          command_release_shield,
-         command_stun } from "./game/ecs_setup";
+         command_stun,
+         command_toggle_hide_mode } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
 import { RadiusSelectComponent } from "./game/components/radius";
@@ -118,6 +119,7 @@ export class Game {
         const default_melee_stun = local_constants.default_melee_stun;
         const player_team = local_constants.player_default_team;
         const search_radius = local_constants.search_radius;
+        const hide_speed_multiplier = local_constants.hide_speed_multiplier;
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -180,7 +182,8 @@ export class Game {
             player_shield,
             player_shield_resurect,
             player_team,
-            search_radius);
+            search_radius,
+            hide_speed_multiplier);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -336,12 +339,20 @@ export class Game {
         }
     }
 
+    player_toggle_hide(): void {
+        const local_ecs = this.ecs;
+        const player_entity = this.player_entity;
+        if (local_ecs) {
+            command_toggle_hide_mode(local_ecs, player_entity);
+        }
+    }
+
     emit_one_monster(radius: f32, position_x: f32, position_y: f32,
                      look_angle: f32, move_speed: f32,
                      damage: u32, damage_distance: f32, damage_spread: f32,
                      attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
                      life: u32, shield: f32,
-                     search_radius: f32, team: i32): Entity {
+                     search_radius: f32, search_spread: f32, team: i32): Entity {
         const local_ecs = this.ecs;
         const local_level = this.level;
         const local_constants = this.constants;
@@ -352,6 +363,7 @@ export class Game {
             const neighborhood_quad_size = local_constants.neighborhood_quad_size;
             const radius_select_delta = local_constants.radius_select_delta;
             const monster_shield_resurect = local_constants.monster_shield_resurect;
+            const hide_speed_multiplier = local_constants.hide_speed_multiplier;
 
             const monster_entity = setup_monster(local_ecs, 
                                                  position_x, 
@@ -374,13 +386,11 @@ export class Game {
                                                  shield,
                                                  monster_shield_resurect,
                                                  team,
-                                                 search_radius);
-            const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(monster_entity);
-            const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(monster_entity);
-            if (select_radius && life) {
-                external_update_entity_params(monster_entity, life.life(), life.max_life(), select_radius.value(), attack_distance, attack_time);
-            }
-
+                                                 search_radius,
+                                                 search_spread,
+                                                 hide_speed_multiplier);
+            // we should not call any external methods
+            // because created monster entity can be outside of the player visibility
             return monster_entity;
         }
 
@@ -404,12 +414,13 @@ export class Game {
             const monster_shield = local_constants.monster_shield;
             const monster_team = local_constants.monster_default_team;
             const search_radius = local_constants.search_radius;
+            const search_spread = local_constants.search_spread;
 
             this.emit_one_monster(monster_radius, pos_x, pos_y,
                                   angle, monster_speed,
                                   monster_melee_damage, monster_melee_damage_distance, monster_melee_damage_spread,
                                   monster_melee_atack_cooldawn, atack_distance, melle_atack_timing,
-                                  monster_life, monster_shield, search_radius, monster_team);
+                                  monster_life, monster_shield, search_radius, search_spread, monster_team);
         }
     }
 
@@ -519,7 +530,7 @@ export class Game {
                          damage: u32, damage_distance: f32, damage_spread: f32,
                          attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
                          life: u32, shield: f32,
-                         search_radius: f32, team: i32, friend_for_player: bool): void {
+                         search_radius: f32, search_spread: f32, team: i32, friend_for_player: bool): void {
         // find valid position
         const local_navmesh = this.navmesh;
         const local_random = this.random;
@@ -536,7 +547,7 @@ export class Game {
                                                              damage, damage_distance, damage_spread,
                                                              attack_cooldawn, attack_distance, attack_time,
                                                              life, shield,
-                                                             search_radius, team);
+                                                             search_radius, search_spread, team);
                 const local_ecs = this.ecs;
                 const local_constants = this.constants
 

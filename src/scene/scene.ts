@@ -22,6 +22,7 @@ export class Scene {
     private m_monsters: Map<number, Monster> = new Map<number, Monster>();
     private m_cooldawns: Cooldawn = new Cooldawn();
     private m_effects: EffectsCollection = new EffectsCollection();
+    private m_visible_search_cones: boolean = false;
 
     constructor(level_width: number,
                 level_height: number,
@@ -181,12 +182,6 @@ export class Scene {
                 if(monster) {
                     monster.set_attack_distance(value);
                 }
-            } else {
-                const monster = new Monster(id);
-                this.m_cooldawns.add_entity(id);
-                monster.set_attack_distance(value);
-    
-                this.m_monsters.set(id, monster);
             }
         }
     }
@@ -200,12 +195,6 @@ export class Scene {
                 if(monster) {
                     monster.set_life(life, max_life);
                 }
-            } else {
-                const monster = new Monster(id);
-                this.m_cooldawns.add_entity(id);
-                monster.set_life(life, max_life);
-    
-                this.m_monsters.set(id, monster);
             }
         }
     }
@@ -220,12 +209,6 @@ export class Scene {
                 if(monster) {
                     monster.set_active_shield(is_active);
                 }
-            } else {
-                const monster = new Monster(id);
-                this.m_cooldawns.add_entity(id);
-                monster.set_active_shield(is_active);
-    
-                this.m_monsters.set(id, monster);
             }
         }
     }
@@ -239,12 +222,6 @@ export class Scene {
                 if(monster) {
                     monster.set_shield(shield, max_shield);
                 }
-            } else {
-                const monster = new Monster(id);
-                this.m_cooldawns.add_entity(id);
-                monster.set_shield(shield, max_shield);
-    
-                this.m_monsters.set(id, monster);
             }
         }
     }
@@ -261,12 +238,6 @@ export class Scene {
                 if(monster) {
                     monster.set_is_dead(is_dead);
                 }
-            } else {
-                const monster = new Monster(id);
-                this.m_cooldawns.add_entity(id);
-                monster.set_is_dead(is_dead);
-    
-                this.m_monsters.set(id, monster);
             }
 
             if (is_dead) {
@@ -290,12 +261,6 @@ export class Scene {
                 if(monster) {
                     monster.set_select_radius(value);
                 }
-            } else {
-                const monster = new Monster(id);
-                this.m_cooldawns.add_entity(id);
-                monster.set_select_radius(value);
-    
-                this.m_monsters.set(id, monster);
             }
         }
     }
@@ -311,6 +276,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(entity);
+                monster.set_visible_search_cone(this.m_visible_search_cones);
                 this.m_cooldawns.add_entity(entity);
                 monster.set_position(x, y);
     
@@ -327,6 +293,7 @@ export class Scene {
             }
         } else {
             const monster = new Monster(entity);
+            monster.set_visible_search_cone(this.m_visible_search_cones);
             monster.set_radius(radius);
             this.m_cooldawns.add_entity(entity);
 
@@ -342,7 +309,24 @@ export class Scene {
             }
         } else {
             const monster = new Monster(id);
+            monster.set_visible_search_cone(this.m_visible_search_cones);
             monster.set_search_radius(value);
+            this.m_cooldawns.add_entity(id);
+
+            this.m_monsters.set(id, monster);
+        }
+    }
+
+    set_monster_search_spread(id: number, value: number) {
+        if(this.m_monsters.has(id)) {
+            const monster = this.m_monsters.get(id);
+            if(monster) {
+                monster.set_search_spread(value);
+            }
+        } else {
+            const monster = new Monster(id);
+            monster.set_visible_search_cone(this.m_visible_search_cones);
+            monster.set_search_spread(value);
             this.m_cooldawns.add_entity(id);
 
             this.m_monsters.set(id, monster);
@@ -360,6 +344,7 @@ export class Scene {
                 }
             } else {
                 const monster = new Monster(id);
+                monster.set_visible_search_cone(this.m_visible_search_cones);
                 this.m_cooldawns.add_entity(id);
                 monster.set_team(team);
                 this.m_monsters.set(id, monster);
@@ -376,12 +361,6 @@ export class Scene {
                 if(monster) {
                     monster.set_angle(angle);
                 }
-            } else {
-                const monster = new Monster(entity);
-                monster.set_angle(angle);
-                this.m_cooldawns.add_entity(entity);
-    
-                this.m_monsters.set(entity, monster);
             }
         }
     }
@@ -396,13 +375,35 @@ export class Scene {
                 if(monster) {
                     monster.set_move(move_status);
                 }
-            } else {
-                const monster = new Monster(entity);
-                monster.set_move(move_status);
-                this.m_cooldawns.add_entity(entity);
-    
-                this.m_monsters.set(entity, monster);
             }
+        }
+    }
+
+    set_entity_hide(id: number, is_hide: boolean) {
+        if (id == this.m_player_id) {
+            this.m_player.set_is_hide(is_hide);
+        }
+        else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_is_hide(is_hide);
+                }
+            }
+        }
+    }
+
+    activate_monster_search_cones() {
+        this.m_visible_search_cones = true;
+        for (const [id, monster] of this.m_monsters) {
+            monster.set_visible_search_cone(true);
+        }
+    }
+
+    deactivate_monster_search_cones() {
+        this.m_visible_search_cones = false;
+        for (const [id, monster] of this.m_monsters) {
+            monster.set_visible_search_cone(false);
         }
     }
 

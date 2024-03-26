@@ -46,6 +46,7 @@ export class ConstantsSettings {
     monster_radius: f32 = 0.35;
     monster_atack_distance: f32 = 0.5;
     player_speed: f32 = 5.0;
+    hide_speed_multiplier: f32 = 0.5;
     monster_speed: f32 = 3.5;
     player_rotation_speed: f32 = 10.0;
     monster_rotation_speed: f32 = 7.5;
@@ -79,9 +80,14 @@ export class ConstantsSettings {
     player_default_team: i32 = 1;
     monster_default_team: i32 = -1;
     search_radius: f32 = 5.0;
+    search_spread: f32 = <f32>Math.PI / 2.0;
 
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;
+    }
+
+    set_visible_quad_size(in_value: f32): void {
+        this.visible_quad_size = in_value;
     }
 
     set_neighborhood_quad_size(in_value: f32): void {
@@ -95,6 +101,14 @@ export class ConstantsSettings {
     set_monster_iddle_time(in_min: f32, in_max: f32): void {
         this.monster_iddle_time[0] = in_min;
         this.monster_iddle_time[1] = in_max;
+    }
+
+    set_player_speed(in_speed: f32): void {
+        this.player_speed = in_speed;
+    }
+
+    set_hide_speed_multiplier(in_value: f32): void {
+        this.hide_speed_multiplier = in_value;
     }
 
     set_player_shift(in_multiplier: f32, in_distance: f32, in_cooldawn: f32): void {
@@ -148,8 +162,9 @@ export class ConstantsSettings {
         this.default_melee_stun = value;
     }
 
-    set_search_radius(value: f32): void {
-        this.search_radius = value;
+    set_search_radius_spread(radius: f32, spread: f32): void {
+        this.search_radius = radius;
+        this.search_spread = spread;
     }
 }
 

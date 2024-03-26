@@ -74,7 +74,7 @@ export class ClientDataCanvas extends ClientBase {
     scene_update_entity_move_status(id: number, move_status: MOVE_STATUS): void {}
     scene_update_entity_life(id: number, life: number, max_life: number): void {}
     scene_update_entity_shield(id: number, shield: number, max_shield: number): void {}
-    scene_create_monster(entity: number, radius: number): void {
+    scene_create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number): void {
         const p = this.m_scene.get_person(entity);
         if (p) {
             p.set_debug_draw(this.m_use_debug_draw);
@@ -94,6 +94,9 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_dead(entity: number): void {}
     scene_entity_start_stun(entity: number, duration: number): void {}
     scene_entity_finish_stun(entity: number): void {}
+    scene_entity_switch_hide(id: number, is_hide: boolean): void {}
+    scene_player_activate_hide(): void {}
+    scene_player_deactivate_hide(): void {}
 
     debug_entity_trajectory(entity: number, coordinates: Float32Array): void {
         if (this.m_use_debug_draw) {

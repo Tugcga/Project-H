@@ -177,13 +177,13 @@ export class List<T> extends Serializable {
                 local_array[i] = local_array[right];
                 local_array[right] = temp;
 
-                if (stack.length < stack_pointer * 2 + 6) {
-                    this.m_sort_stack = new StaticArray<i32>(stack_pointer * 2 + 12);
+                if (stack.length <= (stack_pointer + 3) * 2) {
+                    const new_stack = new StaticArray<i32>((stack_pointer + 3) * 2);
                     // copy values
                     for (let j = 0, j_len = stack.length; j < j_len; j++) {
-                        this.m_sort_stack[j] = stack[j];
+                        new_stack[j] = stack[j];
                     }
-                    stack = this.m_sort_stack;
+                    stack = new_stack;
                 }
 
                 if (left < i - 1) {
@@ -199,6 +199,8 @@ export class List<T> extends Serializable {
                 }
             }
         }
+
+        this.m_sort_stack = stack;
     }
 
     @inline

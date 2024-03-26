@@ -57,9 +57,6 @@ export class QuadGridTrackingSystem extends System {
 
             visited_buffer.reset();
 
-            // TODO: try to skip buffer allocation every frame
-            // use one array and output it to function calls
-            //const center = new List<Entity>();
             const center = this.m_return_buffer;
             center.reset();
             center.copy_from(items_map[index]);

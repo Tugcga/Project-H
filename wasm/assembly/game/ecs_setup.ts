@@ -18,7 +18,7 @@ import { VisibleQuadGridIndexComponent } from "./components/visible_quad_grid_in
 import { VisibleQuadGridNeighborhoodComponent } from "./components/visible_quad_grid_neighborhood";
 import { RadiusComponent,
          RadiusSelectComponent,
-         RadiusSearchEnemies } from "./components/radius";
+         RadiusSearchComponent } from "./components/radius";
 import { RotationSpeedComponent } from "./components/rotation_speed";
 import { SpeedComponent } from "./components/speed";
 import { StateComponent, 
@@ -52,6 +52,8 @@ import { TeamComponent } from "./components/team";
 import { SearchQuadGridIndexComponent } from "./components/search_quad_grid_index";
 import { EnemiesListComponent } from "./components/enemies_list";
 import { BehaviourComponent } from "./components/behaviour";
+import { HideModeComponent } from "./components/hide_mode";
+import { SpreadSearchComponent } from "./components/spread_search";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
@@ -87,7 +89,8 @@ import { external_entity_start_shift,
          external_entity_start_cooldawn,
          external_entity_activate_shield,
          external_entity_release_shield,
-         external_entity_start_stun } from "../external";
+         external_entity_start_stun,
+         external_entity_switch_hide } from "../external";
 
 import { DebugSettings, EngineSettings } from "./settings";
 
@@ -170,6 +173,7 @@ export function setup_components(ecs: ECS): void {
 
     // assigned: player, monsters
     // read systems: UpdateToClientSystem (to send data to the client)
+    //               SearchEnemiesSystem
     // write systems: RotateSystem (calculate actual angle)
     // comment: current angle (rotation in 2d) of the entity
     ecs.register_component<AngleComponent>();
@@ -205,7 +209,7 @@ export function setup_components(ecs: ECS): void {
     // read systems: SearchEnemiesSystem
     // wrute system: -
     // comment: data to define the radius value for search enemies
-    ecs.register_component<RadiusSearchEnemies>();
+    ecs.register_component<RadiusSearchComponent>();
 
     // assigned: mosnters
     // read systems: -
@@ -457,6 +461,19 @@ export function setup_components(ecs: ECS): void {
     // write systems: BehaviourSystem
     // comment: store data required for behaviours
     ecs.register_component<BehaviourComponent>();
+
+    // assigned: each player and monster
+    // read systems: -
+    // write systems: -
+    // comment: indicate is player in hide mode or not
+    // each actor entity contains this component, but only player can change it
+    ecs.register_component<HideModeComponent>();
+
+    // assigned: monsters
+    // read systems: SearchEnemiesSystem
+    // write systems: -
+    // comment: data component, store value for the spread angle of the search cone
+    ecs.register_component<SpreadSearchComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -526,7 +543,9 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<SearchEnemiesSystem, ActorTypeComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, TeamComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, EnemiesListComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, RadiusSearchEnemies>();
+    ecs.set_system_with_component<SearchEnemiesSystem, RadiusSearchComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, SpreadSearchComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, AngleComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, StateComponent>();
 
     ecs.register_system<BehaviourSystem>(new BehaviourSystem(navmesh, random, monster_iddle_time[0], monster_iddle_time[1], monster_random_walk_target_radius));
@@ -718,7 +737,8 @@ export function setup_player(ecs: ECS,
                              shield: f32,
                              shield_resurect: f32,
                              team: i32,
-                             search_radius: f32): Entity {
+                             search_radius: f32,
+                             hide_speed_multiplier: f32): Entity {
     const player_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(player_entity, new ActorTypeComponent(ACTOR.PLAYER));
     ecs.add_component<PlayerComponent>(player_entity, new PlayerComponent());
@@ -755,6 +775,7 @@ export function setup_player(ecs: ECS,
     ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
     ecs.add_component<TeamComponent>(player_entity, new TeamComponent(team));
     ecs.add_component<SearchQuadGridIndexComponent>(player_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
+    ecs.add_component<HideModeComponent>(player_entity, new HideModeComponent(hide_speed_multiplier));
 
     return player_entity;
 }
@@ -780,7 +801,9 @@ export function setup_monster(ecs: ECS,
                               shield: f32,
                               shield_resurect: f32,
                               team: i32,
-                              search_radius: f32): Entity {
+                              search_radius: f32,
+                              search_spread: f32,
+                              hide_speed_multiplier: f32): Entity {
     const monster_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
@@ -814,8 +837,10 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<TeamComponent>(monster_entity, new TeamComponent(team));
     ecs.add_component<SearchQuadGridIndexComponent>(monster_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
     ecs.add_component<EnemiesListComponent>(monster_entity, new EnemiesListComponent());
-    ecs.add_component<RadiusSearchEnemies>(monster_entity, new RadiusSearchEnemies(search_radius));
+    ecs.add_component<RadiusSearchComponent>(monster_entity, new RadiusSearchComponent(search_radius));
+    ecs.add_component<SpreadSearchComponent>(monster_entity, new SpreadSearchComponent(search_spread));
     ecs.add_component<BehaviourComponent>(monster_entity, new BehaviourComponent());
+    ecs.add_component<HideModeComponent>(monster_entity, new HideModeComponent(hide_speed_multiplier));
 
     return monster_entity;
 }
@@ -1206,6 +1231,7 @@ export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor
                         // add the component
                         ecs.add_component<StateShiftComponent>(entity, shift);
                         external_entity_start_shift(entity);
+                        command_entity_unhide(ecs, entity);
                     }
                 }
             }
@@ -1227,6 +1253,7 @@ export function command_activate_shield(ecs: ECS, entity: Entity): void {
                 ecs.add_component<StateShieldComponent>(entity, shield);
 
                 external_entity_activate_shield(entity);
+                command_entity_unhide(ecs, entity);
             }
         }
     }
@@ -1240,9 +1267,84 @@ export function command_release_shield(ecs: ECS, entity: Entity): void {
         if (state_value == STATE.SHIELD) {
             // should not require to send external call, because it already called from interrupt function
             interrupt_to_iddle(ecs, entity, state);
-            // TODO: be more carefull with mosnters, because they don't move in iddle state
+            command_entity_unhide(ecs, entity);
         }
         // if the state is another, then nothig to do
+    }
+}
+
+function command_entity_hide(ecs: ECS, entity: Entity): void {
+    const hide_mode: HideModeComponent | null = ecs.get_component<HideModeComponent>(entity);
+    if (hide_mode) {
+        const hide_mode_value = hide_mode.is_active();
+        if (!hide_mode_value) {
+            hide_mode.activate();
+
+            // remove this entity from the enemies list for all search enemies
+            // also if it contains active target action, then reset it
+            const entities = ecs.get_entities<SearchEnemiesSystem>();
+            for (let i = 0, len = entities.length; i < len; i++) {
+                const search_entity = entities[i];
+                const search_list = ecs.get_component<EnemiesListComponent>(search_entity);
+                const target_action = ecs.get_component<TargetActionComponent>(search_entity);
+                if (search_list && target_action) {
+                    search_list.remove_target(entity);
+
+                    const action_type = target_action.type();
+                    const action_entity = target_action.entity();
+                    if (action_entity == entity && action_type != TARGET_ACTION.NONE) {
+                        target_action.reset();
+                    }
+                }
+            }
+
+            // change the move speed
+            const speed_multiplier = hide_mode.speed_multiplier();
+            const speed: SpeedComponent | null = ecs.get_component<SpeedComponent>(entity);
+            if (speed) {
+                const speed_value = speed.value();
+                speed.set_value(speed_value * speed_multiplier);
+            }
+
+            external_entity_switch_hide(entity, true);
+        } else {
+            // nothing to do, entity already in hide move
+        }
+    }
+}
+
+// many actions force entity unhide: shift, stun, death, recieve damage, activate the shield
+export function command_entity_unhide(ecs: ECS, entity: Entity): void {
+    const hide_mode: HideModeComponent | null = ecs.get_component<HideModeComponent>(entity);
+    if (hide_mode) {
+        const hide_mode_value = hide_mode.is_active();
+        if (hide_mode_value) {
+            hide_mode.deactivate();
+
+            const speed_multiplier = hide_mode.speed_multiplier();
+            const speed: SpeedComponent | null = ecs.get_component<SpeedComponent>(entity);
+            if (speed) {
+                const speed_value = speed.value();
+                // increase the speed
+                speed.set_value(speed_value / speed_multiplier);
+            }
+
+            external_entity_switch_hide(entity, false);
+        } else {
+            //nothing to do, entity already on unhide mode
+        }
+    }
+}
+
+export function command_toggle_hide_mode(ecs: ECS, entity: Entity): void {
+    const hide_mode: HideModeComponent | null = ecs.get_component<HideModeComponent>(entity);
+    if (hide_mode) {
+        const is_active = hide_mode.is_active();
+        if (is_active) {
+            command_entity_unhide(ecs, entity);
+        } else {
+            command_entity_hide(ecs, entity);
+        }
     }
 }
 
@@ -1258,6 +1360,7 @@ export function command_stun(ecs: ECS, entity: Entity, duration: f32): void {
                 ecs.add_component<StateStunComponent>(entity, new StateStunComponent(duration));
 
                 external_entity_start_stun(entity, duration);
+                command_entity_unhide(ecs, entity);
             }
         }
     }

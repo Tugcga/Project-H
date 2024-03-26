@@ -25,7 +25,7 @@ declare function update_entity_params(entity: u32, life: u32, max_life: u32, sel
 declare function remove_monster(entity: u32): void;
 
 @external("env", "host.create_monster")
-declare function create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void;
+declare function create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, search_radius: f32, search_spread: f32, team: i32): void;
 
 @external("env", "host.define_entity_changes")
 declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32,
@@ -76,6 +76,9 @@ declare function entity_start_stun(entity: u32, duration: f32): void;
 
 @external("env", "host.entity_finish_stun")
 declare function entity_finish_stun(entity: u32): void;
+
+@external("env", "host.entity_switch_hide")
+declare function entity_switch_hide(entity: u32, hide_active: bool): void;
 
 @external("env", "host.debug_entity_walk_path")
 declare function debug_entity_walk_path(entity: u32, points: StaticArray<f32>): void;
@@ -161,11 +164,15 @@ export function external_remove_monster(entity: u32): void {
     }
 }
 
-export function external_create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void {
+export function external_create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, search_radius: f32, search_spread: f32, team: i32): void {
     if(use_external) {
-        create_monster(entity, pos_x, pos_y, radius, team);
+        create_monster(entity, pos_x, pos_y, radius, search_radius, search_spread, team);
     } else {
-        console.log("ext -> create_monster: id " + entity.toString() + " position (" + pos_x.toString() + ", " + pos_y.toString() + ") radius " + radius.toString() + " team " + team.toString());
+        console.log("ext -> create_monster: id " + entity.toString() + 
+                    " position (" + pos_x.toString() + ", " + pos_y.toString() + 
+                    ") radius " + radius.toString() + 
+                    " search " + search_radius.toString() + ":" + search_spread.toString() + 
+                    " team " + team.toString());
     }
 }
 
@@ -298,6 +305,14 @@ export function external_entity_finish_stun(entity: u32): void {
         entity_finish_stun(entity);
     } else {
         console.log("ext -> entity_finish_stun: " + entity.toString());
+    }
+}
+
+export function external_entity_switch_hide(entity: u32, hide_active: bool): void {
+    if (use_external) {
+        entity_switch_hide(entity, hide_active);
+    } else {
+        console.log("ext -> entity_switch_hide: " + entity.toString() + " " + hide_active.toString());
     }
 }
 

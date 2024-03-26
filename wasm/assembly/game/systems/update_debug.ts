@@ -11,7 +11,7 @@ import { NeighborhoodQuadGridIndexComponent } from "../components/neighborhood_q
 import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
 import { VisibleQuadGridTrackingSystem } from "./visible_quad_grid_tracking";
 import { EnemiesListComponent } from "../components/enemies_list";
-import { RadiusSearchEnemies } from "../components/radius";
+import { RadiusSearchComponent } from "../components/radius";
 
 import { DebugSettings } from "../settings";
 import { external_debug_entity_walk_path,
@@ -165,7 +165,7 @@ export class UpdateDebugSystem extends System {
 
                             if (actor_type_value == ACTOR.MONSTER && debug_show_enemy_targets) {
                                 const enemies_list: EnemiesListComponent | null = this.get_component<EnemiesListComponent>(entity);
-                                const radius_search: RadiusSearchEnemies | null = this.get_component<RadiusSearchEnemies>(entity);
+                                const radius_search: RadiusSearchComponent | null = this.get_component<RadiusSearchComponent>(entity);
                                 if (enemies_list && radius_search && state) {
                                     // each mosnter SHOULD contains these components
                                     const state_value = state.state();
