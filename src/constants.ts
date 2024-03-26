@@ -19,6 +19,7 @@ export const DOUBLE_TOUCH_CURSOR_DELTA: number = 2.0; // if second click outside
 export enum EFFECT {
     MELEE_ATTACK,
     STUN,
+    HIDE_ACTIVATION,
 }
 
 // the same as in wasm-side
@@ -36,6 +37,7 @@ export enum TARGET_ACTION {
 export enum COOLDAWN {
     SHIFT,
     MELEE_ATTACK,
+    HIDE,
 }
 
 export enum DAMAGE_TYPE {

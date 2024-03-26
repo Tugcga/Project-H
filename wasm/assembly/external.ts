@@ -77,6 +77,12 @@ declare function entity_start_stun(entity: u32, duration: f32): void;
 @external("env", "host.entity_finish_stun")
 declare function entity_finish_stun(entity: u32): void;
 
+@external("env", "host.entity_start_hide")
+declare function entity_start_hide(entity: u32, activation_time: f32): void;
+
+@external("env", "host.entity_finish_hide")
+declare function entity_finish_hide(entity: u32, interrupt: bool): void;
+
 @external("env", "host.entity_switch_hide")
 declare function entity_switch_hide(entity: u32, hide_active: bool): void;
 
@@ -305,6 +311,22 @@ export function external_entity_finish_stun(entity: u32): void {
         entity_finish_stun(entity);
     } else {
         console.log("ext -> entity_finish_stun: " + entity.toString());
+    }
+}
+
+export function external_entity_start_hide(entity: u32, activation_time: f32): void {
+    if (use_external) {
+        entity_start_hide(entity, activation_time);
+    } else {
+        console.log("ext -> entity_start_hide: " + entity.toString() + " activation " + activation_time.toString());
+    }
+}
+
+export function external_entity_finish_hide(entity: u32, interrupt: bool): void {
+    if (use_external) {
+        entity_finish_hide(entity, interrupt);
+    } else {
+        console.log("ext -> entity_finish_hide: " + entity.toString() + " interrupt " + interrupt.toString());
     }
 }
 

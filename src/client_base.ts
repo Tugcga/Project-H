@@ -83,6 +83,8 @@ export abstract class ClientBase {
     abstract scene_entity_dead(entity: number): void;
     abstract scene_entity_start_stun(entity: number, duration: number): void;
     abstract scene_entity_finish_stun(entity: number): void;
+    abstract scene_entity_start_hide_activation(entity: number, activation_time: number): void;
+    abstract scene_entity_finish_hide_activation(entity: number, interrupt: boolean): void;
     abstract scene_entity_switch_hide(entity: number, is_hide: boolean): void;
     abstract scene_player_activate_hide(): void;
     abstract scene_player_deactivate_hide(): void;
@@ -125,6 +127,8 @@ export abstract class ClientBase {
             entity_dead: this.entity_dead.bind(this),
             entity_damaged: this.entity_damaged.bind(this),
             entity_switch_hide: this.entity_switch_hide.bind(this),
+            entity_start_hide: this.entity_start_hide.bind(this),
+            entity_finish_hide: this.entity_finish_hide.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
@@ -619,6 +623,10 @@ export abstract class ClientBase {
     }
 
     create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number) {
+        // create with default parameters
+        this.m_scene.create_monster(entity);
+
+        // next define specific parameters
         this.m_scene.set_monster_radius(entity, radius);
         this.m_scene.set_entity_position(entity, pos_x, pos_y);
         this.m_scene.set_entity_team(entity, team);
@@ -737,6 +745,16 @@ export abstract class ClientBase {
                 this.scene_player_deactivate_hide();
             }
         }
+    }
+
+    entity_start_hide(entity: number, activation_time: number) {
+        this.m_scene.entity_start_hide_cast(entity, activation_time);
+        this.scene_entity_start_hide_activation(entity, activation_time);
+    }
+
+    entity_finish_hide(entity: number, interrupt: boolean) {
+        this.m_scene.entity_finish_hide_cast(entity);
+        this.scene_entity_finish_hide_activation(entity, interrupt);
     }
 
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {

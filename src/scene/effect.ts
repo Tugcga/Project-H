@@ -40,12 +40,20 @@ export class EffectsCollection {
         this.add_effect(entity, new StunEffect(duration));
     }
 
+    add_hide_cast(entity: number, duration: number) {
+        this.add_effect(entity, new HideActivationEffect(duration));
+    }
+
     remove_melee_attack(entity: number) {
         this.remove_by_type(entity, EFFECT.MELEE_ATTACK);
     }
 
     remove_stun(entity: number) {
         this.remove_by_type(entity, EFFECT.STUN);
+    }
+
+    remove_hide_cast(entity: number) {
+        this.remove_by_type(entity, EFFECT.HIDE_ACTIVATION);
     }
 
     update(dt: number) {
@@ -129,5 +137,11 @@ export class MeleeAttackEffect extends EffectBase {
 export class StunEffect extends EffectBase {
     constructor(duration: number) {
         super(duration, EFFECT.STUN);
+    }
+}
+
+export class HideActivationEffect extends EffectBase {
+    constructor(duration: number) {
+        super(duration, EFFECT.HIDE_ACTIVATION);
     }
 }

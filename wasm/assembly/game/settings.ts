@@ -47,6 +47,8 @@ export class ConstantsSettings {
     monster_atack_distance: f32 = 0.5;
     player_speed: f32 = 5.0;
     hide_speed_multiplier: f32 = 0.5;
+    hide_cooldawn: f32 = 0.5;
+    hide_activate_time: f32 = 0.25;
     monster_speed: f32 = 3.5;
     player_rotation_speed: f32 = 10.0;
     monster_rotation_speed: f32 = 7.5;
@@ -165,6 +167,11 @@ export class ConstantsSettings {
     set_search_radius_spread(radius: f32, spread: f32): void {
         this.search_radius = radius;
         this.search_spread = spread;
+    }
+
+    set_hide_cast(in_cooldawn: f32, in_activate_time: f32): void {
+        this.hide_cooldawn = in_cooldawn;
+        this.hide_activate_time = in_activate_time;
     }
 }
 

@@ -134,6 +134,11 @@ export function settings_set_hide_speed_multipler(settings: Settings, value: f32
     constants.set_hide_speed_multiplier(value);
 }
 
+export function settings_set_hide_cast(settings: Settings, cooldawn: f32, activate_time: f32): void {
+    const constants = settings.get_constants();
+    constants.set_hide_cast(cooldawn, activate_time);
+}
+
 export function dev_game_spawn_monster(game: Game, radius: f32, position_x: f32, position_y: f32, move_speed: f32,
                                                    damage: u32, damage_distance: f32, damage_spread: f32,
                                                    attack_cooldawn: f32, attack_distance: f32, attack_time: f32,

@@ -265,55 +265,42 @@ export class Scene {
         }
     }
 
+    create_monster(id: number) {
+        const monster = new Monster(id);
+        monster.set_visible_search_cone(this.m_visible_search_cones);
+        this.m_cooldawns.add_entity(id);
+
+        this.m_monsters.set(id, monster);
+    }
+
     set_entity_position(entity: number, x: number, y: number) {
         if (entity == this.m_player_id) {
             this.m_player.set_position(x, y);
         } else {
-            if(this.m_monsters.has(entity)) {
+            if (this.m_monsters.has(entity)) {
                 const monster = this.m_monsters.get(entity);
-                if(monster) {
+                if (monster) {
                     monster.set_position(x, y);
                 }
-            } else {
-                const monster = new Monster(entity);
-                monster.set_visible_search_cone(this.m_visible_search_cones);
-                this.m_cooldawns.add_entity(entity);
-                monster.set_position(x, y);
-    
-                this.m_monsters.set(entity, monster);
             }
         }
     }
 
     set_monster_radius(entity: number, radius: number) {
-        if(this.m_monsters.has(entity)) {
+        if (this.m_monsters.has(entity)) {
             const monster = this.m_monsters.get(entity);
-            if(monster) {
+            if (monster) {
                 monster.set_radius(radius);
             }
-        } else {
-            const monster = new Monster(entity);
-            monster.set_visible_search_cone(this.m_visible_search_cones);
-            monster.set_radius(radius);
-            this.m_cooldawns.add_entity(entity);
-
-            this.m_monsters.set(entity, monster);
         }
     }
 
     set_monster_search_radius(id: number, value: number) {
-        if(this.m_monsters.has(id)) {
+        if (this.m_monsters.has(id)) {
             const monster = this.m_monsters.get(id);
-            if(monster) {
+            if (monster) {
                 monster.set_search_radius(value);
             }
-        } else {
-            const monster = new Monster(id);
-            monster.set_visible_search_cone(this.m_visible_search_cones);
-            monster.set_search_radius(value);
-            this.m_cooldawns.add_entity(id);
-
-            this.m_monsters.set(id, monster);
         }
     }
 
@@ -323,13 +310,6 @@ export class Scene {
             if(monster) {
                 monster.set_search_spread(value);
             }
-        } else {
-            const monster = new Monster(id);
-            monster.set_visible_search_cone(this.m_visible_search_cones);
-            monster.set_search_spread(value);
-            this.m_cooldawns.add_entity(id);
-
-            this.m_monsters.set(id, monster);
         }
     }
 
@@ -342,12 +322,6 @@ export class Scene {
                 if(monster) {
                     monster.set_team(team);
                 }
-            } else {
-                const monster = new Monster(id);
-                monster.set_visible_search_cone(this.m_visible_search_cones);
-                this.m_cooldawns.add_entity(id);
-                monster.set_team(team);
-                this.m_monsters.set(id, monster);
             }
         }
     }
@@ -425,6 +399,14 @@ export class Scene {
 
     entity_finish_stun(id: number) {
         this.m_effects.remove_stun(id);
+    }
+
+    entity_start_hide_cast(id: number, duration: number) {
+        this.m_effects.add_hide_cast(id, duration);
+    }
+
+    entity_finish_hide_cast(id: number) {
+        this.m_effects.remove_hide_cast(id);
     }
 
     remove_monster(entity: number) {

@@ -94,6 +94,8 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_dead(entity: number): void {}
     scene_entity_start_stun(entity: number, duration: number): void {}
     scene_entity_finish_stun(entity: number): void {}
+    scene_entity_start_hide_activation(entity: number, activation_time: number): void {}
+    scene_entity_finish_hide_activation(entity: number, interrupt: boolean): void {}
     scene_entity_switch_hide(id: number, is_hide: boolean): void {}
     scene_player_activate_hide(): void {}
     scene_player_deactivate_hide(): void {}

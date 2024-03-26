@@ -22,13 +22,19 @@ import { CastMeleeDamageComponent } from "../components/cast";
 import { TargetAngleComponent } from "../components/target_angle";
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
 import { ApplyDamageComponent } from "../components/apply_damage";
+import { HideModeComponent } from "../components/hide_mode";
+import { EnemiesListComponent } from "../components/enemies_list";
+import { SpeedComponent } from "../components/speed";
 
 import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
+import { SearchEnemiesSystem } from "./search_enemies"
 
 import { external_entity_finish_shift,
          external_entity_start_cooldawn,
          external_entity_finish_melee_attack,
-         external_entity_finish_stun } from "../../external";
+         external_entity_finish_stun,
+         external_entity_finish_hide,
+         external_entity_switch_hide } from "../../external";
 
 // several systems from this file controll the switch between different states of entitites
 // this system controlls when the actor comes to the finall target point
@@ -286,6 +292,45 @@ export class CastSwitchSystem extends System {
                             // target is invalid, nothing to do
                         }
 
+                    } else if (cast_type == CAST_ACTION.HIDE_ACTIVATION) {
+                        external_entity_finish_hide(entity, false);
+
+                        // make after cast action
+                        const hide_mode: HideModeComponent | null = this.get_component<HideModeComponent>(entity);
+                        if (hide_mode) {
+                            hide_mode.activate();
+
+                            // remove this entity from the enemies list for all search enemies
+                            // also if it contains active target action, then reset it
+                            const search_entities = local_ecs.get_entities<SearchEnemiesSystem>();
+                            for (let i = 0, len = search_entities.length; i < len; i++) {
+                                const search_entity = search_entities[i];
+                                const search_list = this.get_component<EnemiesListComponent>(search_entity);
+                                const target_action = this.get_component<TargetActionComponent>(search_entity);
+                                if (search_list && target_action) {
+                                    search_list.remove_target(entity);
+
+                                    const action_type = target_action.type();
+                                    const action_entity = target_action.entity();
+                                    if (action_entity == entity && action_type != TARGET_ACTION.NONE) {
+                                        target_action.reset();
+                                    }
+                                }
+                            }
+
+                            // change the move speed
+                            const speed_multiplier = hide_mode.speed_multiplier();
+                            const speed: SpeedComponent | null = this.get_component<SpeedComponent>(entity);
+                            if (speed) {
+                                const speed_value = speed.value();
+                                speed.set_value(speed_value * speed_multiplier);
+                            }
+
+                            external_entity_switch_hide(entity, true);
+                        }
+
+                        clear_state_components(local_ecs, STATE.CASTING, entity);
+                        state.set_state(STATE.IDDLE);
                     } else {
                         // unknown cast action
                     }

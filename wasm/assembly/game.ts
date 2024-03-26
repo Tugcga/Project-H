@@ -120,6 +120,8 @@ export class Game {
         const player_team = local_constants.player_default_team;
         const search_radius = local_constants.search_radius;
         const hide_speed_multiplier = local_constants.hide_speed_multiplier;
+        const hide_cooldawn = local_constants.hide_cooldawn;
+        const hide_activate_time = local_constants.hide_activate_time;
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -183,7 +185,9 @@ export class Game {
             player_shield_resurect,
             player_team,
             search_radius,
-            hide_speed_multiplier);
+            hide_speed_multiplier,
+            hide_cooldawn,
+            hide_activate_time);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -364,6 +368,8 @@ export class Game {
             const radius_select_delta = local_constants.radius_select_delta;
             const monster_shield_resurect = local_constants.monster_shield_resurect;
             const hide_speed_multiplier = local_constants.hide_speed_multiplier;
+            const hide_cooldawn = local_constants.hide_cooldawn;
+            const hide_activate_time = local_constants.hide_activate_time;
 
             const monster_entity = setup_monster(local_ecs, 
                                                  position_x, 
@@ -388,7 +394,9 @@ export class Game {
                                                  team,
                                                  search_radius,
                                                  search_spread,
-                                                 hide_speed_multiplier);
+                                                 hide_speed_multiplier,
+                                                 hide_cooldawn,
+                                                 hide_activate_time);
             // we should not call any external methods
             // because created monster entity can be outside of the player visibility
             return monster_entity;

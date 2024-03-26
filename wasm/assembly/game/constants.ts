@@ -25,6 +25,7 @@ export enum MOVE_STATUS {
 export enum COOLDAWN {
     SHIFT,
     MELEE_ATTACK,
+    HIDE,
 }
 
 // this enum used to define the action at the end of user click
@@ -36,7 +37,8 @@ export enum TARGET_ACTION {
 // this enum define the type of cast
 export enum CAST_ACTION {
     MELEE_ATACK,
-    RANGE_ATACK
+    RANGE_ATACK,
+    HIDE_ACTIVATION,
 }
 
 export enum DAMAGE_TYPE {

@@ -34,7 +34,9 @@ import { VelocityComponent } from "./components/velocity";
 import { PreferredVelocityComponent } from "./components/preferred_velocity";
 import { ActorTypeComponent } from "./components/actor_type"
 import { NeighborhoodQuadGridIndexComponent } from "./components/neighborhood_quad_grid_index";
-import { BuffShiftCooldawnComponent, BuffMeleeAttackCooldawnComponent } from "./components/buffs";
+import { BuffShiftCooldawnComponent,
+         BuffMeleeAttackCooldawnComponent,
+         BuffHideCooldawnComponent } from "./components/buffs";
 import { ShiftSpeedMultiplierComponent } from "./components/shift_speed";
 import { ShiftDistanceComponent } from "./components/shift_distance";
 import { ShiftCooldawnComponent } from "./components/shift_cooldawn";
@@ -43,10 +45,13 @@ import { TargetActionComponent } from "./components/target_action";
 import { AtackDistanceComponent } from "./components/atack_distance";
 import { AtackTimeComponent } from "./components/atack_time";
 import { MeleeAttackCooldawnComponent } from "./components/melee_attack_cooldawn";
-import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent, MeleeDamageDamageComponent } from "./components/damage";
+import { MeleeDamageDistanceComponent,
+         MeleeDamageSpreadComponent,
+         MeleeDamageDamageComponent } from "./components/damage";
 import { CastMeleeDamageComponent } from "./components/cast";
 import { LifeComponent } from "./components/life";
-import { ShieldComponent, ShieldIncreaseComponent } from "./components/shield";
+import { ShieldComponent,
+         ShieldIncreaseComponent } from "./components/shield";
 import { ApplyDamageComponent } from "./components/apply_damage";
 import { TeamComponent } from "./components/team";
 import { SearchQuadGridIndexComponent } from "./components/search_quad_grid_index";
@@ -77,7 +82,9 @@ import { WalkToPointSwitchSystem,
 import { UpdateToClientComponent } from "./components/update_to_client";
 import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
-import { BuffTimerShiftCooldawnSystem, BuffTimerMeleeAttackCooldawnSystem } from "./systems/buff_timer";
+import { BuffTimerShiftCooldawnSystem,
+         BuffTimerMeleeAttackCooldawnSystem,
+         BuffTimerHideCooldawnSystem } from "./systems/buff_timer";
 import { ApplyDamageSystem } from "./systems/apply_damage";
 import { SearchQuadGridTrackingSystem } from "./systems/search_quad_grid_tracking";
 import { SearchEnemiesSystem } from "./systems/search_enemies";
@@ -90,7 +97,9 @@ import { external_entity_start_shift,
          external_entity_activate_shield,
          external_entity_release_shield,
          external_entity_start_stun,
-         external_entity_switch_hide } from "../external";
+         external_entity_switch_hide,
+         external_entity_start_hide,
+         external_entity_finish_hide } from "../external";
 
 import { DebugSettings, EngineSettings } from "./settings";
 
@@ -346,6 +355,8 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<BuffShiftCooldawnComponent>();
     // BuffTimerMeleeAttackCooldawnSystem
     ecs.register_component<BuffMeleeAttackCooldawnComponent>();
+    // BuffTimerHideCooldawnSystem
+    ecs.register_component<BuffHideCooldawnComponent>();
 
     // assigned: player (and may be monsters)
     // read systems: ShiftSystem (to define actual speed, it calculated as general entity speed multiply to the value in the component)
@@ -538,22 +549,6 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, SearchQuadGridIndexComponent>();
 
-    ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system, navmesh));
-    ecs.set_system_with_component<SearchEnemiesSystem, PositionComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, ActorTypeComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, TeamComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, EnemiesListComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, RadiusSearchComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, SpreadSearchComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, AngleComponent>();
-    ecs.set_system_with_component<SearchEnemiesSystem, StateComponent>();
-
-    ecs.register_system<BehaviourSystem>(new BehaviourSystem(navmesh, random, monster_iddle_time[0], monster_iddle_time[1], monster_random_walk_target_radius));
-    ecs.set_system_with_component<BehaviourSystem, StateComponent>();
-    ecs.set_system_with_component<BehaviourSystem, EnemiesListComponent>();
-    ecs.set_system_with_component<BehaviourSystem, PositionComponent>();
-    ecs.set_system_with_component<BehaviourSystem, BehaviourComponent>();
-
     // check is the entity comes to the target point of the path
     // if yes, switch to the iddle state (for the player) or iddle wait state (for mosnters)
     ecs.register_system<WalkToPointSwitchSystem>(new WalkToPointSwitchSystem());
@@ -590,6 +585,22 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<StunSwitchSystem, StateComponent>();
     ecs.set_system_with_component<StunSwitchSystem, ActorTypeComponent>();
     ecs.set_system_with_component<StunSwitchSystem, StateStunComponent>();
+
+    ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system, navmesh));
+    ecs.set_system_with_component<SearchEnemiesSystem, PositionComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, ActorTypeComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, TeamComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, EnemiesListComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, RadiusSearchComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, SpreadSearchComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, AngleComponent>();
+    ecs.set_system_with_component<SearchEnemiesSystem, StateComponent>();
+
+    ecs.register_system<BehaviourSystem>(new BehaviourSystem(navmesh, random, monster_iddle_time[0], monster_iddle_time[1], monster_random_walk_target_radius));
+    ecs.set_system_with_component<BehaviourSystem, StateComponent>();
+    ecs.set_system_with_component<BehaviourSystem, EnemiesListComponent>();
+    ecs.set_system_with_component<BehaviourSystem, PositionComponent>();
+    ecs.set_system_with_component<BehaviourSystem, BehaviourComponent>();
 
     if (engine_settings.use_rvo) {
         // system for rvo algorithm
@@ -692,6 +703,10 @@ export function setup_systems(ecs: ECS,
     ecs.register_system<BuffTimerMeleeAttackCooldawnSystem>(new BuffTimerMeleeAttackCooldawnSystem());
     ecs.set_system_with_component<BuffTimerMeleeAttackCooldawnSystem, BuffMeleeAttackCooldawnComponent>();
 
+    // cooldawns for hide action
+    ecs.register_system<BuffTimerHideCooldawnSystem>(new BuffTimerHideCooldawnSystem());
+    ecs.set_system_with_component<BuffTimerHideCooldawnSystem, BuffHideCooldawnComponent>();
+
     // update data at client for required entities
     // send some debug data if it is active
     ecs.register_system<UpdateToClientSystem>(new UpdateToClientSystem());
@@ -738,7 +753,9 @@ export function setup_player(ecs: ECS,
                              shield_resurect: f32,
                              team: i32,
                              search_radius: f32,
-                             hide_speed_multiplier: f32): Entity {
+                             hide_speed_multiplier: f32,
+                             hide_cooldawn: f32,
+                             hide_activate_time: f32): Entity {
     const player_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(player_entity, new ActorTypeComponent(ACTOR.PLAYER));
     ecs.add_component<PlayerComponent>(player_entity, new PlayerComponent());
@@ -775,7 +792,7 @@ export function setup_player(ecs: ECS,
     ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
     ecs.add_component<TeamComponent>(player_entity, new TeamComponent(team));
     ecs.add_component<SearchQuadGridIndexComponent>(player_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
-    ecs.add_component<HideModeComponent>(player_entity, new HideModeComponent(hide_speed_multiplier));
+    ecs.add_component<HideModeComponent>(player_entity, new HideModeComponent(hide_speed_multiplier, hide_cooldawn, hide_activate_time));
 
     return player_entity;
 }
@@ -803,7 +820,9 @@ export function setup_monster(ecs: ECS,
                               team: i32,
                               search_radius: f32,
                               search_spread: f32,
-                              hide_speed_multiplier: f32): Entity {
+                              hide_speed_multiplier: f32,
+                              hide_cooldawn: f32,
+                              hide_activate_time: f32): Entity {
     const monster_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
@@ -840,7 +859,7 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<RadiusSearchComponent>(monster_entity, new RadiusSearchComponent(search_radius));
     ecs.add_component<SpreadSearchComponent>(monster_entity, new SpreadSearchComponent(search_spread));
     ecs.add_component<BehaviourComponent>(monster_entity, new BehaviourComponent());
-    ecs.add_component<HideModeComponent>(monster_entity, new HideModeComponent(hide_speed_multiplier));
+    ecs.add_component<HideModeComponent>(monster_entity, new HideModeComponent(hide_speed_multiplier, hide_cooldawn, hide_activate_time));
 
     return monster_entity;
 }
@@ -862,7 +881,6 @@ export function clear_state_components(ecs: ECS, state_value: STATE, entity: Ent
 function assign_cast_state(ecs: ECS | null,
                            entity: Entity,
                            cast_time: f32,
-                           target: Entity,
                            state: StateComponent,
                            cast_type: CAST_ACTION): START_CAST_STATUS {
     if (ecs) {
@@ -871,6 +889,15 @@ function assign_cast_state(ecs: ECS | null,
             const buff_melee: BuffMeleeAttackCooldawnComponent | null = ecs.get_component<BuffMeleeAttackCooldawnComponent>(entity);
             if (buff_melee) {
                 // component exists, cooldawn is not over, fail to start the cast
+                return START_CAST_STATUS.FAIL_COOLDAWN;
+            }
+
+            ecs.add_component(entity, new StateCastComponent(cast_type, cast_time));
+            state.set_state(STATE.CASTING);
+            return START_CAST_STATUS.OK;
+        } else if (cast_type == CAST_ACTION.HIDE_ACTIVATION) {
+            const buff_hide: BuffHideCooldawnComponent | null = ecs.get_component<BuffHideCooldawnComponent>(entity);
+            if (buff_hide) {
                 return START_CAST_STATUS.FAIL_COOLDAWN;
             }
 
@@ -917,7 +944,7 @@ export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: 
         const damage_spread_value = damage_spread.value();
         const damage_damage_value = damage_damage.value();
 
-        const cast_state: START_CAST_STATUS = assign_cast_state(ecs, entity, attack_time_value, target_entity, state, CAST_ACTION.MELEE_ATACK);
+        const cast_state: START_CAST_STATUS = assign_cast_state(ecs, entity, attack_time_value, state, CAST_ACTION.MELEE_ATACK);
         if (cast_state == START_CAST_STATUS.OK) {
             // ready to start cast
             // make target action = None
@@ -969,6 +996,10 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
 
                 // notify client about cast interruption
                 external_entity_finish_melee_attack(entity, true);
+            } else if (entity_cast_type == CAST_ACTION.HIDE_ACTIVATION) {
+                entity_state.set_state(STATE.IDDLE);
+                clear_state_components(ecs, STATE.CASTING, entity);
+                external_entity_finish_hide(entity, true);
             } else {
                 // unsupported cast type
 
@@ -1083,6 +1114,8 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
                                 should_update = false;
                             }
                         }
+                    } else if (entity_cast.type() == CAST_ACTION.HIDE_ACTIVATION) {
+
                     } else if (entity_cast.type() == CAST_ACTION.RANGE_ATACK) {
                         // is not supported yet
                     } else {
@@ -1275,38 +1308,25 @@ export function command_release_shield(ecs: ECS, entity: Entity): void {
 
 function command_entity_hide(ecs: ECS, entity: Entity): void {
     const hide_mode: HideModeComponent | null = ecs.get_component<HideModeComponent>(entity);
-    if (hide_mode) {
+    const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
+    if (hide_mode && state) {
         const hide_mode_value = hide_mode.is_active();
         if (!hide_mode_value) {
-            hide_mode.activate();
+            const hide_cooldawn = hide_mode.cooldawn();
+            const hide_activate_time = hide_mode.activate_time();
 
-            // remove this entity from the enemies list for all search enemies
-            // also if it contains active target action, then reset it
-            const entities = ecs.get_entities<SearchEnemiesSystem>();
-            for (let i = 0, len = entities.length; i < len; i++) {
-                const search_entity = entities[i];
-                const search_list = ecs.get_component<EnemiesListComponent>(search_entity);
-                const target_action = ecs.get_component<TargetActionComponent>(search_entity);
-                if (search_list && target_action) {
-                    search_list.remove_target(entity);
+            const is_interrupt = interrupt_to_iddle(ecs, entity, state);
+            if (is_interrupt) {
 
-                    const action_type = target_action.type();
-                    const action_entity = target_action.entity();
-                    if (action_entity == entity && action_type != TARGET_ACTION.NONE) {
-                        target_action.reset();
-                    }
+                const cast_status = assign_cast_state(ecs, entity, hide_activate_time, state, CAST_ACTION.HIDE_ACTIVATION);
+                if (cast_status == START_CAST_STATUS.OK) {
+                    external_entity_start_hide(entity, hide_activate_time);
+
+                    // add cooldawn
+                    ecs.add_component(entity, new BuffHideCooldawnComponent(hide_cooldawn));
+                    external_entity_start_cooldawn(entity, COOLDAWN.HIDE, hide_cooldawn);
                 }
             }
-
-            // change the move speed
-            const speed_multiplier = hide_mode.speed_multiplier();
-            const speed: SpeedComponent | null = ecs.get_component<SpeedComponent>(entity);
-            if (speed) {
-                const speed_value = speed.value();
-                speed.set_value(speed_value * speed_multiplier);
-            }
-
-            external_entity_switch_hide(entity, true);
         } else {
             // nothing to do, entity already in hide move
         }

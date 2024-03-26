@@ -2,7 +2,7 @@ import { CURSOR_TYPE, ClickCursor } from "../scene/click_cursor";
 import { EFFECT, CLICK_CURSOR_RADIUS, CLICK_CURSOR_TIME, COOLDAWN, MOVE_STATUS } from "../constants";
 import { SceneTile } from "../scene/scene_tile";
 import { Transform } from "../transform";
-import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH, ENTITY_DEAD_BACK_COLOR, PLAYER_LIVE_BACK_COLOR, MONSTER_LIVE_BACK_COLOR, ENTITY_LIFE_CIRCLE_DELTA, EFFECT_STUN_COLOR, EFFECT_STUN_STROKE_COLOR, EFFECT_STUN_RADIUS_MULTIPLIER, DEBUG_SEARCH_RADIUS_COLOR, DEBUG_ENEMIES_TARGET_LINE_WIDTH, DEBUG_ENEMIES_TARGET_LINE_COLOR, PLAYER_HIDE_COLOR, MONSTER_HIDE_COLOR, SEARCH_CONE_COLOR, SEARCH_CONE_STROKE, SEARCH_CONE_STROKE_WIDTH } from "./visual_styles";
+import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH, ENTITY_DEAD_BACK_COLOR, PLAYER_LIVE_BACK_COLOR, MONSTER_LIVE_BACK_COLOR, ENTITY_LIFE_CIRCLE_DELTA, EFFECT_STUN_COLOR, EFFECT_STUN_STROKE_COLOR, EFFECT_STUN_RADIUS_MULTIPLIER, DEBUG_SEARCH_RADIUS_COLOR, DEBUG_ENEMIES_TARGET_LINE_WIDTH, DEBUG_ENEMIES_TARGET_LINE_COLOR, PLAYER_HIDE_COLOR, MONSTER_HIDE_COLOR, SEARCH_CONE_COLOR, SEARCH_CONE_STROKE, SEARCH_CONE_STROKE_WIDTH, COOLDAWN_HIDE_WIDTH, COOLDAWN_HIDE_COLOR, COOLDAWN_HIDE_RADIUS, EFFECT_HIDE_ACTIVATION_STROKE, EFFECT_HIDE_ACTIVATION_COLOR } from "./visual_styles";
 import { Person } from "../scene/person";
 import { Player } from "../scene/player";
 import { Monster } from "../scene/monster";
@@ -122,6 +122,27 @@ export function draw_level_tile(draw_ctx: CanvasRenderingContext2D,
     if(TILE_IS_STROKE) {
         draw_ctx.stroke();
     }
+    draw_ctx.restore();
+}
+
+function draw_circle(draw_ctx: CanvasRenderingContext2D,
+                     tfm: Transform,
+                     c_center: number[],
+                     radius: number,
+                     proportion: number,
+                     fill_color: string,
+                     stroke_color: string) {
+    draw_ctx.save();
+    draw_ctx.fillStyle = fill_color;
+    draw_ctx.strokeStyle = stroke_color;
+
+    draw_ctx.beginPath();
+    draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius), 0.0, Math.PI * 2.0);
+    draw_ctx.fill();
+
+    draw_ctx.beginPath();
+    draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * proportion), 0.0, Math.PI * 2.0);
+    draw_ctx.stroke();
     draw_ctx.restore();
 }
 
@@ -269,6 +290,10 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
                 draw_ctx.lineWidth = COOLDAWN_MELEE_ATTACK_WIDTH;
                 draw_ctx.strokeStyle = COOLDAWN_MELEE_ATTACK_COLOR;
                 cooldawn_radius = COOLDAWN_MELEE_ATTACK_RADIUS;
+            } else if (cooldawn == COOLDAWN.HIDE) {
+                draw_ctx.lineWidth = COOLDAWN_HIDE_WIDTH;
+                draw_ctx.strokeStyle = COOLDAWN_HIDE_COLOR;
+                cooldawn_radius = COOLDAWN_HIDE_RADIUS;
             }
             draw_ctx.beginPath();
             draw_ctx.arc(c_center[0], c_center[1], cooldawn_radius, a, 2.0 * Math.PI * (1.0 - times[1] / times[0]) + a);
@@ -308,18 +333,12 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
             } else if (effect_type == EFFECT.STUN) {
                 const proportion = 1.0 - effect.proportion();
                 // draw as circle with changed inner circle
-                draw_ctx.save();
-                draw_ctx.fillStyle = EFFECT_STUN_COLOR;
-                draw_ctx.strokeStyle = EFFECT_STUN_STROKE_COLOR;
-    
-                draw_ctx.beginPath();
-                draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * EFFECT_STUN_RADIUS_MULTIPLIER), 0.0, Math.PI * 2.0);
-                draw_ctx.fill();
-    
-                draw_ctx.beginPath();
-                draw_ctx.arc(c_center[0], c_center[1], tfm.apply_scale(radius * EFFECT_STUN_RADIUS_MULTIPLIER * proportion), 0.0, Math.PI * 2.0);
-                draw_ctx.stroke();
-                draw_ctx.restore();
+                draw_circle(draw_ctx, tfm, c_center, radius * EFFECT_STUN_RADIUS_MULTIPLIER, proportion,
+                            EFFECT_STUN_COLOR, EFFECT_STUN_STROKE_COLOR);
+            } else if (effect_type == EFFECT.HIDE_ACTIVATION) {
+                const proportion = 1.0 - effect.proportion();
+                draw_circle(draw_ctx, tfm, c_center, radius, proportion,
+                            EFFECT_HIDE_ACTIVATION_COLOR, EFFECT_HIDE_ACTIVATION_STROKE);
             }
         }
     }

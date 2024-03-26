@@ -73,8 +73,15 @@ export const COOLDAWN_MELEE_ATTACK_COLOR = "rgba(255, 164, 164, 0.5)";
 export const COOLDAWN_MELEE_ATTACK_WIDTH = 2.0;
 export const COOLDAWN_MELEE_ATTACK_RADIUS = 8.0;
 
+export const COOLDAWN_HIDE_COLOR = "rgba(255, 255, 255, 0.25)";
+export const COOLDAWN_HIDE_WIDTH = 2.0;
+export const COOLDAWN_HIDE_RADIUS = 10.0;
+
 // action effects
 export const EFFECT_MELEE_ATTACK_COLOR = "rgba(217, 43, 20, 0.5)";
 export const EFFECT_STUN_COLOR = "rgba(40, 111, 224, 0.25)";
 export const EFFECT_STUN_STROKE_COLOR = "rgba(134, 173, 235, 1.0)";
 export const EFFECT_STUN_RADIUS_MULTIPLIER = 1.1;
+
+export const EFFECT_HIDE_ACTIVATION_COLOR = "rgba(63, 74, 77, 0.75)";
+export const EFFECT_HIDE_ACTIVATION_STROKE = "rgba(21, 29, 43, 1.0)";
