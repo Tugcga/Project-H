@@ -17,7 +17,7 @@ import { AngleComponent } from "../components/angle";
 
 import { SearchQuadGridTrackingSystem } from "./search_quad_grid_tracking";
 
-import { command_entity_unhide } from "../ecs_setup";
+import { command_entity_unhide } from "../commands";
 
 // in this system we only add entities to the enemies list
 // actual remove apply in behaviour system, when select a target and this target is dead or friend

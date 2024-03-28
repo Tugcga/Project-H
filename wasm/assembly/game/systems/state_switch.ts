@@ -5,19 +5,13 @@ import { Entity } from "../../simple_ecs/types";
 import { ECS } from "../../simple_ecs/simple_ecs";
 import { EPSILON, STATE, ACTOR, COOLDAWN, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, DAMAGE_TYPE } from "../constants";
 import { direction_to_angle, get_navmesh_path, distance } from "../utilities";
-import { try_start_attack, clear_state_components, command_init_attack, interrupt_to_iddle, command_move_to_point } from "../ecs_setup";
 
 import { ActorTypeComponent } from "../components/actor_type";
 import { StateComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent, StateStunComponent } from "../components/state";
 import { PositionComponent } from "../components/position";
-import { BuffShiftCooldawnComponent, BuffMeleeAttackCooldawnComponent } from "../components/buffs";
 import { ShiftCooldawnComponent } from "../components/shift_cooldawn";
 import { TargetActionComponent } from "../components/target_action";
 import { RadiusComponent } from "../components/radius";
-import { AtackDistanceComponent } from "../components/atack_distance";
-import { AtackTimeComponent } from "../components/atack_time";
-import { MeleeAttackCooldawnComponent } from "../components/melee_attack_cooldawn";
-import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent, MeleeDamageDamageComponent } from "../components/damage";
 import { CastMeleeDamageComponent,
          CastShadowDamageComponent } from "../components/cast";
 import { TargetAngleComponent } from "../components/target_angle";
@@ -30,6 +24,8 @@ import { SpeedComponent } from "../components/speed";
 import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
 import { SearchEnemiesSystem } from "./search_enemies"
 
+import { BuffShiftCooldawnComponent } from "../skills/buffs";
+
 import { external_entity_finish_shift,
          external_entity_start_cooldawn,
          external_entity_finish_melee_attack,
@@ -37,6 +33,14 @@ import { external_entity_finish_shift,
          external_entity_finish_stun,
          external_entity_finish_hide,
          external_entity_switch_hide } from "../../external";
+import { clear_state_components, interrupt_to_iddle } from "../states";
+
+import { apply_melee_attack,
+         apply_hide,
+         apply_shadow_attack } from "../skills/apply";
+
+import { command_init_attack, 
+         try_start_attack } from "../commands";
 
 // several systems from this file controll the switch between different states of entitites
 // this system controlls when the actor comes to the finall target point
@@ -205,67 +209,17 @@ export class CastSwitchSystem extends System {
                     // we should apply post cast action, delete cast action component and switch to the iddle state
                     if (cast_type == CAST_ACTION.MELEE_ATTACK) {
                         external_entity_finish_melee_attack(entity, false);
-                        const cast_melee: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
-                        const cast_target = cast_melee ? cast_melee.target() : 0;
-                        let cast_target_correct = cast_melee ? true : false;
-                        if (cast_melee) {
-                            const target_position: PositionComponent | null = this.get_component<PositionComponent>(cast_target);
-                            if (target_position) {
-                                // find direction to the target
-                                let to_target_x = target_position.x() - position_x;
-                                let to_target_y = target_position.y() - position_y;
-                                // normalize
-                                const to_target_length = Mathf.sqrt(to_target_x * to_target_x + to_target_y * to_target_y);
-                                if (to_target_length > EPSILON) {
-                                    to_target_x /= to_target_length;
-                                    to_target_y /= to_target_length;
-                                }
-
-                                const melee_damage = cast_melee.damage();
-                                const melee_spread = cast_melee.spread();
-                                const melee_distance = cast_melee.distance();
-                                const spread_limit = Mathf.cos(melee_spread / 2.0);
-                                // we should find all close entities
-                                // for melee attack we get entities from current attacker position
-                                const closed_entities = tracking_system.get_items_from_position(position_x, position_y);
-                                for (let j = 0, j_len = closed_entities.length; j < j_len; j++) {
-                                    const neigh_entity = closed_entities[j];
-                                    if (neigh_entity != entity) {
-                                        const neigh_entity_position: PositionComponent | null = this.get_component<PositionComponent>(neigh_entity);
-                                        const neigh_entity_radius: RadiusComponent | null = this.get_component<RadiusComponent>(neigh_entity);
-                                        if (neigh_entity_position && neigh_entity_radius) {
-                                            const neigh_entity_radius_value = neigh_entity_radius.value();
-                                            // find to entity vector
-                                            let to_x = neigh_entity_position.x() - position_x;
-                                            let to_y = neigh_entity_position.y() - position_y;
-                                            // normalize
-                                            const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
-                                            if (to_length > EPSILON) {
-                                                to_x /= to_length;
-                                                to_y /= to_length;
-                                            }
-
-                                            // calculate dot-product between to target and to entity vectors
-                                            const to_entity_dot = to_x * to_target_x + to_y * to_target_y;
-                                            // if this product is greater than cos(spread / 2), then entity in the cone
-                                            if ((to_entity_dot >= spread_limit) && (to_length <= melee_distance + neigh_entity_radius_value)) {
-                                                // entity inside the cone
-                                                // add damage component
-                                                const neigh_entity_damage: ApplyDamageComponent | null = this.get_component<ApplyDamageComponent>(neigh_entity);
-                                                if (neigh_entity_damage) {
-                                                    neigh_entity_damage.extend(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration);
-                                                } else {
-                                                    this.add_component<ApplyDamageComponent>(neigh_entity, new ApplyDamageComponent(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
+                        
+                        apply_melee_attack(local_ecs, entity, cast_duration, tracking_system);
                         // remove cast melee damage component
                         // it should exists
+                        const cast_melee: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
+                        let cast_target = 0;
+                        let is_cast_correct = false;
+                        if (cast_melee) {
+                            cast_target = cast_melee.target();
+                            is_cast_correct = true;
+                        }
                         this.remove_component<CastMeleeDamageComponent>(entity);
 
                         // turn to iddle state
@@ -274,7 +228,8 @@ export class CastSwitchSystem extends System {
 
                         // repeat the same action
                         const ecs = this.get_ecs();
-                        if (cast_target_correct && ecs) {
+                        
+                        if (ecs && is_cast_correct) {
                             const local_navmesh = this.m_navmesh;
                             // TODO: in this case we can start attack even if the target entity is dead
                             // but with cooldawns it is not the case
@@ -287,67 +242,15 @@ export class CastSwitchSystem extends System {
                         external_entity_finish_hide(entity, false);
 
                         // make after cast action
-                        const hide_mode: HideModeComponent | null = this.get_component<HideModeComponent>(entity);
-                        if (hide_mode) {
-                            hide_mode.activate();
-
-                            // remove this entity from the enemies list for all search enemies
-                            // also if it contains active target action, then reset it
-                            const search_entities = local_ecs.get_entities<SearchEnemiesSystem>();
-                            for (let i = 0, len = search_entities.length; i < len; i++) {
-                                const search_entity = search_entities[i];
-                                const search_list = this.get_component<EnemiesListComponent>(search_entity);
-                                const target_action = this.get_component<TargetActionComponent>(search_entity);
-                                if (search_list && target_action) {
-                                    search_list.remove_target(entity);
-
-                                    const action_type = target_action.type();
-                                    const action_entity = target_action.entity();
-                                    if (action_entity == entity && action_type != TARGET_ACTION.NONE) {
-                                        target_action.reset();
-                                    }
-                                }
-                            }
-
-                            // change the move speed
-                            const speed_multiplier = hide_mode.speed_multiplier();
-                            const speed: SpeedComponent | null = this.get_component<SpeedComponent>(entity);
-                            if (speed) {
-                                const speed_value = speed.value();
-                                speed.set_value(speed_value * speed_multiplier);
-                            }
-
-                            external_entity_switch_hide(entity, true);
-                        }
+                        apply_hide(local_ecs, entity);
 
                         clear_state_components(local_ecs, STATE.CASTING, entity);
                         state.set_state(STATE.IDDLE);
                     } else if (cast_type == CAST_ACTION.SHADOW_ATTACK) {
                         external_entity_finish_shadow_attack(entity, false);
-                        const cast_shadow: CastShadowDamageComponent | null = this.get_component<CastShadowDamageComponent>(entity);
-                        if (cast_shadow) {
-                            const target_entity = cast_shadow.target();
-                            const damage_distance = cast_shadow.distance();
 
-                            const target_position = this.get_component<PositionComponent>(target_entity);
-                            const target_radius = this.get_component<RadiusComponent>(target_entity);
-                            if (target_position && target_radius) {
-                                const target_pos_x = target_position.x();
-                                const target_pos_y = target_position.y();
-                                const d = distance(position_x, position_y, target_pos_x, target_pos_y);
+                        apply_shadow_attack(local_ecs, entity);
 
-                                if (d < damage_distance + target_radius.value()) {
-                                    const target_apply_damage: ApplyDamageComponent | null = this.get_component<ApplyDamageComponent>(target_entity);
-                                    if (target_apply_damage) {
-                                        target_apply_damage.extend(entity, 0, DAMAGE_TYPE.ULTIMATE, 0.0);
-                                    } else {
-                                        this.add_component<ApplyDamageComponent>(target_entity, new ApplyDamageComponent(entity, 0, DAMAGE_TYPE.ULTIMATE, 0.0));
-                                    }
-                                }
-                            }
-
-                            this.remove_component<CastShadowDamageComponent>(entity);
-                        }
                         // turn to iddle state
                         clear_state_components(local_ecs, STATE.CASTING, entity);
                         state.set_state(STATE.IDDLE);

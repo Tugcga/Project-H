@@ -13,11 +13,10 @@ import { TargetAngleComponent } from "../components/target_angle";
 import { PositionComponent } from "../components/position";
 import { TeamComponent } from "../components/team";
 
-import { interrupt_to_iddle,
-         command_stun,
-         command_entity_unhide } from "../ecs_setup";
 import { external_entity_dead,
          external_entity_damaged } from "../../external";
+import { command_entity_unhide, command_stun } from "../commands";
+import { interrupt_to_iddle } from "../states";
 
 export class ApplyDamageSystem extends System {
     private m_melee_stun: f32;  // default value for stun if interrupt melee attack

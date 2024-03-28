@@ -21,23 +21,13 @@ import { external_define_level,
 import { setup_components, 
          setup_systems, 
          setup_player, 
-         setup_monster,
-         command_move_to_point,
-         command_init_attack,
-         command_shift,
-         command_activate_shield,
-         command_release_shield,
-         command_stun,
-         command_toggle_hide_mode } from "./game/ecs_setup";
+         setup_monster,} from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
 import { RadiusSelectComponent } from "./game/components/radius";
 import { SpeedComponent } from "./game/components/speed";
 import { ActorTypeComponent } from "./game/components/actor_type";
-import { TargetActionComponent } from "./game/components/target_action";
 import { LifeComponent } from "./game/components/life";
-import { ShieldComponent } from "./game/components/shield";
-import { UpdateToClientComponent } from "./game/components/update_to_client";
 import { ApplyDamageComponent } from "./game/components/apply_damage";
 import { StateComponent } from "./game/components/state"
 import { TeamComponent } from "./game/components/team";
@@ -46,6 +36,14 @@ import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
 import { NeighborhoodQuadGridTrackingSystem } from "./game/systems/neighborhood_quad_grid_tracking";
 import { RVOSystem } from "./game/systems/rvo";
+
+import { command_activate_shield, 
+         command_init_attack, 
+         command_move_to_point, 
+         command_release_shield, 
+         command_shift, 
+         command_stun, 
+         command_toggle_hide_mode } from "./game/commands";
 
 export class Game {
     private ecs: ECS | null = null;

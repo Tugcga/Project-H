@@ -12,9 +12,7 @@ import { StateComponent } from "../components/state";
 import { EnemiesListComponent } from "../components/enemies_list";
 import { PositionComponent } from "../components/position";
 import { BehaviourComponent } from "../components/behaviour";
-
-import { command_init_attack,
-         command_move_to_point } from "../ecs_setup";
+import { command_init_attack, command_move_to_point } from "../commands";
 
 export class BehaviourSystem extends System {
     private m_to_delete_buffer: List<u32>;  // store here indices in the enemies list which should be delete from it (when the entity is dead, for example)
@@ -42,7 +40,7 @@ export class BehaviourSystem extends System {
         const local_random = this.m_random;
         const local_iddle_wait_min = this.m_iddle_wait_min;
         const local_iddle_wait_max = this.m_iddle_wait_max;
-        const local_radom_walk_radius = this.m_random_walk_radius;
+        const local_random_walk_radius = this.m_random_walk_radius;
 
         if (local_ecs) {
             const entities = this.entities();
@@ -102,8 +100,8 @@ export class BehaviourSystem extends System {
                                     if (!update_result) {
                                         // update is false, it means that the time is over
                                         // select random target point
-                                        const point_x = <f32>local_random.next_float(pos_x - local_radom_walk_radius, pos_x + local_radom_walk_radius);
-                                        const point_y = <f32>local_random.next_float(pos_y - local_radom_walk_radius, pos_y + local_radom_walk_radius);
+                                        const point_x = <f32>local_random.next_float(pos_x - local_random_walk_radius, pos_x + local_random_walk_radius);
+                                        const point_y = <f32>local_random.next_float(pos_y - local_random_walk_radius, pos_y + local_random_walk_radius);
                                         const is_define_path = command_move_to_point(local_ecs, local_navmesh, entity, point_x, point_y);
                                         if (!is_define_path) {
                                             // fail to create the path
