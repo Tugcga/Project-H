@@ -53,7 +53,7 @@ export class ApplyDamageSystem extends System {
                         // iterate throw damages
                         for (let j: u32 = 0, j_len: u32 = damage.count(); j < j_len; j++) {
                             const damage_attacker = damage.attacker(j);
-                            const damage_value = damage.damage(j);
+                            let damage_value = damage.damage(j);
                             const damage_type = damage.type(j);
                             const damage_duration = damage.duration(j);  // the of the cast for this damage
 
@@ -68,48 +68,55 @@ export class ApplyDamageSystem extends System {
                             // if current entity not the friend of the attacker
                             // or attacker team is not valid
                             // or damage is unknown type (used for debug, for example), then apply damage
+                            let damage_value_f32: f32 = 0.0;
 
-                            let damage_value_f32 = <f32>damage_value;
-                            if (state_value == STATE.SHIELD) {
-                                const shield_state: StateShieldComponent | null = this.get_component<StateShieldComponent>(entity);
-                                if (shield_state) {
-                                    // at first apply damage to the shield
-                                    const shield_value = shield.shield();  // this is f32 value
-                                    shield.damage(damage_value_f32);
-                                    if (shield_value <= damage_value_f32) {
-                                        damage_value_f32 -= shield_value;
-                                    } else {
-                                        damage_value_f32 = 0.0;
-                                    }
-
-                                    // if shield time is less than cast attack time, then interrupt the attacker and set stun state
-                                    // the behaviour is different for different type of attacks
-                                    // interruption for melee attack only
-                                    const shield_time = shield_state.time();
-                                    if (damage_type == DAMAGE_TYPE.MELEE) {
-                                        if (shield_time < damage_duration) {
-                                            command_stun(local_ecs, damage_attacker, local_melee_stun);
+                            if (damage_type == DAMAGE_TYPE.ULTIMATE) {
+                                // simply damage all remain life
+                                damage_value = life.life();
+                                life.damage(life.life());
+                            } else {
+                                damage_value_f32 = <f32>damage_value;
+                                if (state_value == STATE.SHIELD) {
+                                    const shield_state: StateShieldComponent | null = this.get_component<StateShieldComponent>(entity);
+                                    if (shield_state) {
+                                        // at first apply damage to the shield
+                                        const shield_value = shield.shield();  // this is f32 value
+                                        shield.damage(damage_value_f32);
+                                        if (shield_value <= damage_value_f32) {
+                                            damage_value_f32 -= shield_value;
+                                        } else {
+                                            damage_value_f32 = 0.0;
                                         }
-                                    }
 
-                                    if (shield.is_over()) {
-                                        // turn the entity to the iddle state
-                                        const is_iddle = interrupt_to_iddle(local_ecs, entity, state);
-                                    }
-
-                                    // rotate entity to attacker
-                                    const attacker_position: PositionComponent | null = this.get_component<PositionComponent>(damage_attacker);
-                                    if (attacker_position) {
-                                        let to_x = attacker_position.x() - position.x();
-                                        let to_y = attacker_position.y() - position.y();
-                                        const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
-                                        if (to_length > EPSILON) {
-                                            to_x /= to_length;
-                                            to_y /= to_length;
-                                            target_angle.set_value(direction_to_angle(to_x, to_y));
+                                        // if shield time is less than cast attack time, then interrupt the attacker and set stun state
+                                        // the behaviour is different for different type of attacks
+                                        // interruption for melee attack only
+                                        const shield_time = shield_state.time();
+                                        if (damage_type == DAMAGE_TYPE.MELEE) {
+                                            if (shield_time < damage_duration) {
+                                                command_stun(local_ecs, damage_attacker, local_melee_stun);
+                                            }
                                         }
-                                    }
 
+                                        if (shield.is_over()) {
+                                            // turn the entity to the iddle state
+                                            const is_iddle = interrupt_to_iddle(local_ecs, entity, state);
+                                        }
+
+                                        // rotate entity to attacker
+                                        const attacker_position: PositionComponent | null = this.get_component<PositionComponent>(damage_attacker);
+                                        if (attacker_position) {
+                                            let to_x = attacker_position.x() - position.x();
+                                            let to_y = attacker_position.y() - position.y();
+                                            const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+                                            if (to_length > EPSILON) {
+                                                to_x /= to_length;
+                                                to_y /= to_length;
+                                                target_angle.set_value(direction_to_angle(to_x, to_y));
+                                            }
+                                        }
+
+                                    }
                                 }
                             }
 

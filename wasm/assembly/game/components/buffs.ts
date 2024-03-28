@@ -25,3 +25,5 @@ export class BuffShiftCooldawnComponent extends BuffCooldawn {}
 export class BuffMeleeAttackCooldawnComponent extends BuffCooldawn {}
 
 export class BuffHideCooldawnComponent extends BuffCooldawn {}
+
+export class BuffShadowAttackCooldawnComponent extends BuffCooldawn {}

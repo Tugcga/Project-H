@@ -76,6 +76,8 @@ export abstract class ClientBase {
     abstract scene_entity_release_shield(entity: number): void;
     abstract scene_entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number): void;
     abstract scene_entity_finish_melee_attack(entity: number): void;
+    abstract scene_entity_start_shadow_attack(entity: number, time: number, damage_distance: number): void;
+    abstract scene_entity_finish_shadow_attack(entity: number): void;
     abstract scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void;
     abstract scene_click_entity(entity: number, action_id: TARGET_ACTION): void;
     abstract scene_click_position(pos_x: number, pos_y: number): void;
@@ -119,6 +121,8 @@ export abstract class ClientBase {
             entity_release_shield: this.entity_release_shield.bind(this),
             entity_start_melee_attack: this.entity_start_melee_attack.bind(this),
             entity_finish_melee_attack: this.entity_finish_melee_attack.bind(this),
+            entity_start_shadow_attack: this.entity_start_shadow_attack.bind(this),
+            entity_finish_shadow_attack: this.entity_finish_shadow_attack.bind(this),
             entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
             entity_start_stun: this.entity_start_stun.bind(this),
             entity_finish_stun: this.entity_finish_stun.bind(this),
@@ -251,7 +255,7 @@ export abstract class ClientBase {
                 module.settings_set_velocity_boundary_control(settings_ptr, true);
                 // setup game items default parameters
                 module.settings_set_player_fast_shift(settings_ptr, 2.0, 5.0, 0.5);
-                module.settings_set_monster_iddle_time(settings_ptr, 1.0, 2.0);
+                module.settings_set_monster_iddle_time(settings_ptr, 1000.0, 2000.0);
                 module.settings_set_monsters_per_room(settings_ptr, 0, 0);  // no random monsters
                 module.settings_set_player_melee_attack(settings_ptr, 1.25,  // attack distance
                                                                       0.75,  // how long attack cast
@@ -692,6 +696,16 @@ export abstract class ClientBase {
     entity_finish_melee_attack(entity: number, interrupt: boolean) {
         this.m_scene.entity_finish_melee_attack(entity);
         this.scene_entity_finish_melee_attack(entity);
+    }
+
+    entity_start_shadow_attack(entity: number, time: number, damage_distance: number) {
+        this.m_scene.entity_start_shadow_attack(entity, time, damage_distance);
+        this.scene_entity_start_shadow_attack(entity, time, damage_distance);
+    }
+
+    entity_finish_shadow_attack(entity: number, interrupt: boolean) {
+        this.m_scene.entity_finish_shadow_attack(entity);
+        this.scene_entity_finish_shadow_attack(entity);
     }
 
     entity_start_cooldawn(entity: number, cooldawn_id: number, cooldawn_time: number) {

@@ -36,6 +36,10 @@ export class EffectsCollection {
         this.add_effect(entity, new MeleeAttackEffect(time, distance, spread));
     }
 
+    add_shadow_attack(entity: number, time: number, distance: number) {
+        this.add_effect(entity, new ShadowAttackEffect(time, distance));
+    }
+
     add_stun(entity: number, duration: number) {
         this.add_effect(entity, new StunEffect(duration));
     }
@@ -46,6 +50,10 @@ export class EffectsCollection {
 
     remove_melee_attack(entity: number) {
         this.remove_by_type(entity, EFFECT.MELEE_ATTACK);
+    }
+
+    remove_shadow_attack(entity: number) {
+        this.remove_by_type(entity, EFFECT.SHADOW_ATTACK);
     }
 
     remove_stun(entity: number) {
@@ -131,6 +139,21 @@ export class MeleeAttackEffect extends EffectBase {
 
     spread(): number {
         return this.m_spread;
+    }
+}
+
+export class ShadowAttackEffect extends EffectBase {
+    private m_distance: number;
+
+    constructor(in_total_time: number,
+                in_distance: number) {
+        super(in_total_time, EFFECT.SHADOW_ATTACK);
+
+        this.m_distance = in_distance;
+    }
+
+    distance(): number {
+        return this.m_distance;
     }
 }
 

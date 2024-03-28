@@ -48,12 +48,10 @@ export class WalkToPointSystem extends System {
                 if ((target_action_type == TARGET_ACTION.NONE && spend_time > recalculate_time) ||
                     (target_action_type != TARGET_ACTION.NONE && spend_time > recalculate_target_time)) {
                     // update the path of the entity
-                    const poins_count = walk_to_point.path_points_count();
-                    const path = walk_to_point.path_points();
                     const curent_x = position.x();
                     const curent_y = position.y();
-                    let final_target_x = path[3 * (poins_count - 1)];
-                    let final_target_y = path[3 * (poins_count - 1) + 2];
+                    let final_target_x = position.x();
+                    let final_target_y = position.y();
 
                     if (target_action_type != TARGET_ACTION.NONE) {
                         // there is a target
@@ -64,6 +62,11 @@ export class WalkToPointSystem extends System {
                             final_target_x = target_position.x();
                             final_target_y = target_position.y();
                         }
+                    } else {
+                        const path = walk_to_point.path_points();
+                        const path_values_count = path.length;
+                        final_target_x = path[path_values_count - 3];
+                        final_target_y = path[path_values_count - 1];
                     }
 
                     const new_path = get_navmesh_path(navmesh, curent_x, curent_y, final_target_x, final_target_y);

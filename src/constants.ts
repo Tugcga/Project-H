@@ -20,6 +20,7 @@ export enum EFFECT {
     MELEE_ATTACK,
     STUN,
     HIDE_ACTIVATION,
+    SHADOW_ATTACK
 }
 
 // the same as in wasm-side
@@ -37,11 +38,13 @@ export enum TARGET_ACTION {
 export enum COOLDAWN {
     SHIFT,
     MELEE_ATTACK,
-    HIDE,
+    HIDE_ACTIVATION,
+    SHADOW_ATTACK
 }
 
 export enum DAMAGE_TYPE {
     UNKNOWN,
     MELEE,
-    RANGE
+    RANGE,
+    ULTIMATE,
 }

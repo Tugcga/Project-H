@@ -29,3 +29,21 @@ export class CastMeleeDamageComponent {
         return this.m_damage;
     }
 }
+
+export class CastShadowDamageComponent {
+    private m_target: Entity;
+    private m_distance: f32;
+
+    constructor(in_target: Entity, in_distance: f32) {
+        this.m_target = in_target;
+        this.m_distance = in_distance;
+    }
+
+    target(): Entity {
+        return this.m_target;
+    }
+
+    distance(): f32 {
+        return this.m_distance;
+    }
+}

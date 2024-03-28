@@ -56,6 +56,12 @@ declare function entity_start_melee_attack(entity: u32, time: f32, damage_distan
 @external("env", "host.entity_finish_melee_attack")
 declare function entity_finish_melee_attack(entity: u32, interrupt: bool): void;
 
+@external("env", "host.entity_start_shadow_attack")
+declare function entity_start_shadow_attack(entity: u32, time: f32, damage_distance: f32): void;
+
+@external("env", "host.entity_finish_shadow_attack")
+declare function entity_finish_shadow_attack(entity: u32, interrupt: bool): void;
+
 @external("env", "host.entity_start_cooldawn")
 declare function entity_start_cooldawn(entity: u32, cooldawn_id: u32, cooldawn_time: f32): void;
 
@@ -255,6 +261,22 @@ export function external_entity_finish_melee_attack(entity: u32, interrupt: bool
         entity_finish_melee_attack(entity, interrupt);
     } else {
         console.log("ext -> entity_finish_melee_attack: " + entity.toString() + " interrupt " + interrupt.toString());
+    }
+}
+
+export function external_entity_start_shadow_attack(entity: u32, time: f32, damage_distance: f32): void {
+    if (use_external) {
+        entity_start_shadow_attack(entity, time, damage_distance);
+    } else {
+        console.log("ext -> entity_start_shadow_attack: " + entity.toString() + " time " + time.toString() + " distance " + damage_distance.toString());
+    }
+}
+
+export function external_entity_finish_shadow_attack(entity: u32, interrupt: bool): void {
+    if (use_external) {
+        entity_finish_shadow_attack(entity, interrupt);
+    } else {
+        console.log("ext -> entity_finish_shadow_attack: " + entity.toString() + " interrupt " + interrupt.toString());
     }
 }
 

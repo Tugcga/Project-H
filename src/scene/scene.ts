@@ -389,6 +389,14 @@ export class Scene {
         this.m_effects.remove_melee_attack(entity);
     }
 
+    entity_start_shadow_attack(entity: number, time: number, damage_distance: number) {
+        this.m_effects.add_shadow_attack(entity, time, damage_distance);
+    }
+
+    entity_finish_shadow_attack(entity: number) {
+        this.m_effects.remove_shadow_attack(entity);
+    }
+
     entity_start_stun(id: number, duration: number) {
         if (id == this.m_player_id) {
             this.m_click_cursor.deactivate_enemy_select();

@@ -5,7 +5,7 @@ import { Entity } from "../../simple_ecs/types";
 import { ECS } from "../../simple_ecs/simple_ecs";
 import { EPSILON, STATE, ACTOR, COOLDAWN, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, DAMAGE_TYPE } from "../constants";
 import { direction_to_angle, get_navmesh_path, distance } from "../utilities";
-import { try_start_melee_attack, clear_state_components, command_init_attack, interrupt_to_iddle, command_move_to_point } from "../ecs_setup";
+import { try_start_attack, clear_state_components, command_init_attack, interrupt_to_iddle, command_move_to_point } from "../ecs_setup";
 
 import { ActorTypeComponent } from "../components/actor_type";
 import { StateComponent, StateWalkToPointComponent, StateShiftComponent, StateCastComponent, StateStunComponent } from "../components/state";
@@ -18,7 +18,8 @@ import { AtackDistanceComponent } from "../components/atack_distance";
 import { AtackTimeComponent } from "../components/atack_time";
 import { MeleeAttackCooldawnComponent } from "../components/melee_attack_cooldawn";
 import { MeleeDamageDistanceComponent, MeleeDamageSpreadComponent, MeleeDamageDamageComponent } from "../components/damage";
-import { CastMeleeDamageComponent } from "../components/cast";
+import { CastMeleeDamageComponent,
+         CastShadowDamageComponent } from "../components/cast";
 import { TargetAngleComponent } from "../components/target_angle";
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
 import { ApplyDamageComponent } from "../components/apply_damage";
@@ -32,6 +33,7 @@ import { SearchEnemiesSystem } from "./search_enemies"
 import { external_entity_finish_shift,
          external_entity_start_cooldawn,
          external_entity_finish_melee_attack,
+         external_entity_finish_shadow_attack,
          external_entity_finish_stun,
          external_entity_finish_hide,
          external_entity_switch_hide } from "../../external";
@@ -46,28 +48,18 @@ export class WalkToPointSwitchSystem extends System {
             const entity: Entity = entities[i];
 
             const walk_to_point: StateWalkToPointComponent | null = this.get_component<StateWalkToPointComponent>(entity);
-            const actor_type: ActorTypeComponent | null = this.get_component<ActorTypeComponent>(entity);
             const state: StateComponent | null = this.get_component<StateComponent>(entity);
-            const attack_distance: AtackDistanceComponent | null = this.get_component<AtackDistanceComponent>(entity);
-            const attack_time: AtackTimeComponent | null = this.get_component<AtackTimeComponent>(entity);
             const entity_target_action: TargetActionComponent | null = this.get_component<TargetActionComponent>(entity);
-            const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
             const pref_velocity: PreferredVelocityComponent | null = this.get_component<PreferredVelocityComponent>(entity);
             
-            const damage_distance: MeleeDamageDistanceComponent | null = this.get_component<MeleeDamageDistanceComponent>(entity);
-            const damage_spread: MeleeDamageSpreadComponent | null = this.get_component<MeleeDamageSpreadComponent>(entity);
-            const damage_damage: MeleeDamageDamageComponent | null = this.get_component<MeleeDamageDamageComponent>(entity);
-
-            if (pref_velocity && walk_to_point && actor_type && state && entity_target_action && position && attack_distance && attack_time && damage_distance && damage_spread && damage_damage) {
-                if (entity_target_action.type() == TARGET_ACTION.ATACK) {
+            if (pref_velocity && walk_to_point && state && entity_target_action) {
+                if (entity_target_action.type() == TARGET_ACTION.ATTACK) {
                     const local_ecs: ECS | null = this.get_ecs();
                     const target_entity: Entity = entity_target_action.entity();
 
-                    const target_position: PositionComponent | null = this.get_component<PositionComponent>(target_entity);
-                    const target_radius: RadiusComponent | null = this.get_component<RadiusComponent>(target_entity);
                     const target_state: StateComponent | null = this.get_component<StateComponent>(target_entity);
 
-                    if (local_ecs && target_position && target_radius && target_state) {
+                    if (local_ecs && target_state) {
                         const target_state_value = target_state.state();
                         if (target_state_value == STATE.DEAD) {
                             // target is dead
@@ -76,24 +68,13 @@ export class WalkToPointSwitchSystem extends System {
                             pref_velocity.set(0.0, 0.0);
                         } else {
                             const prev_state_value = state.state();
-                            const melee_status = try_start_melee_attack(local_ecs, entity, target_entity,
-                                                                        position,
-                                                                        attack_distance,
-                                                                        attack_time,
-                                                                        damage_damage,
-                                                                        damage_distance,
-                                                                        damage_spread,
-                                                                        state,
-                                                                        entity_target_action,
-                                                                        target_position,
-                                                                        target_radius,
-                                                                        target_state);
-                            if (melee_status == START_CAST_STATUS.OK) {
+                            const attack_status = try_start_attack(local_ecs, entity, target_entity);
+                            if (attack_status == START_CAST_STATUS.OK) {
                                 pref_velocity.set(0.0, 0.0);
                                 clear_state_components(local_ecs, prev_state_value, entity);
                             } else {
                                 // there are several reasons to fial the cast start
-                                if(melee_status == START_CAST_STATUS.FAIL_COOLDAWN) {
+                                if(attack_status == START_CAST_STATUS.FAIL_COOLDAWN) {
                                     // distance is ok, but the cast is not ready
                                     // wait at place, reset the velocity
                                     pref_velocity.set(0.0, 0.0);
@@ -150,6 +131,24 @@ export class ShiftSwitchSystem extends System {
     }
 }
 
+function allign_to_target(ecs: ECS, entity: Entity, target_entity: Entity, position_x: f32, position_y: f32, target_angle: TargetAngleComponent): void {
+    if (target_entity != entity) {
+        // get position of the target entity
+        const target_position: PositionComponent | null = ecs.get_component<PositionComponent>(target_entity);
+        if (target_position) {
+            let dir_x = target_position.x() - position_x;
+            let dir_y = target_position.y() - position_y;
+            const dir_length = Mathf.sqrt(dir_x * dir_x + dir_y * dir_y);
+            if (dir_length > EPSILON) {
+                dir_x /= dir_length;
+                dir_y /= dir_length;
+                // define target angle
+                target_angle.set_value(direction_to_angle(dir_x, dir_y));
+            }
+        }
+    }
+}
+
 export class CastSwitchSystem extends System {
     private m_navmesh: Navmesh;  // used to call attack after cast is finish
     private m_tracking_system: NeighborhoodQuadGridTrackingSystem;
@@ -184,27 +183,19 @@ export class CastSwitchSystem extends System {
                 const cast_type = cast.type();
 
                 // with respect of the cast type we should rotate the entity to the target
-                if (cast_type == CAST_ACTION.MELEE_ATACK) {
+                if (cast_type == CAST_ACTION.MELEE_ATTACK) {
                     // rotate to the target
                     // target is stored in CastMeleeDamageComponent
                     const cast_damage: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
                     if (cast_damage) {
                         const target_entity = cast_damage.target();
-                        if (target_entity != entity) {
-                            // get position of the target entity
-                            const target_position: PositionComponent | null = this.get_component<PositionComponent>(target_entity);
-                            if (target_position) {
-                                let dir_x = target_position.x() - position_x;
-                                let dir_y = target_position.y() - position_y;
-                                const dir_length = Mathf.sqrt(dir_x * dir_x + dir_y * dir_y);
-                                if (dir_length > EPSILON) {
-                                    dir_x /= dir_length;
-                                    dir_y /= dir_length;
-                                    // define target angle
-                                    target_angle.set_value(direction_to_angle(dir_x, dir_y));
-                                }
-                            }
-                        }
+                        allign_to_target(local_ecs, entity, target_entity, position_x, position_y, target_angle);
+                    }
+                } else if (cast_type == CAST_ACTION.SHADOW_ATTACK) {
+                    const cast_damage: CastShadowDamageComponent | null = this.get_component<CastShadowDamageComponent>(entity);
+                    if (cast_damage) {
+                        const target_entity = cast_damage.target();
+                        allign_to_target(local_ecs, entity, target_entity, position_x, position_y, target_angle);
                     }
                 }
 
@@ -212,7 +203,7 @@ export class CastSwitchSystem extends System {
                     // cast is finish
                     const cast_duration = cast.time_length();
                     // we should apply post cast action, delete cast action component and switch to the iddle state
-                    if (cast_type == CAST_ACTION.MELEE_ATACK) {
+                    if (cast_type == CAST_ACTION.MELEE_ATTACK) {
                         external_entity_finish_melee_attack(entity, false);
                         const cast_melee: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
                         const cast_target = cast_melee ? cast_melee.target() : 0;
@@ -329,6 +320,35 @@ export class CastSwitchSystem extends System {
                             external_entity_switch_hide(entity, true);
                         }
 
+                        clear_state_components(local_ecs, STATE.CASTING, entity);
+                        state.set_state(STATE.IDDLE);
+                    } else if (cast_type == CAST_ACTION.SHADOW_ATTACK) {
+                        external_entity_finish_shadow_attack(entity, false);
+                        const cast_shadow: CastShadowDamageComponent | null = this.get_component<CastShadowDamageComponent>(entity);
+                        if (cast_shadow) {
+                            const target_entity = cast_shadow.target();
+                            const damage_distance = cast_shadow.distance();
+
+                            const target_position = this.get_component<PositionComponent>(target_entity);
+                            const target_radius = this.get_component<RadiusComponent>(target_entity);
+                            if (target_position && target_radius) {
+                                const target_pos_x = target_position.x();
+                                const target_pos_y = target_position.y();
+                                const d = distance(position_x, position_y, target_pos_x, target_pos_y);
+
+                                if (d < damage_distance + target_radius.value()) {
+                                    const target_apply_damage: ApplyDamageComponent | null = this.get_component<ApplyDamageComponent>(target_entity);
+                                    if (target_apply_damage) {
+                                        target_apply_damage.extend(entity, 0, DAMAGE_TYPE.ULTIMATE, 0.0);
+                                    } else {
+                                        this.add_component<ApplyDamageComponent>(target_entity, new ApplyDamageComponent(entity, 0, DAMAGE_TYPE.ULTIMATE, 0.0));
+                                    }
+                                }
+                            }
+
+                            this.remove_component<CastShadowDamageComponent>(entity);
+                        }
+                        // turn to iddle state
                         clear_state_components(local_ecs, STATE.CASTING, entity);
                         state.set_state(STATE.IDDLE);
                     } else {

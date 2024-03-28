@@ -25,26 +25,36 @@ export enum MOVE_STATUS {
 export enum COOLDAWN {
     SHIFT,
     MELEE_ATTACK,
-    HIDE,
+    HIDE_ACTIVATION,
+    SHADOW_ATTACK,
 }
 
 // this enum used to define the action at the end of user click
 export enum TARGET_ACTION {
     NONE,
-    ATACK,
+    ATTACK,
+}
+
+// what type of the target point
+export enum TARGET_ACTION_TYPE {
+    NONE,  // target is not required
+    ENTITY,  // target is entity
+    POSITION,  // target is position
 }
 
 // this enum define the type of cast
 export enum CAST_ACTION {
-    MELEE_ATACK,
-    RANGE_ATACK,
+    MELEE_ATTACK,
+    RANGE_ATTACK,
     HIDE_ACTIVATION,
+    SHADOW_ATTACK
 }
 
 export enum DAMAGE_TYPE {
     UNKNOWN,
     MELEE,
-    RANGE
+    RANGE,
+    ULTIMATE,  // infinite value without any protection
 }
 
 export enum START_CAST_STATUS {
@@ -54,4 +64,10 @@ export enum START_CAST_STATUS {
     FAIL_DISTANCE,
     FAIL_WRONG_CAST,  // try to start wrong cast type
     FAIL_FORBIDDEN,  // when the entity already in cast state, or in state where we can not start the cast
+}
+
+export enum UPDATE_TARGET_ACTION_STATUS {
+    YES,
+    NO,
+    FORBIDDEN
 }

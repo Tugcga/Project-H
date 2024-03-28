@@ -68,8 +68,12 @@ export class ConstantsSettings {
     monster_melee_atack_cooldawn: f32 = 2.0;
     player_melee_damage_spread: f32 = 1.75;
     player_melee_damage_distance: f32 = 1.5;  // the size of the cone for melee damage
+    player_shadow_damage_distance: f32 = 1.5;
     monster_melee_damage_spread: f32 = 0.785;
     monster_melee_damage_distance: f32 = 0.5;
+    monster_shadow_damage_distance: f32 = 0.5;
+    player_shadow_attack_cooldawn: f32 = 2.0;
+    monster_shadow_attack_cooldawn: f32 = 2.0;
     player_melee_damage: u32 = 5;
     monster_melee_damage: u32 = 3;
     player_life: u32 = 24;

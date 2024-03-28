@@ -151,6 +151,10 @@ export function dev_game_spawn_monster(game: Game, radius: f32, position_x: f32,
                               search_radius, search_spread, team, friend_for_player);
 }
 
+export function dev_game_move_entity(game: Game, entity: u32, pos_x: f32, pos_y: f32): void {
+    game.dev_move_entity(entity, pos_x, pos_y);
+}
+
 export function create_game(settings: Settings): Game {
     return new Game(settings);
 }

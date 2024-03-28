@@ -113,6 +113,8 @@ export class Game {
         const player_melee_damage = local_constants.player_melee_damage;
         const player_melee_damage_distance = local_constants.player_melee_damage_distance;
         const player_melee_damage_spread = local_constants.player_melee_damage_spread;
+        const player_shadow_damage_distance = local_constants.player_shadow_damage_distance;
+        const player_shadow_attack_cooldawn = local_constants.player_shadow_attack_cooldawn;
         const player_life = local_constants.player_life;
         const player_shield = local_constants.player_shield;
         const player_shield_resurect = local_constants.player_shield_resurect;
@@ -168,6 +170,7 @@ export class Game {
             player_shift_distance,
             player_shift_cooldawn,
             player_melee_atack_cooldawn,
+            player_shadow_attack_cooldawn,
             player_radius, 
             start_angle, 
             player_rotation_speed, 
@@ -180,6 +183,7 @@ export class Game {
             player_melee_damage,
             player_melee_damage_distance,
             player_melee_damage_spread,
+            player_shadow_damage_distance,
             player_life,
             player_shield,
             player_shield_resurect,
@@ -292,7 +296,7 @@ export class Game {
                                     // try to start the action
                                     assign_target = command_init_attack(local_ecs, local_navmesh, player_entity, e);
                                     if (assign_target) {
-                                        external_click_entity(e, TARGET_ACTION.ATACK);
+                                        external_click_entity(e, TARGET_ACTION.ATTACK);
                                     }
                                 }
                             }
@@ -370,6 +374,8 @@ export class Game {
             const hide_speed_multiplier = local_constants.hide_speed_multiplier;
             const hide_cooldawn = local_constants.hide_cooldawn;
             const hide_activate_time = local_constants.hide_activate_time;
+            const monster_shadow_damage_distance = local_constants.monster_shadow_damage_distance;
+            const monster_shadow_attack_cooldawn = local_constants.monster_shadow_attack_cooldawn;
 
             const monster_entity = setup_monster(local_ecs, 
                                                  position_x, 
@@ -377,6 +383,7 @@ export class Game {
                                                  look_angle, 
                                                  move_speed, 
                                                  attack_cooldawn,
+                                                 monster_shadow_attack_cooldawn,
                                                  radius, 
                                                  monster_rotation_speed, 
                                                  <f32>local_level.width() * tile_size, 
@@ -388,6 +395,7 @@ export class Game {
                                                  damage,
                                                  damage_distance,
                                                  damage_spread,
+                                                 monster_shadow_damage_distance,
                                                  life,
                                                  shield,
                                                  monster_shield_resurect,
@@ -566,6 +574,23 @@ export class Game {
                             monster_team.extend(local_constants.player_default_team);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    dev_move_entity(entity: Entity, target_pos_x: f32, target_pos_y: f32): void {
+        const local_navmesh = this.navmesh;
+        const local_ecs = this.ecs;
+        if (local_navmesh && local_ecs) {
+            const sample = local_navmesh.sample(target_pos_x, 0.0, target_pos_y);
+            if (sample.length == 4 && sample[3] > 0.5) {
+                const pos_x = sample[0];
+                const pos_y = sample[2];
+
+                const position = local_ecs.get_component<PositionComponent>(entity);
+                if (position) {
+                    position.set(pos_x, pos_y);
                 }
             }
         }
