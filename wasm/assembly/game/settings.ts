@@ -179,6 +179,20 @@ export class ConstantsSettings {
     }
 }
 
+export class DefaultWeapons {
+    empty_weapon_attack_time: f32 = 1.5;
+    empty_weapon_attack_distance: f32 = 1.25;
+    empty_weapon_attack_cooldawn: f32 = 2.0;
+    empty_weapon_damage_distance: f32 = 1.5;
+    empty_weapon_damage: u32 = 1;
+    empty_weapon_shield: f32 = 1.0;
+
+    shadow_attack_time: f32 = 1.0;
+    shadow_attack_distance: f32 = 1.25;
+    shadow_attack_cooldawn: f32 = 2.0;
+    shadow_damage_distance: f32 = 1.5;
+}
+
 export class GenerateSettings {
     // the number of tiles in width and height
     level_size: u32;
@@ -235,6 +249,7 @@ export class Settings {
     seed: u32;
     generate: GenerateSettings;
     constants: ConstantsSettings;
+    defaul_weapons: DefaultWeapons;
     engine: EngineSettings;
     debug: DebugSettings;
 
@@ -242,6 +257,7 @@ export class Settings {
         this.seed = 1;
         this.generate = new GenerateSettings();
         this.constants = new ConstantsSettings();
+        this.defaul_weapons = new DefaultWeapons();
         this.engine = new EngineSettings();
         this.debug = new DebugSettings();
     }
@@ -261,6 +277,10 @@ export class Settings {
 
     get_constants(): ConstantsSettings {
         return this.constants;
+    }
+
+    get_default_weapons(): DefaultWeapons {
+        return this.defaul_weapons;
     }
 
     get_engine(): EngineSettings {

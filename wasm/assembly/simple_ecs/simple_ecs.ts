@@ -45,6 +45,11 @@ export class ECS {
         this.m_system_manager.entity_signature_changed(entity, signature);
     }
 
+    has_component<T>(entity: Entity): bool {
+        const component = this.get_component<T>(entity);
+        return component != null;
+    }
+
     get_component<T>(entity: Entity): T | null {
         return this.m_component_manager.get_component<T>(entity);
     }

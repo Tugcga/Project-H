@@ -1,4 +1,4 @@
-import { __Internref19, instantiate } from "../wasm/build/game_api";
+import { __Internref20, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
@@ -10,7 +10,7 @@ import { GameUI } from "./ui/ui";
 // it implement functionality for connecting between wasm module (the server) and client IO
 // particular graphic backend should use this base class
 export abstract class ClientBase {
-    m_game_ptr: __Internref19;
+    m_game_ptr: __Internref20;
     m_scene_canvas: HTMLCanvasElement;
     m_scene_ctx: CanvasRenderingContext2D;
 
@@ -76,6 +76,10 @@ export abstract class ClientBase {
     abstract scene_entity_release_shield(entity: number): void;
     abstract scene_entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number): void;
     abstract scene_entity_finish_melee_attack(entity: number): void;
+    abstract scene_entity_start_range_attack(entity: number, time: number): void;
+    abstract scene_entity_finish_range_attack(entity: number): void;
+    abstract scene_entity_start_hand_attack(entity: number, time: number, damage_distance: number): void;
+    abstract scene_entity_finish_hand_attack(entity: number): void;
     abstract scene_entity_start_shadow_attack(entity: number, time: number, damage_distance: number): void;
     abstract scene_entity_finish_shadow_attack(entity: number): void;
     abstract scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void;
@@ -121,6 +125,10 @@ export abstract class ClientBase {
             entity_release_shield: this.entity_release_shield.bind(this),
             entity_start_melee_attack: this.entity_start_melee_attack.bind(this),
             entity_finish_melee_attack: this.entity_finish_melee_attack.bind(this),
+            entity_start_range_attack: this.entity_start_range_attack.bind(this),
+            entity_finish_range_attack: this.entity_finish_range_attack.bind(this),
+            entity_start_hand_attack: this.entity_start_hand_attack.bind(this),
+            entity_finish_hand_attack: this.entity_finish_hand_attack.bind(this),
             entity_start_shadow_attack: this.entity_start_shadow_attack.bind(this),
             entity_finish_shadow_attack: this.entity_finish_shadow_attack.bind(this),
             entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
@@ -618,9 +626,10 @@ export abstract class ClientBase {
         this.scene_create_player(radius);
     }
 
-    update_entity_params(id: number, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number) {
+    update_entity_params(id: number, life: number, max_life: number, shield: number, max_shield: number, select_radius: number, attack_distance: number, attack_time: number) {
         this.m_scene.set_entity_attack_distance(id, attack_distance);
         this.m_scene.set_entity_life(id, life, max_life);
+        this.m_scene.set_entity_shield(id, shield, max_shield);
         this.m_scene.set_entity_attack_time(id, attack_time);
         this.m_scene.set_entity_select_radius(id, select_radius);
         this.scene_update_entity_params(id, life, max_life, select_radius, attack_distance, attack_time);
@@ -696,6 +705,26 @@ export abstract class ClientBase {
     entity_finish_melee_attack(entity: number, interrupt: boolean) {
         this.m_scene.entity_finish_melee_attack(entity);
         this.scene_entity_finish_melee_attack(entity);
+    }
+
+    entity_start_range_attack(entity: number, time: number) {
+        this.m_scene.entity_start_range_attack(entity, time);
+        this.scene_entity_start_range_attack(entity, time);
+    }
+
+    entity_finish_range_attack(entity: number, interrupt: boolean) {
+        this.m_scene.entity_finish_range_attack(entity);
+        this.scene_entity_finish_range_attack(entity);
+    }
+
+    entity_start_hand_attack(entity: number, time: number, damage_distance: number) {
+        this.m_scene.entity_start_hand_attack(entity, time, damage_distance);
+        this.scene_entity_start_hand_attack(entity, time, damage_distance);
+    }
+
+    entity_finish_hand_attack(entity: number, interrupt: boolean) {
+        this.m_scene.entity_finish_hand_attack(entity);
+        this.scene_entity_finish_hand_attack(entity);
     }
 
     entity_start_shadow_attack(entity: number, time: number, damage_distance: number) {

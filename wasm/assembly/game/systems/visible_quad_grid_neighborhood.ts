@@ -14,6 +14,7 @@ import { UpdateToClientComponent } from "../components/update_to_client";
 import { TeamComponent } from "../components/team";
 import { SpreadSearchComponent } from "../components/spread_search";
 import { LifeComponent } from "../components/life";
+import { ShieldComponent } from "../components/shield";
 import { AtackDistanceComponent } from "../components/atack_distance";
 import { AtackTimeComponent } from "../components/atack_time";
 
@@ -71,10 +72,11 @@ export class VisibleQuadGridNeighborhoodSystem extends System {
 
                     const e_select_radius = this.get_component<RadiusSelectComponent>(e);
                     const e_life = this.get_component<LifeComponent>(e);
+                    const e_shield = this.get_component<ShieldComponent>(e);
                     const e_attack_distance = this.get_component<AtackDistanceComponent>(e);
                     const e_attack_time = this.get_component<AtackTimeComponent>(e);
-                    if (e_select_radius && e_life && e_attack_distance && e_attack_time) {
-                        external_update_entity_params(e, e_life.life(), e_life.max_life(), e_select_radius.value(), e_attack_distance.value(), e_attack_time.value());
+                    if (e_select_radius && e_life && e_shield && e_attack_distance && e_attack_time) {
+                        external_update_entity_params(e, e_life.life(), e_life.max_life(), e_shield.shield(), e_shield.max_shield(), e_select_radius.value(), e_attack_distance.value(), e_attack_time.value());
                     }
                 }
             }

@@ -24,7 +24,9 @@ export enum MOVE_STATUS {
 
 export enum COOLDAWN {
     SHIFT,
+    HAND_ATTACK,
     MELEE_ATTACK,
+    RANGE_ATTACK,
     HIDE_ACTIVATION,
     SHADOW_ATTACK,
 }
@@ -44,6 +46,7 @@ export enum TARGET_ACTION_TYPE {
 
 // this enum define the type of cast
 export enum CAST_ACTION {
+    HANDS_ATTACK,
     MELEE_ATTACK,
     RANGE_ATTACK,
     HIDE_ACTIVATION,
@@ -70,4 +73,20 @@ export enum UPDATE_TARGET_ACTION_STATUS {
     YES,
     NO,
     FORBIDDEN
+}
+
+export enum INVENTORY_ITEM_TYPE {
+    WEAPON,
+}
+
+export enum WEAPON_TYPE {
+    SWORD,
+    BOW,
+}
+
+export enum WEAPON_DAMAGE_TYPE {
+    UNKNOWN,
+    EMPTY,  // for free hands
+    MELEE,  // for swords
+    RANGE,  // for bows
 }

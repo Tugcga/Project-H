@@ -87,6 +87,10 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_release_shield(entity: number): void {}
     scene_entity_start_melee_attack(entity: number, time: number, damage_distance: number, damage_spread: number): void {}
     scene_entity_finish_melee_attack(entity: number): void {}
+    scene_entity_start_range_attack(entity: number, time: number): void {}
+    scene_entity_finish_range_attack(entity: number): void {}
+    scene_entity_start_hand_attack(entity: number, time: number, damage_distance: number): void {}
+    scene_entity_finish_hand_attack(entity: number): void {}
     scene_entity_start_shadow_attack(entity: number, time: number, damage_distance: number): void {}
     scene_entity_finish_shadow_attack(entity: number): void {}
     scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void {}

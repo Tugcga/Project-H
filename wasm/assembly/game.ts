@@ -6,7 +6,7 @@ import { Level } from "./promethean/level";
 
 import { generate_level, generate_navmesh } from "./game/generate";
 import { Settings, ConstantsSettings } from "./game/settings";
-import { EPSILON, ACTOR, TARGET_ACTION, STATE, DAMAGE_TYPE } from "./game/constants";
+import { EPSILON, ACTOR, TARGET_ACTION, STATE, DAMAGE_TYPE, INVENTORY_ITEM_TYPE, WEAPON_TYPE } from "./game/constants";
 import { distance } from "./game/utilities";
 
 import { external_define_level,
@@ -21,7 +21,9 @@ import { external_define_level,
 import { setup_components, 
          setup_systems, 
          setup_player, 
-         setup_monster,} from "./game/ecs_setup";
+         setup_monster,
+         setup_weapon_sword,
+         setup_weapon_bow } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
 import { RadiusSelectComponent } from "./game/components/radius";
@@ -31,6 +33,15 @@ import { LifeComponent } from "./game/components/life";
 import { ApplyDamageComponent } from "./game/components/apply_damage";
 import { StateComponent } from "./game/components/state"
 import { TeamComponent } from "./game/components/team";
+import { ShieldComponent } from "./game/components/shield";
+import { AtackDistanceComponent } from "./game/components/atack_distance";
+import { AtackTimeComponent } from "./game/components/atack_time";
+import { AngleComponent } from "./game/components/angle";
+
+import { InventarComponent } from "./game/components/inventar/inventar";
+import { EquipmentComponent } from "./game/components/inventar/equipment";
+import { InventarItemTypeComponent,
+         InventarWeaponTypeComponent } from "./game/components/inventar/type";
 
 import { UpdateToClientSystem } from "./game/systems/update_to_client";
 import { UpdateDebugSystem } from "./game/systems/update_debug";
@@ -43,7 +54,10 @@ import { command_activate_shield,
          command_release_shield, 
          command_shift, 
          command_stun, 
-         command_toggle_hide_mode } from "./game/commands";
+         command_toggle_hide_mode,
+         command_equip_main_weapon } from "./game/commands";
+import { update_entity_parameters } from "./game/rpg";
+import { output_update_entity_params } from "./game/states";
 
 export class Game {
     private ecs: ECS | null = null;
@@ -51,7 +65,7 @@ export class Game {
     private level: Level | null = null;
     private random: PseudoRandom | null = null;
     private player_entity: Entity;
-    private constants: ConstantsSettings;
+    private settings: Settings;
 
     private seed: u32 = 0;
 
@@ -122,6 +136,7 @@ export class Game {
         const hide_speed_multiplier = local_constants.hide_speed_multiplier;
         const hide_cooldawn = local_constants.hide_cooldawn;
         const hide_activate_time = local_constants.hide_activate_time;
+        const default_weapons = in_settings.get_default_weapons();
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
@@ -189,7 +204,8 @@ export class Game {
             search_radius,
             hide_speed_multiplier,
             hide_cooldawn,
-            hide_activate_time);
+            hide_activate_time,
+            default_weapons);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -197,16 +213,22 @@ export class Game {
             const debug_system = local_ecs.get_system<UpdateDebugSystem>();
             debug_system.init(player_entity);
         }
+
+        update_entity_parameters(local_ecs, player_entity, default_weapons);
         
         // output player position and radius
         external_create_player(player_entity, start_x, start_y, player_radius, player_team);
-        external_define_entity_changes(player_entity, start_x, start_y, start_angle, false, player_life, player_life, player_shield, player_shield, false);
-        // use here melle_atack_timing but in general case we should get it from character parameters
 
-        const select_radius: RadiusSelectComponent | null = local_ecs.get_component<RadiusSelectComponent>(player_entity);
+        // send to the client actual player parameters
+        output_update_entity_params(local_ecs, player_entity);
+        // and also other parameters
         const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(player_entity);
-        if (select_radius && life) {
-            external_update_entity_params(player_entity, life.life(), life.max_life(), select_radius.value(), atack_distance, melle_atack_timing);
+        const shield = local_ecs.get_component<ShieldComponent>(player_entity);
+        const position = local_ecs.get_component<PositionComponent>(player_entity);
+        const angle = local_ecs.get_component<AngleComponent>(player_entity);
+
+        if (life && shield && position && angle) {
+            external_define_entity_changes(player_entity, position.x(), position.y(), angle.value(), false, life.life(), life.max_life(), shield.shield(), shield.max_shield(), false);
         }
 
         // store in the class all local instances
@@ -216,7 +238,7 @@ export class Game {
         this.navmesh = local_navmesh;
         this.ecs = local_ecs;
         this.player_entity = player_entity;
-        this.constants = local_constants;
+        this.settings = in_settings;
 
         // emit mosnter at each room
         for (let i = 0; i < rooms_count; i++) {
@@ -361,7 +383,8 @@ export class Game {
                      search_radius: f32, search_spread: f32, team: i32): Entity {
         const local_ecs = this.ecs;
         const local_level = this.level;
-        const local_constants = this.constants;
+        const local_settings = this.settings;
+        const local_constants = local_settings.get_constants();
         if (local_ecs && local_level && local_constants) {
             const monster_rotation_speed = local_constants.monster_rotation_speed;
             const tile_size = local_constants.tile_size;
@@ -374,6 +397,7 @@ export class Game {
             const hide_activate_time = local_constants.hide_activate_time;
             const monster_shadow_damage_distance = local_constants.monster_shadow_damage_distance;
             const monster_shadow_attack_cooldawn = local_constants.monster_shadow_attack_cooldawn;
+            const default_weapons = local_settings.get_default_weapons();
 
             const monster_entity = setup_monster(local_ecs, 
                                                  position_x, 
@@ -402,7 +426,8 @@ export class Game {
                                                  search_spread,
                                                  hide_speed_multiplier,
                                                  hide_cooldawn,
-                                                 hide_activate_time);
+                                                 hide_activate_time,
+                                                 default_weapons);
             // we should not call any external methods
             // because created monster entity can be outside of the player visibility
             return monster_entity;
@@ -413,7 +438,8 @@ export class Game {
 
     emit_one_monster_default(pos_x: f32, pos_y: f32, angle: f32): void {
         const local_ecs = this.ecs;
-        const local_constants = this.constants;
+        const local_settings = this.settings;
+        const local_constants = local_settings.get_constants();
         const local_level = this.level;
         if (local_ecs && local_level) {
             const monster_speed = local_constants.monster_speed;
@@ -440,7 +466,8 @@ export class Game {
 
     private add_monsters_at_room(center_x: u32, center_y: u32, radius_x: u32, radius_y: u32): void {
         const local_random = this.random;
-        const local_constants = this.constants;
+        const local_settings = this.settings;
+        const local_constants = local_settings.get_constants();
         const tile_size = local_constants.tile_size;
         const local_navmesh = this.navmesh;
 
@@ -563,7 +590,8 @@ export class Game {
                                                              life, shield,
                                                              search_radius, search_spread, team);
                 const local_ecs = this.ecs;
-                const local_constants = this.constants
+                const local_settings = this.settings;
+                const local_constants = local_settings.get_constants();
 
                 if (local_ecs && local_constants && monster_entity != 0) {
                     const monster_team: TeamComponent | null = local_ecs.get_component<TeamComponent>(monster_entity);
@@ -592,6 +620,63 @@ export class Game {
                 }
             }
         }
+    }
+
+    // test method
+    // create sword item and add it to the player inventar
+    dev_create_sword(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32,
+                     damage_spread: f32, damage_distance: f32): void {
+        const local_ecs = this.ecs;
+
+        if (local_ecs) {
+            const sword_entity = setup_weapon_sword(attack_distance, attack_time, attack_cooldawn, damage, shield,
+                                                    damage_spread, damage_distance);
+            // add this sword to the inventar of the player
+            const player_entity = this.player_entity;
+            const player_inventar = local_ecs.get_component<InventarComponent>(player_entity);
+            if (player_inventar) {
+                player_inventar.add_item(sword_entity);
+            }
+        }
+    }
+
+    // test method
+    // find the first sword weapon item in the player inventar
+    // and equip it
+    dev_equip_sword(): void {
+        const local_ecs = this.ecs;
+        const player_entity= this.player_entity;
+        if (local_ecs) {
+            const player_inventar = local_ecs.get_component<InventarComponent>(player_entity);
+
+            if (player_inventar) {
+                const items = player_inventar.all_items();
+                for (let i = 0, len = items.length; i < len; i++) {
+                    const item_entity: Entity | null = items[i];
+                    if (item_entity) {
+                        // inventar cell is not empty
+                        const item_type = local_ecs.get_component<InventarItemTypeComponent>(item_entity);
+                        if (item_type) {
+                            const item_type_value = item_type.type();
+                            if (item_type_value == INVENTORY_ITEM_TYPE.WEAPON) {
+                                // this item is a weapon
+                                const item_weapon_type = local_ecs.get_component<InventarWeaponTypeComponent>(item_entity);
+                                if (item_weapon_type) {
+                                    const item_weapon_type_value = item_weapon_type.type();
+                                    if (item_weapon_type_value == WEAPON_TYPE.SWORD) {
+                                        // this item is sword
+                                        command_equip_main_weapon(local_ecs, player_entity, item_entity, this.settings.get_default_weapons());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        output_update_entity_params(local_ecs, player_entity);
     }
 
     toString(): string {

@@ -20,9 +20,13 @@ import { ShiftDistanceComponent } from "./components/shift_distance";
 import { TargetActionComponent } from "./components/target_action";
 import { AtackTimeComponent } from "./components/atack_time";
 import { HideModeComponent } from "./components/hide_mode";
+import { ShadowAttackTimeComponent } from "./components/shadow_attack_time";
 
 import { BuffShiftCooldawnComponent,
          BuffHideCooldawnComponent } from "./skills/buffs";
+
+import { InventarComponent } from "./components/inventar/inventar";
+import { EquipmentComponent } from "./components/inventar/equipment";
 
 import { external_entity_start_shift,
          external_entity_start_cooldawn,
@@ -35,8 +39,10 @@ import { assign_cast_state,
          interrupt_to_iddle, 
          is_entity_in_hide, 
          should_redefine_target_action,
-         try_start_melee_attack, 
+         try_start_weapon_attack, 
          try_start_shadow_attack } from "./states";
+ import { update_entity_parameters,
+          is_weapon_doublehanded } from "./rpg";
 
 function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, target_entity: Entity, target_x: f32, target_y: f32, action_type: TARGET_ACTION): boolean {
     if (action_type == TARGET_ACTION.ATTACK) {
@@ -107,22 +113,25 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
 }
 
 export function try_start_attack(ecs: ECS, entity: Entity, target_entity: Entity): START_CAST_STATUS {
-    const entity_attack_time: AtackTimeComponent | null = ecs.get_component<AtackTimeComponent>(entity);
-
-    if (entity_attack_time) {
-        const attack_time_value = entity_attack_time.value();
-        // with respect to different current entity mode we should start different type of attacks: melee, range or shadow
-
-        if (is_entity_in_hide(ecs, entity)) {
-            return try_start_shadow_attack(ecs, entity, target_entity, attack_time_value);
+    // get proper value for attack time
+    // for shadow mode from special component
+    // for general mode from general compoent (which is chnged by equiped weapon)
+    if (is_entity_in_hide(ecs, entity)) {
+        const shadow_attack_time = ecs.get_component<ShadowAttackTimeComponent>(entity);
+        if (shadow_attack_time) {
+            return try_start_shadow_attack(ecs, entity, target_entity, shadow_attack_time.value());
         } else {
-            // TODO: here we should check the weapon
-            // if it is a distance weapon, then start range attack
-            // but for now we supports only melee weapon
-            return try_start_melee_attack(ecs, entity, target_entity, attack_time_value);
+            return START_CAST_STATUS.FAIL;
         }
     } else {
-        return START_CAST_STATUS.FAIL;
+        // it does not matter the type of the weapon
+        // even it is a renged weapon, get attack time from the same component
+        const attack_time = ecs.get_component<AtackTimeComponent>(entity);
+        if (attack_time) {
+            return try_start_weapon_attack(ecs, entity, target_entity, attack_time.value());
+        } else {
+            return START_CAST_STATUS.FAIL;
+        }
     }
 }
 
@@ -362,5 +371,39 @@ export function command_stun(ecs: ECS, entity: Entity, duration: f32): void {
                 command_entity_unhide(ecs, entity);
             }
         }
+    }
+}
+
+export function command_equip_main_weapon(ecs: ECS, player_entity: Entity, weapon_entity: Entity, default_weapons: DefaultWeapons): void {
+    // get inventar
+    const player_inventar = ecs.get_component<InventarComponent>(player_entity);
+    const player_equip = ecs.get_component<EquipmentComponent>(player_entity);
+    const weapon_type = ecs.get_component<InventarWeaponTypeComponent>(weapon_entity);
+
+    if (player_inventar && player_equip && weapon_type) {
+        const weapon_type_value = weapon_type.type();
+        const is_double_handed = is_weapon_doublehanded(weapon_type_value);
+
+        if (player_equip.is_main_weapon()) {
+            const equiped_weapon = player_equip.remove_main_weapon();
+            // add it to the inventar
+            player_inventar.add_item(equiped_weapon);
+
+            // also if the weapon is doublehanded, then remove the secondary equip (if it exists)
+            if (is_double_handed) {
+                if (player_equip.is_secondary_weapon()) {
+                    const equiped_secondary_weapond = player_equip.remove_secondary_weapon();
+                    player_inventar.add_item(equiped_secondary_weapond);
+                }
+            }
+        }
+
+        // remove from the inventar target weapon
+        player_inventar.remove_item(weapon_entity);
+        // add item to the equipment
+        player_equip.equip_main_weapon(weapon_entity);
+
+        // next recalculate player parameters with new equipment
+        update_entity_parameters(ecs, player_entity, default_weapons);
     }
 }

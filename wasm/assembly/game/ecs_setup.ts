@@ -4,7 +4,8 @@ import { Navmesh } from "../pathfinder/navmesh/navmesh";
 import { PseudoRandom } from "../promethean/pseudo_random";
 import { Level } from "../promethean/level";
 
-import { STATE, ACTOR } from "./constants";
+import { STATE, ACTOR, INVENTORY_ITEM_TYPE, WEAPON_TYPE } from "./constants";
+import { DefaultWeapons } from "./settings";
 
 // import components
 import { AngleComponent } from "./components/angle";
@@ -39,12 +40,12 @@ import { MoveTagComponent } from "./components/move";
 import { TargetActionComponent } from "./components/target_action";
 import { AtackDistanceComponent } from "./components/atack_distance";
 import { AtackTimeComponent } from "./components/atack_time";
-import { MeleeAttackCooldawnComponent } from "./components/melee_attack_cooldawn";
-import { MeleeDamageDistanceComponent,
-         MeleeDamageSpreadComponent,
-         MeleeDamageDamageComponent,
+import { AttackCooldawnComponent } from "./components/attack_cooldawn";
+import { DamageDistanceComponent,
+         DamageSpreadComponent,
+         DamageDamageComponent,
          ShadowDamageDistanceComponent } from "./components/damage";
-import { CastMeleeDamageComponent,
+import { CastWeaponDamageComponent,
          CastShadowDamageComponent } from "./components/cast";
 import { LifeComponent } from "./components/life";
 import { ShieldComponent,
@@ -57,6 +58,20 @@ import { BehaviourComponent } from "./components/behaviour";
 import { HideModeComponent } from "./components/hide_mode";
 import { SpreadSearchComponent } from "./components/spread_search";
 import { ShadowAttackCooldawnComponent } from "./components/shadow_attack_cooldawn";
+import { ShadowAttackTimeComponent } from "./components/shadow_attack_time";
+import { ShadowAttackDistanceComponent } from "./components/shadow_attack_distance";
+
+import { EquipmentComponent } from "./components/inventar/equipment";
+import { WeaponAttackDistanceComponent,
+         WeaponAttackTimeComponent,
+         WeaponAttackCooldawnComponent,
+         WeaponDamageComponent,
+         WeaponShieldeComponent,
+         WeaponDamageSpreadComponent,
+         WeaponDamageDistanceComponent } from "./components/inventar/weapon";
+import { InventarItemTypeComponent,
+         InventarWeaponTypeComponent } from "./components/inventar/type";
+import { InventarComponent } from "./components/inventar/inventar";
 
 // import systems
 import { MoveTrackingSystem } from "./systems/move_tracking";
@@ -87,10 +102,14 @@ import { BehaviourSystem } from "./systems/behaviour";
 
 import { BuffShiftCooldawnComponent,
          BuffMeleeAttackCooldawnComponent,
+         BuffRangeAttackCooldawnComponent,
+         BuffHandAttackCooldawnComponent,
          BuffHideCooldawnComponent,
          BuffShadowAttackCooldawnComponent,
          BuffTimerShiftCooldawnSystem,
          BuffTimerMeleeAttackCooldawnSystem,
+         BuffTimerRangeAttackCooldawnSystem,
+         BuffTimerHandAttackCooldawnSystem,
          BuffTimerHideCooldawnSystem,
          BuffTimerShadowAttackCooldawnSystem } from "./skills/buffs";
 
@@ -346,6 +365,10 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<BuffShiftCooldawnComponent>();
     // BuffTimerMeleeAttackCooldawnSystem
     ecs.register_component<BuffMeleeAttackCooldawnComponent>();
+    // BuffTimerRangeAttackCooldawnSystem
+    ecs.register_component<BuffRangeAttackCooldawnComponent>();
+    // BuffTimerHandAttackCooldawnSystem
+    ecs.register_component<BuffHandAttackCooldawnComponent>();
     // BuffTimerHideCooldawnSystem
     ecs.register_component<BuffHideCooldawnComponent>();
     // BuffTimerShadowAttackCooldawnSystem
@@ -373,7 +396,7 @@ export function setup_components(ecs: ECS): void {
     // read systems: CastSwitchSystem (when atack cast is over)
     // write systems: -
     // comment: data component, define cooldawn for melee atack
-    ecs.register_component<MeleeAttackCooldawnComponent>();
+    ecs.register_component<AttackCooldawnComponent>();
     // the same for shadow attack
     ecs.register_component<ShadowAttackCooldawnComponent>();
 
@@ -390,20 +413,22 @@ export function setup_components(ecs: ECS): void {
     // write systems: -
     // comment: data class, store attack time properties of the character, it shold be defined by character equip
     ecs.register_component<AtackTimeComponent>();
+    ecs.register_component<ShadowAttackTimeComponent>();
 
     // assigned: each player and monster
     // read systems: -
     // write system: -
     // comment: this parameter define the distance where the chracter start attack the enemy
     ecs.register_component<AtackDistanceComponent>();
+    ecs.register_component<ShadowAttackDistanceComponent>();
 
     // assigned: player and monsters
     // read systems: -
     // write systems: -
     // comment: data components for damage cone
-    ecs.register_component<MeleeDamageDistanceComponent>();
-    ecs.register_component<MeleeDamageSpreadComponent>();
-    ecs.register_component<MeleeDamageDamageComponent>();
+    ecs.register_component<DamageDistanceComponent>();
+    ecs.register_component<DamageSpreadComponent>();
+    ecs.register_component<DamageDamageComponent>();
 
     ecs.register_component<ShadowDamageDistanceComponent>();
 
@@ -412,7 +437,7 @@ export function setup_components(ecs: ECS): void {
     // write systems: -
     // comment: data component, assign to entity when it start casting melee atack
     // contains data for post-cast process (apply damage and so on)
-    ecs.register_component<CastMeleeDamageComponent>();
+    ecs.register_component<CastWeaponDamageComponent>();
     // the same for shadow attack result
     ecs.register_component<CastShadowDamageComponent>();
 
@@ -484,6 +509,21 @@ export function setup_components(ecs: ECS): void {
     // write systems: -
     // comment: data component, store value for the spread angle of the search cone
     ecs.register_component<SpreadSearchComponent>();
+
+    /*---Inventar items---*/
+    ecs.register_component<WeaponAttackDistanceComponent>();
+    ecs.register_component<WeaponAttackTimeComponent>();
+    ecs.register_component<WeaponAttackCooldawnComponent>();
+    ecs.register_component<WeaponDamageComponent>();
+    ecs.register_component<WeaponShieldeComponent>();
+    ecs.register_component<WeaponDamageSpreadComponent>();
+    ecs.register_component<WeaponDamageDistanceComponent>();
+
+    ecs.register_component<InventarItemTypeComponent>();
+    ecs.register_component<InventarWeaponTypeComponent>();
+
+    ecs.register_component<EquipmentComponent>();
+    ecs.register_component<InventarComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -695,6 +735,12 @@ export function setup_systems(ecs: ECS,
     ecs.register_system<BuffTimerMeleeAttackCooldawnSystem>(new BuffTimerMeleeAttackCooldawnSystem());
     ecs.set_system_with_component<BuffTimerMeleeAttackCooldawnSystem, BuffMeleeAttackCooldawnComponent>();
 
+    ecs.register_system<BuffTimerRangeAttackCooldawnSystem>(new BuffTimerRangeAttackCooldawnSystem());
+    ecs.set_system_with_component<BuffTimerRangeAttackCooldawnSystem, BuffRangeAttackCooldawnComponent>();
+
+    ecs.register_system<BuffTimerHandAttackCooldawnSystem>(new BuffTimerHandAttackCooldawnSystem());
+    ecs.set_system_with_component<BuffTimerHandAttackCooldawnSystem, BuffHandAttackCooldawnComponent>();
+
     // cooldawns for hide action
     ecs.register_system<BuffTimerHideCooldawnSystem>(new BuffTimerHideCooldawnSystem());
     ecs.set_system_with_component<BuffTimerHideCooldawnSystem, BuffHideCooldawnComponent>();
@@ -752,16 +798,19 @@ export function setup_player(ecs: ECS,
                              search_radius: f32,
                              hide_speed_multiplier: f32,
                              hide_cooldawn: f32,
-                             hide_activate_time: f32): Entity {
+                             hide_activate_time: f32,
+                             default_weapons: DefaultWeapons): Entity {
     const player_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(player_entity, new ActorTypeComponent(ACTOR.PLAYER));
     ecs.add_component<PlayerComponent>(player_entity, new PlayerComponent());
+    ecs.add_component<InventarComponent>(player_entity, new InventarComponent());  // cerate player with empty inventar and equipment
+    ecs.add_component<EquipmentComponent>(player_entity, new EquipmentComponent());
+
     ecs.add_component<StateComponent>(player_entity, new StateComponent());
     ecs.add_component<PreferredVelocityComponent>(player_entity, new PreferredVelocityComponent());
     ecs.add_component<VelocityComponent>(player_entity, new VelocityComponent());
     ecs.add_component<PositionComponent>(player_entity, new PositionComponent(pos_x, pos_y));
     ecs.add_component<PreviousPositionComponent>(player_entity, new PreviousPositionComponent(pos_x, pos_y));  // set the same position
-    ecs.add_component<SpeedComponent>(player_entity, new SpeedComponent(speed));
     ecs.add_component<RadiusComponent>(player_entity, new RadiusComponent(radius));
     ecs.add_component<RadiusSelectComponent>(player_entity, new RadiusSelectComponent(radius + radius_select_delta));  // use slightly bigger select radius
     ecs.add_component<RotationSpeedComponent>(player_entity, new RotationSpeedComponent(rotation_speed));
@@ -774,25 +823,44 @@ export function setup_player(ecs: ECS,
     ecs.add_component<VisibleQuadGridNeighborhoodComponent>(player_entity, new VisibleQuadGridNeighborhoodComponent());
     ecs.add_component<UpdateToClientComponent>(player_entity, new UpdateToClientComponent());
     ecs.add_component<NeighborhoodQuadGridIndexComponent>(player_entity, new NeighborhoodQuadGridIndexComponent(level_width, neighborhood_quad_size));
-    ecs.add_component<ShiftSpeedMultiplierComponent>(player_entity, new ShiftSpeedMultiplierComponent(shift_speed_multiplier));
-    ecs.add_component<ShiftDistanceComponent>(player_entity, new ShiftDistanceComponent(shift_distance));
-    ecs.add_component<ShiftCooldawnComponent>(player_entity, new ShiftCooldawnComponent(shift_cooldawn));
-    ecs.add_component<MeleeAttackCooldawnComponent>(player_entity, new MeleeAttackCooldawnComponent(melee_attack_cooldaw));
-    ecs.add_component<ShadowAttackCooldawnComponent>(player_entity, new ShadowAttackCooldawnComponent(shadow_attack_cooldawn));
-    ecs.add_component<TargetActionComponent>(player_entity, new TargetActionComponent());
-    ecs.add_component<AtackTimeComponent>(player_entity, new AtackTimeComponent(melee_timing));
-    ecs.add_component<AtackDistanceComponent>(player_entity, new AtackDistanceComponent(atack_distance));
-    ecs.add_component<MeleeDamageDamageComponent>(player_entity, new MeleeDamageDamageComponent(melee_damage_damage));
-    ecs.add_component<MeleeDamageDistanceComponent>(player_entity, new MeleeDamageDistanceComponent(melee_damage_distance));
-    ecs.add_component<MeleeDamageSpreadComponent>(player_entity, new MeleeDamageSpreadComponent(melee_damage_spread));
-    ecs.add_component<ShadowDamageDistanceComponent>(player_entity, new ShadowDamageDistanceComponent(shadow_damage_distance));
-    ecs.add_component<LifeComponent>(player_entity, new LifeComponent(life));
-    ecs.add_component<ShieldComponent>(player_entity, new ShieldComponent(shield));
-    ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
     ecs.add_component<TeamComponent>(player_entity, new TeamComponent(team));
     ecs.add_component<SearchQuadGridIndexComponent>(player_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
     ecs.add_component<HideModeComponent>(player_entity, new HideModeComponent(hide_speed_multiplier, hide_cooldawn, hide_activate_time));
+    ecs.add_component<TargetActionComponent>(player_entity, new TargetActionComponent());
 
+    // standart parameters, which should not change
+    ecs.add_component<SpeedComponent>(player_entity, new SpeedComponent(speed));
+    ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
+
+    // parameters, defined by the equip
+    // when create player we use default weapons (with empty equipment), then we will update these parameters
+    // shift
+    ecs.add_component<ShiftSpeedMultiplierComponent>(player_entity, new ShiftSpeedMultiplierComponent(shift_speed_multiplier));
+    ecs.add_component<ShiftDistanceComponent>(player_entity, new ShiftDistanceComponent(shift_distance));
+    ecs.add_component<ShiftCooldawnComponent>(player_entity, new ShiftCooldawnComponent(shift_cooldawn));
+
+    // life and shield
+    ecs.add_component<LifeComponent>(player_entity, new LifeComponent(life));
+    ecs.add_component<ShieldComponent>(player_entity, new ShieldComponent(0.0));
+
+    // attack
+    // values for these components defined by weapons
+    // and used for actions
+    ecs.add_component<AtackTimeComponent>(player_entity, new AtackTimeComponent(default_weapons.empty_weapon_attack_time));
+    ecs.add_component<AtackDistanceComponent>(player_entity, new AtackDistanceComponent(default_weapons.empty_weapon_attack_distance));
+    ecs.add_component<AttackCooldawnComponent>(player_entity, new AttackCooldawnComponent(default_weapons.empty_weapon_attack_cooldawn));
+
+    ecs.add_component<DamageDamageComponent>(player_entity, new DamageDamageComponent(default_weapons.empty_weapon_damage));
+    // here we define only damage distance component, because empty weapon does not contains spread paramater
+    // but it contains damage distance parameter
+    ecs.add_component<DamageDistanceComponent>(player_entity, new DamageDistanceComponent(default_weapons.empty_weapon_damage_distance));
+    
+    // in shadow mode use separate constants
+    ecs.add_component<ShadowAttackCooldawnComponent>(player_entity, new ShadowAttackCooldawnComponent(default_weapons.shadow_attack_cooldawn));
+    ecs.add_component<ShadowAttackTimeComponent>(player_entity, new ShadowAttackTimeComponent(default_weapons.shadow_attack_time));
+    ecs.add_component<ShadowAttackDistanceComponent>(player_entity, new ShadowAttackDistanceComponent(default_weapons.shadow_attack_distance));
+    ecs.add_component<ShadowDamageDistanceComponent>(player_entity, new ShadowDamageDistanceComponent(default_weapons.shadow_damage_distance));
+    
     return player_entity;
 }
 
@@ -823,7 +891,8 @@ export function setup_monster(ecs: ECS,
                               search_spread: f32,
                               hide_speed_multiplier: f32,
                               hide_cooldawn: f32,
-                              hide_activate_time: f32): Entity {
+                              hide_activate_time: f32,
+                              default_weapons: DefaultWeapons): Entity {
     const monster_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
@@ -834,7 +903,6 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<VelocityComponent>(monster_entity, new VelocityComponent());
     ecs.add_component<PositionComponent>(monster_entity, new PositionComponent(pos_x, pos_y));
     ecs.add_component<PreviousPositionComponent>(monster_entity, new PreviousPositionComponent(pos_x, pos_y));  // set the same position
-    ecs.add_component<SpeedComponent>(monster_entity, new SpeedComponent(speed));
     ecs.add_component<RadiusComponent>(monster_entity, new RadiusComponent(radius));
     ecs.add_component<RadiusSelectComponent>(monster_entity, new RadiusSelectComponent(radius + radius_select_delta));  // use slightly bigger select radius
     ecs.add_component<RotationSpeedComponent>(monster_entity, new RotationSpeedComponent(rotation_speed));
@@ -845,17 +913,6 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<UpdateToClientComponent>(monster_entity, new UpdateToClientComponent());
     ecs.add_component<NeighborhoodQuadGridIndexComponent>(monster_entity, new NeighborhoodQuadGridIndexComponent(level_width, neighborhood_quad_size));
     ecs.add_component<TargetActionComponent>(monster_entity, new TargetActionComponent());
-    ecs.add_component<AtackTimeComponent>(monster_entity, new AtackTimeComponent(melee_timing));
-    ecs.add_component<AtackDistanceComponent>(monster_entity, new AtackDistanceComponent(atack_distance));
-    ecs.add_component<MeleeAttackCooldawnComponent>(monster_entity, new MeleeAttackCooldawnComponent(melee_attack_cooldaw));
-    ecs.add_component<MeleeDamageDamageComponent>(monster_entity, new MeleeDamageDamageComponent(melee_damage_damage));
-    ecs.add_component<MeleeDamageDistanceComponent>(monster_entity, new MeleeDamageDistanceComponent(melee_damage_distance));
-    ecs.add_component<MeleeDamageSpreadComponent>(monster_entity, new MeleeDamageSpreadComponent(melee_damage_spread));
-    ecs.add_component<ShadowAttackCooldawnComponent>(monster_entity, new ShadowAttackCooldawnComponent(shadow_attack_cooldawn));
-    ecs.add_component<ShadowDamageDistanceComponent>(monster_entity, new ShadowDamageDistanceComponent(shadow_damage_distance));
-    ecs.add_component<LifeComponent>(monster_entity, new LifeComponent(life));
-    ecs.add_component<ShieldComponent>(monster_entity, new ShieldComponent(shield));
-    ecs.add_component<ShieldIncreaseComponent>(monster_entity, new ShieldIncreaseComponent(shield_resurect));
     ecs.add_component<TeamComponent>(monster_entity, new TeamComponent(team));
     ecs.add_component<SearchQuadGridIndexComponent>(monster_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
     ecs.add_component<EnemiesListComponent>(monster_entity, new EnemiesListComponent());
@@ -864,5 +921,62 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<BehaviourComponent>(monster_entity, new BehaviourComponent());
     ecs.add_component<HideModeComponent>(monster_entity, new HideModeComponent(hide_speed_multiplier, hide_cooldawn, hide_activate_time));
 
+    ecs.add_component<SpeedComponent>(monster_entity, new SpeedComponent(speed));
+    ecs.add_component<ShieldIncreaseComponent>(monster_entity, new ShieldIncreaseComponent(shield_resurect));
+
+    ecs.add_component<LifeComponent>(monster_entity, new LifeComponent(life));
+    ecs.add_component<ShieldComponent>(monster_entity, new ShieldComponent(shield));
+
+    // attack
+    ecs.add_component<AtackTimeComponent>(monster_entity, new AtackTimeComponent(melee_timing));
+    ecs.add_component<AtackDistanceComponent>(monster_entity, new AtackDistanceComponent(atack_distance));
+    ecs.add_component<AttackCooldawnComponent>(monster_entity, new AttackCooldawnComponent(melee_attack_cooldaw));
+
+    // damage
+    ecs.add_component<DamageDamageComponent>(monster_entity, new DamageDamageComponent(melee_damage_damage));
+    ecs.add_component<DamageDistanceComponent>(monster_entity, new DamageDistanceComponent(melee_damage_distance));
+    ecs.add_component<DamageSpreadComponent>(monster_entity, new DamageSpreadComponent(melee_damage_spread));
+
+    // shadow
+    // use the same defaults as player
+    ecs.add_component<ShadowAttackCooldawnComponent>(monster_entity, new ShadowAttackCooldawnComponent(default_weapons.shadow_attack_cooldawn));
+    ecs.add_component<ShadowAttackTimeComponent>(monster_entity, new ShadowAttackTimeComponent(default_weapons.shadow_attack_time));
+    ecs.add_component<ShadowAttackDistanceComponent>(monster_entity, new ShadowAttackDistanceComponent(default_weapons.shadow_attack_distance));
+    ecs.add_component<ShadowDamageDistanceComponent>(monster_entity, new ShadowDamageDistanceComponent(default_weapons.shadow_damage_distance));
+
     return monster_entity;
+}
+
+export function setup_weapon_sword(ecs: ECS,
+                                   attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32,
+                                   damage_spread: f32, damage_distance: f32): Entity {
+    const weapon_entity = ecs.create_entity();
+    ecs.add_component(weapon_entity, new WeaponAttackDistanceComponent(attack_distance));
+    ecs.add_component(weapon_entity, new WeaponAttackTimeComponent(attack_time));
+    ecs.add_component(weapon_entity, new WeaponAttackCooldawnComponent(attack_cooldawn));
+    ecs.add_component(weapon_entity, new WeaponDamageComponent(damage));
+    ecs.add_component(weapon_entity, new WeaponShieldeComponent(shield));
+
+    ecs.add_component(weapon_entity, new WeaponDamageSpreadComponent(damage_spread));
+    ecs.add_component(weapon_entity, new WeaponDamageDistanceComponent(damage_distance));
+
+    ecs.add_component(weapon_entity, new InventarItemTypeComponent(INVENTORY_ITEM_TYPE.WEAPON));
+    ecs.add_component(weapon_entity, new InventarWeaponTypeComponent(WEAPON_TYPE.SWORD));
+
+    return weapon_entity;
+}
+
+export function setup_weapon_bow(ecs: ECS,
+                                 attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32): Entity {
+    const weapon_entity = ecs.create_entity();
+    ecs.add_component(weapon_entity, new WeaponAttackDistanceComponent(attack_distance));
+    ecs.add_component(weapon_entity, new WeaponAttackTimeComponent(attack_time));
+    ecs.add_component(weapon_entity, new WeaponAttackCooldawnComponent(attack_cooldawn));
+    ecs.add_component(weapon_entity, new WeaponDamageComponent(damage));
+    ecs.add_component(weapon_entity, new WeaponShieldeComponent(shield));
+
+    ecs.add_component(weapon_entity, new InventarItemTypeComponent(INVENTORY_ITEM_TYPE.WEAPON));
+    ecs.add_component(weapon_entity, new InventarWeaponTypeComponent(WEAPON_TYPE.BOW));
+
+    return weapon_entity;
 }

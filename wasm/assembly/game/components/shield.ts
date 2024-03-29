@@ -39,6 +39,15 @@ export class ShieldComponent {
         return this.m_is_over;
     }
 
+    define_max_value(value: f32): void {
+        // called whn we change the weapon
+        this.m_max_shield = value;
+        // clamp current value
+        if (this.m_shield > value) {
+            this.m_shield = value;
+        }
+    }
+
     shield(): f32 {
         return this.m_shield;
     }

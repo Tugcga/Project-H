@@ -389,6 +389,22 @@ export class Scene {
         this.m_effects.remove_melee_attack(entity);
     }
 
+    entity_start_range_attack(entity: number, time: number) {
+        this.m_effects.add_range_attack(entity, time);
+    }
+
+    entity_finish_range_attack(entity: number) {
+        this.m_effects.remove_range_attack(entity);
+    }
+
+    entity_start_hand_attack(entity: number, time: number, damage_distance: number) {
+        this.m_effects.add_hand_attack(entity, time, damage_distance);
+    }
+
+    entity_finish_hand_attack(entity: number) {
+        this.m_effects.remove_hand_attack(entity);
+    }
+
     entity_start_shadow_attack(entity: number, time: number, damage_distance: number) {
         this.m_effects.add_shadow_attack(entity, time, damage_distance);
     }

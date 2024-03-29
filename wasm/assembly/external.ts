@@ -19,7 +19,7 @@ declare function tile_create(x: u32, y: u32, index: u32, type: u32): void;
 declare function create_player(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void;
 
 @external("env", "host.update_entity_params")
-declare function update_entity_params(entity: u32, life: u32, max_life: u32, select_radius: f32, atack_distance: f32, attack_time: f32): void;
+declare function update_entity_params(entity: u32, life: u32, max_life: u32, shield: f32, max_shield: f32, select_radius: f32, atack_distance: f32, attack_time: f32): void;
 
 @external("env", "host.remove_monster")
 declare function remove_monster(entity: u32): void;
@@ -55,6 +55,18 @@ declare function entity_start_melee_attack(entity: u32, time: f32, damage_distan
 
 @external("env", "host.entity_finish_melee_attack")
 declare function entity_finish_melee_attack(entity: u32, interrupt: bool): void;
+
+@external("env", "host.entity_start_range_attack")
+declare function entity_start_range_attack(entity: u32, time: f32): void;
+
+@external("env", "host.entity_finish_range_attack")
+declare function entity_finish_range_attack(entity: u32, interrupt: bool): void;
+
+@external("env", "host.entity_start_hand_attack")
+declare function entity_start_hand_attack(entity: u32, time: f32, damage_distance: f32): void;
+
+@external("env", "host.entity_finish_hand_attack")
+declare function entity_finish_hand_attack(entity: u32, interrupt: bool): void;
 
 @external("env", "host.entity_start_shadow_attack")
 declare function entity_start_shadow_attack(entity: u32, time: f32, damage_distance: f32): void;
@@ -158,13 +170,14 @@ export function external_create_player(entity: u32, pos_x: f32, pos_y: f32, radi
 
 export function external_update_entity_params(entity: u32, 
                                               life: u32, max_life: u32, 
+                                              shield: f32, max_shield: f32,
                                               select_radius: f32,
                                               atack_distance: f32, 
                                               atack_time: f32): void {
     if (use_external) {
-        update_entity_params(entity, life, max_life, select_radius, atack_distance, atack_time);
+        update_entity_params(entity, life, max_life, shield, max_shield, select_radius, atack_distance, atack_time);
     } else {
-        console.log("ext -> update_entity_params: entity " + entity.toString() + " life " + life.toString() + "/" + max_life.toString() + " select radius " + select_radius.toString() + " atack distance " + atack_distance.toString() + " attack time " + atack_time.toString());
+        console.log("ext -> update_entity_params: entity " + entity.toString() + " life " + life.toString() + "/" + max_life.toString() + " shield " + shield.toString() + "/" + max_shield.toString() + " select radius " + select_radius.toString() + " atack distance " + atack_distance.toString() + " attack time " + atack_time.toString());
     }
 }
 
@@ -261,6 +274,38 @@ export function external_entity_finish_melee_attack(entity: u32, interrupt: bool
         entity_finish_melee_attack(entity, interrupt);
     } else {
         console.log("ext -> entity_finish_melee_attack: " + entity.toString() + " interrupt " + interrupt.toString());
+    }
+}
+
+export function external_entity_start_range_attack(entity: u32, time: f32): void {
+    if (use_external) {
+        entity_start_range_attack(entity, time);
+    } else {
+        console.log("ext -> entity_start_range_attack: " + entity.toString() + " time " + time.toString());
+    }
+}
+
+export function external_entity_finish_range_attack(entity: u32, interrupt: bool): void {
+    if (use_external) {
+        entity_finish_range_attack(entity, interrupt);
+    } else {
+        console.log("ext -> entity_finish_range_attack: " + entity.toString() + " interrupt " + interrupt.toString());
+    }
+}
+
+export function external_entity_start_hand_attack(entity: u32, time: f32, damage_distance: f32): void {
+    if (use_external) {
+        entity_start_hand_attack(entity, time, damage_distance);
+    } else {
+        console.log("ext -> entity_start_hand_attack: " + entity.toString() + " time " + time.toString() + " damage params " + damage_distance.toString());
+    }
+}
+
+export function external_entity_finish_hand_attack(entity: u32, interrupt: bool): void {
+    if (use_external) {
+        entity_finish_hand_attack(entity, interrupt);
+    } else {
+        console.log("ext -> entity_finish_hand_attack: " + entity.toString() + " interrupt " + interrupt.toString());
     }
 }
 

@@ -36,6 +36,14 @@ export class EffectsCollection {
         this.add_effect(entity, new MeleeAttackEffect(time, distance, spread));
     }
 
+    add_range_attack(entity: number, time: number) {
+        this.add_effect(entity, new RangeAttackEffect(time));
+    }
+
+    add_hand_attack(entity: number, time: number, distance: number) {
+        this.add_effect(entity, new HandAttackEffect(time, distance));
+    }
+
     add_shadow_attack(entity: number, time: number, distance: number) {
         this.add_effect(entity, new ShadowAttackEffect(time, distance));
     }
@@ -50,6 +58,14 @@ export class EffectsCollection {
 
     remove_melee_attack(entity: number) {
         this.remove_by_type(entity, EFFECT.MELEE_ATTACK);
+    }
+
+    remove_range_attack(entity: number) {
+        this.remove_by_type(entity, EFFECT.RANGE_ATTACK);
+    }
+
+    remove_hand_attack(entity: number) {
+        this.remove_by_type(entity, EFFECT.HAND_ATTACK);
     }
 
     remove_shadow_attack(entity: number) {
@@ -139,6 +155,28 @@ export class MeleeAttackEffect extends EffectBase {
 
     spread(): number {
         return this.m_spread;
+    }
+}
+
+export class RangeAttackEffect extends EffectBase {
+
+    constructor(in_total_time: number) {
+        super(in_total_time, EFFECT.RANGE_ATTACK);
+    }
+}
+
+export class HandAttackEffect extends EffectBase {
+    private m_distance: number;
+
+    constructor(in_total_time: number,
+                in_distance: number) {
+        super(in_total_time, EFFECT.HAND_ATTACK);
+
+        this.m_distance = in_distance;
+    }
+
+    distance(): number {
+        return this.m_distance;
     }
 }
 

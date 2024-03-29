@@ -73,6 +73,14 @@ export const COOLDAWN_MELEE_ATTACK_COLOR = "rgba(255, 164, 164, 0.5)";
 export const COOLDAWN_MELEE_ATTACK_WIDTH = 2.0;
 export const COOLDAWN_MELEE_ATTACK_RADIUS = 8.0;
 
+export const COOLDAWN_RANGE_ATTACK_COLOR = "rgba(219, 149, 35, 0.5)";
+export const COOLDAWN_RANGE_ATTACK_WIDTH = 2.0;
+export const COOLDAWN_RANGE_ATTACK_RADIUS = 8.0;
+
+export const COOLDAWN_HAND_ATTACK_COLOR = "rgba(152, 35, 219, 0.25)";
+export const COOLDAWN_HAND_ATTACK_WIDTH = 2.0;
+export const COOLDAWN_HAND_ATTACK_RADIUS = 8.0;
+
 export const COOLDAWN_HIDE_COLOR = "rgba(255, 255, 255, 0.25)";
 export const COOLDAWN_HIDE_WIDTH = 2.0;
 export const COOLDAWN_HIDE_RADIUS = 10.0;
@@ -92,3 +100,5 @@ export const EFFECT_HIDE_ACTIVATION_STROKE = "rgba(21, 29, 43, 1.0)";
 
 export const EFFECT_SHADOW_ATTACK_COLOR = "rgba(212, 37, 6, 0.5)";
 export const EFFECT_SHADOW_ATTACK_WIDTH = 4.0;
+
+export const EFFECT_HAND_ATTACK_COLOR = "rgba(152, 35, 219, 0.5)";

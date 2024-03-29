@@ -60,6 +60,20 @@ export class BuffTimerMeleeAttackCooldawnSystem extends System {
     }
 }
 
+export class BuffRangeAttackCooldawnComponent extends BuffCooldawn {}
+export class BuffTimerRangeAttackCooldawnSystem extends System {
+    update(dt: f32): void {
+        timer_update<BuffRangeAttackCooldawnComponent>(dt, this);
+    }
+}
+
+export class BuffHandAttackCooldawnComponent extends BuffCooldawn {}
+export class BuffTimerHandAttackCooldawnSystem extends System {
+    update(dt: f32): void {
+        timer_update<BuffHandAttackCooldawnComponent>(dt, this);
+    }
+}
+
 export class BuffHideCooldawnComponent extends BuffCooldawn {}
 export class BuffTimerHideCooldawnSystem extends System {
     update(dt: f32): void {

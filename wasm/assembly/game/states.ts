@@ -1,11 +1,12 @@
 import { ECS } from "../simple_ecs/simple_ecs";
 import { Entity } from "../simple_ecs/types";
 
-import { CAST_ACTION, COOLDAWN, START_CAST_STATUS, STATE, TARGET_ACTION, UPDATE_TARGET_ACTION_STATUS } from "./constants";
+import { CAST_ACTION, COOLDAWN, START_CAST_STATUS, STATE, TARGET_ACTION, UPDATE_TARGET_ACTION_STATUS, WEAPON_DAMAGE_TYPE } from "./constants";
 import { distance } from "./utilities";
 
 import { PositionComponent } from "./components/position";
-import { RadiusComponent } from "./components/radius";
+import { RadiusComponent,
+         RadiusSelectComponent } from "./components/radius";
 import { StateComponent, 
          StateWalkToPointComponent,
          StateShiftComponent,
@@ -14,27 +15,40 @@ import { StateComponent,
          StateStunComponent } from "./components/state";
 import { TargetActionComponent } from "./components/target_action";
 import { AtackDistanceComponent } from "./components/atack_distance";
-import { MeleeAttackCooldawnComponent } from "./components/melee_attack_cooldawn";
-import { MeleeDamageDistanceComponent,
-         MeleeDamageSpreadComponent,
-         MeleeDamageDamageComponent,
+import { AttackCooldawnComponent } from "./components/attack_cooldawn";
+import { DamageDistanceComponent,
+         DamageSpreadComponent,
+         DamageDamageComponent,
          ShadowDamageDistanceComponent } from "./components/damage";
-import { CastMeleeDamageComponent,
+import { CastWeaponDamageComponent,
          CastShadowDamageComponent } from "./components/cast";
 import { HideModeComponent } from "./components/hide_mode";
 import { ShadowAttackCooldawnComponent } from "./components/shadow_attack_cooldawn";
+import { ShadowAttackDistanceComponent } from "./components/shadow_attack_distance";
+import { ShadowAttackTimeComponent } from "./components/shadow_attack_time";
+import { LifeComponent } from "./components/life";
+import { ShieldComponent } from "./components/shield";
+import { AtackTimeComponent } from "./components/atack_time";
 
 import { BuffMeleeAttackCooldawnComponent,
+         BuffRangeAttackCooldawnComponent,
+         BuffHandAttackCooldawnComponent,
          BuffHideCooldawnComponent,
          BuffShadowAttackCooldawnComponent } from "./skills/buffs";
+import { get_weapon_damage_type } from "./rpg";
 
 import { external_entity_start_melee_attack,
          external_entity_finish_melee_attack,
+         external_entity_start_range_attack,
+         external_entity_finish_range_attack,
+         external_entity_start_hand_attack,
+         external_entity_finish_hand_attack,
          external_entity_start_shadow_attack,
          external_entity_finish_shadow_attack,
          external_entity_start_cooldawn,
          external_entity_release_shield,
-         external_entity_finish_hide } from "../external";
+         external_entity_finish_hide,
+         external_update_entity_params } from "../external";
 
 export function clear_state_components(ecs: ECS, state_value: STATE, entity: Entity): void {
     if (state_value == STATE.WALK_TO_POINT) {
@@ -62,6 +76,16 @@ export function assign_cast_state(ecs: ECS,
             // component exists, cooldawn is not over, fail to start the cast
             return START_CAST_STATUS.FAIL_COOLDAWN;
         }
+    } else if (cast_type == CAST_ACTION.HANDS_ATTACK) {
+        const buff_hand: BuffHandAttackCooldawnComponent | null = ecs.get_component<BuffHandAttackCooldawnComponent>(entity);
+        if (buff_hand) {
+            return START_CAST_STATUS.FAIL_COOLDAWN;
+        }
+    } else if (cast_type == CAST_ACTION.RANGE_ATTACK) {
+        const buff_range: BuffRangeAttackCooldawnComponent | null = ecs.get_component<BuffRangeAttackCooldawnComponent>(entity);
+        if (buff_range) {
+            return START_CAST_STATUS.FAIL_COOLDAWN;
+        }
     } else if (cast_type == CAST_ACTION.HIDE_ACTIVATION) {
         const buff_hide: BuffHideCooldawnComponent | null = ecs.get_component<BuffHideCooldawnComponent>(entity);
         if (buff_hide) {
@@ -72,8 +96,6 @@ export function assign_cast_state(ecs: ECS,
         if (buff_shadow) {
             return START_CAST_STATUS.FAIL_COOLDAWN;
         }
-    } else if (cast_type == CAST_ACTION.RANGE_ATTACK) {
-        return START_CAST_STATUS.FAIL_WRONG_CAST;
     } else {
         return START_CAST_STATUS.FAIL_WRONG_CAST;
     }
@@ -87,17 +109,16 @@ function check_attack_condition(ecs: ECS,
                                 entity: Entity,
                                 target_entity: Entity,
                                 cast_time: f32,
+                                attack_distance: f32,
                                 cast_action: CAST_ACTION): START_CAST_STATUS {
     const entity_state = ecs.get_component<StateComponent>(entity);
     const entity_position = ecs.get_component<PositionComponent>(entity);
-    const entity_attack_distance = ecs.get_component<AtackDistanceComponent>(entity);
 
     const target_position = ecs.get_component<PositionComponent>(target_entity);
     const target_state = ecs.get_component<StateComponent>(target_entity);
     const target_radius = ecs.get_component<RadiusComponent>(target_entity);
 
-    if (entity_state && entity_position && entity_attack_distance &&
-        target_position && target_state && target_radius) {
+    if (entity_state && entity_position && target_position && target_state && target_radius) {
         const entity_state_value = entity_state.state();
         if (entity_state_value == STATE.SHIFTING ||
             entity_state_value == STATE.CASTING ||
@@ -109,7 +130,7 @@ function check_attack_condition(ecs: ECS,
 
         // calculate the distance from entity to the target
         const to_target_distance = distance(entity_position.x(), entity_position.y(), target_position.x(), target_position.y());
-        const distance_limit = entity_attack_distance.value() + target_radius.value();
+        const distance_limit = attack_distance + target_radius.value();
         // here we use target action = attack, so, check the distance with attack distance value
         // for other action (talk or use item, use another distance value)
         if (to_target_distance < distance_limit && target_state.state() != STATE.SHIFTING) {
@@ -131,9 +152,11 @@ function post_check_melee_attack(ecs: ECS,
                                  target_entity: Entity,
                                  attack_time_value: f32): boolean {
     const entity_target_action = ecs.get_component<TargetActionComponent>(entity);
-    const damage_distance = ecs.get_component<MeleeDamageDistanceComponent>(entity);
-    const damage_spread = ecs.get_component<MeleeDamageSpreadComponent>(entity);
-    const damage_damage = ecs.get_component<MeleeDamageDamageComponent>(entity);
+
+    // each melee weapon (like sword) should contains all these three components
+    const damage_distance = ecs.get_component<DamageDistanceComponent>(entity);
+    const damage_spread = ecs.get_component<DamageSpreadComponent>(entity);
+    const damage_damage = ecs.get_component<DamageDamageComponent>(entity);
 
     if (entity_target_action && damage_distance && damage_spread && damage_damage) {
         // ready to start cast
@@ -144,14 +167,72 @@ function post_check_melee_attack(ecs: ECS,
         const damage_damage_value = damage_damage.value();
         external_entity_start_melee_attack(entity, attack_time_value, damage_distance_value, damage_spread_value);
         // add component with post-cast data
-        ecs.add_component(entity, new CastMeleeDamageComponent(target_entity, damage_distance_value, damage_spread_value, damage_damage_value));
+        ecs.add_component(entity, new CastWeaponDamageComponent(target_entity, damage_distance_value, damage_spread_value, damage_damage_value, WEAPON_DAMAGE_TYPE.MELEE));
 
         // add melee cooldawn
-        const melee_cooldawn: MeleeAttackCooldawnComponent | null = ecs.get_component<MeleeAttackCooldawnComponent>(entity);
-        if (melee_cooldawn) {
-            const melee_cooldawn_value = melee_cooldawn.value();
-            ecs.add_component(entity, new BuffMeleeAttackCooldawnComponent(melee_cooldawn_value));
-            external_entity_start_cooldawn(entity, COOLDAWN.MELEE_ATTACK, melee_cooldawn_value);
+        const attack_cooldawn: AttackCooldawnComponent | null = ecs.get_component<AttackCooldawnComponent>(entity);
+        if (attack_cooldawn) {
+            const attack_cooldawn_value = attack_cooldawn.value();
+            ecs.add_component(entity, new BuffMeleeAttackCooldawnComponent(attack_cooldawn_value));
+            external_entity_start_cooldawn(entity, COOLDAWN.MELEE_ATTACK, attack_cooldawn_value);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+function post_check_range_attack(ecs: ECS,
+                                 entity: Entity,
+                                 target_entity: Entity,
+                                 attack_time_value: f32): boolean {
+    const entity_target_action = ecs.get_component<TargetActionComponent>(entity);
+    
+    // range attack require only damage component
+    const damage_damage = ecs.get_component<DamageDamageComponent>(entity);
+    if (entity_target_action && damage_damage) {
+        entity_target_action.reset();
+        const damage_damage_value = damage_damage.value();
+
+        external_entity_start_range_attack(entity, attack_time_value);
+        ecs.add_component(entity, new CastWeaponDamageComponent(target_entity, 0.0, 0.0, damage_damage_value, WEAPON_DAMAGE_TYPE.RANGE));
+
+        const attack_cooldawn: AttackCooldawnComponent | null = ecs.get_component<AttackCooldawnComponent>(entity);
+        if (attack_cooldawn) {
+            const attack_cooldawn_value = attack_cooldawn.value();
+            ecs.add_component<BuffRangeAttackCooldawnComponent>(entity, new BuffRangeAttackCooldawnComponent(attack_cooldawn_value));
+            external_entity_start_cooldawn(entity, COOLDAWN.RANGE_ATTACK, attack_cooldawn_value);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+function post_check_hands_attack(ecs: ECS,
+                                 entity: Entity,
+                                 target_entity: Entity,
+                                 attack_time_value: f32): boolean {
+    const entity_target_action = ecs.get_component<TargetActionComponent>(entity);
+    
+    // hand attack require damage and distance component
+    const damage_damage = ecs.get_component<DamageDamageComponent>(entity);
+    const damage_distance = ecs.get_component<DamageDistanceComponent>(entity);
+    if (entity_target_action && damage_damage && damage_distance) {
+        entity_target_action.reset();
+        const damage_damage_value = damage_damage.value();
+        const damage_distance_value = damage_distance.value();
+
+        external_entity_start_hand_attack(entity, attack_time_value, damage_distance_value);
+        ecs.add_component(entity, new CastWeaponDamageComponent(target_entity, damage_distance_value, 0.0, damage_damage_value, WEAPON_DAMAGE_TYPE.EMPTY));
+
+        const attack_cooldawn: AttackCooldawnComponent | null = ecs.get_component<AttackCooldawnComponent>(entity);
+        if (attack_cooldawn) {
+            const attack_cooldawn_value = attack_cooldawn.value();
+            ecs.add_component<BuffHandAttackCooldawnComponent>(entity, new BuffHandAttackCooldawnComponent(attack_cooldawn_value));
+            external_entity_start_cooldawn(entity, COOLDAWN.HAND_ATTACK, attack_cooldawn_value);
         }
 
         return true;
@@ -187,36 +268,63 @@ function post_check_shadow_attack(ecs: ECS,
     return false;
 }
 
-export function try_start_melee_attack(ecs: ECS, entity: Entity, target_entity: Entity, attack_time_value: f32): START_CAST_STATUS {
-    const cast_state = check_attack_condition(ecs, entity, target_entity, attack_time_value, CAST_ACTION.MELEE_ATTACK);
+export function try_start_weapon_attack(ecs: ECS, entity: Entity, target_entity: Entity, attack_time_value: f32): START_CAST_STATUS {
+    // we should check is the equiped weapon is ranged or not
+    const weapon_damage_type = get_weapon_damage_type(ecs, entity);
+    if (weapon_damage_type == WEAPON_DAMAGE_TYPE.UNKNOWN) {
+        return START_CAST_STATUS.FAIL;
+    } else {
+        const attack_distance = ecs.get_component<AtackDistanceComponent>(entity);
 
-    if (cast_state == START_CAST_STATUS.OK) {
-        const is_success = post_check_melee_attack(ecs, entity, target_entity, attack_time_value);
+        if (attack_distance) {
+            const cast_state = check_attack_condition(ecs, entity, target_entity, attack_time_value, attack_distance.value(), 
+                                                      weapon_damage_type == WEAPON_DAMAGE_TYPE.MELEE ? CAST_ACTION.MELEE_ATTACK : 
+                                                     (weapon_damage_type == WEAPON_DAMAGE_TYPE.RANGE ? CAST_ACTION.RANGE_ATTACK : CAST_ACTION.HANDS_ATTACK));
 
-        if (is_success) {
-            return START_CAST_STATUS.OK;
+            if (cast_state == START_CAST_STATUS.OK) {
+                const is_success = weapon_damage_type == WEAPON_DAMAGE_TYPE.MELEE ?
+                                   post_check_melee_attack(ecs, entity, target_entity, attack_time_value) :
+                                  (weapon_damage_type == WEAPON_DAMAGE_TYPE.RANGE ? post_check_range_attack(ecs, entity, target_entity, attack_time_value) : post_check_hands_attack(ecs, entity, target_entity, attack_time_value));
+
+                if (is_success) {
+                    return START_CAST_STATUS.OK;
+                } else {
+                    return START_CAST_STATUS.FAIL;
+                }
+            } else {
+                return cast_state;
+            }
         } else {
             return START_CAST_STATUS.FAIL;
         }
-    } else {
-        return cast_state;
     }
+
+    return START_CAST_STATUS.FAIL;
 }
 
 export function try_start_shadow_attack(ecs: ECS, entity: Entity, target_entity: Entity, attack_time_value: f32): START_CAST_STATUS {
-    const cast_state = check_attack_condition(ecs, entity, target_entity, attack_time_value, CAST_ACTION.SHADOW_ATTACK);
+    // get attack distance value
+    // for shadow mode from shadow component
+    const shadow_attack_distance = ecs.get_component<ShadowAttackDistanceComponent>(entity);
+    if (shadow_attack_distance) {
+        const cast_state = check_attack_condition(ecs, entity, target_entity, attack_time_value, shadow_attack_distance.value(), CAST_ACTION.SHADOW_ATTACK);
 
-    if (cast_state == START_CAST_STATUS.OK) {
-        const is_success = post_check_shadow_attack(ecs, entity, target_entity, attack_time_value);
+        if (cast_state == START_CAST_STATUS.OK) {
+            const is_success = post_check_shadow_attack(ecs, entity, target_entity, attack_time_value);
 
-        if (is_success) {
-            return START_CAST_STATUS.OK;
+            if (is_success) {
+                return START_CAST_STATUS.OK;
+            } else {
+                return START_CAST_STATUS.FAIL;
+            }
         } else {
-            return START_CAST_STATUS.FAIL;
+            return cast_state;
         }
     } else {
-        return cast_state;
+        START_CAST_STATUS.FAIL;
     }
+
+    return START_CAST_STATUS.FAIL;
 }
 
 export function is_entity_in_hide(ecs: ECS, entity: Entity): boolean {
@@ -249,13 +357,21 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
         const entity_cast: StateCastComponent | null = ecs.get_component<StateCastComponent>(entity);
         if (entity_cast) {
             const entity_cast_type = entity_cast.type();
-            if (entity_cast_type == CAST_ACTION.MELEE_ATTACK) {
-                ecs.remove_component<CastMeleeDamageComponent>(entity);
+            if (entity_cast_type == CAST_ACTION.MELEE_ATTACK || 
+                entity_cast_type == CAST_ACTION.RANGE_ATTACK || 
+                entity_cast_type == CAST_ACTION.HANDS_ATTACK) {
+                ecs.remove_component<CastWeaponDamageComponent>(entity);
                 entity_state.set_state(STATE.IDDLE);
                 clear_state_components(ecs, STATE.CASTING, entity);
 
                 // notify client about cast interruption
-                external_entity_finish_melee_attack(entity, true);
+                if (entity_cast_type == CAST_ACTION.MELEE_ATTACK) {
+                    external_entity_finish_melee_attack(entity, true);
+                } else if (entity_cast_type == CAST_ACTION.RANGE_ATTACK) {
+                    external_entity_finish_range_attack(entity, true);
+                } else if (entity_cast_type == CAST_ACTION.HANDS_ATTACK) {
+                    external_entity_finish_hand_attack(entity, true);
+                }
             } else if (entity_cast_type == CAST_ACTION.HIDE_ACTIVATION) {
                 entity_state.set_state(STATE.IDDLE);
                 clear_state_components(ecs, STATE.CASTING, entity);
@@ -265,9 +381,6 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
                 entity_state.set_state(STATE.IDDLE);
                 clear_state_components(ecs, STATE.CASTING, entity);
                 external_entity_finish_shadow_attack(entity, true);
-            } else if (entity_cast_type == CAST_ACTION.RANGE_ATTACK) {
-                // unsupported for now
-                return false;
             } else {
                 // unsupported cast type
 
@@ -317,8 +430,11 @@ export function should_redefine_target_action(ecs: ECS, entity: Entity, target_e
         const entity_cast: StateCastComponent | null = ecs.get_component<StateCastComponent>(entity);
         if (entity_cast) {
             // what type of the cast and what is target
-            if (entity_cast.type() == CAST_ACTION.MELEE_ATTACK) {
-                const entity_cast_melee: CastMeleeDamageComponent | null = ecs.get_component<CastMeleeDamageComponent>(entity);
+            const entity_cast_type = entity_cast.type();
+            if (entity_cast_type == CAST_ACTION.MELEE_ATTACK ||
+                entity_cast_type == CAST_ACTION.RANGE_ATTACK ||
+                entity_cast_type == CAST_ACTION.HANDS_ATTACK) {
+                const entity_cast_melee: CastWeaponDamageComponent | null = ecs.get_component<CastWeaponDamageComponent>(entity);
                 if (entity_cast_melee) {
                     if (entity_cast_melee.target() == target_entity) {
                         // already make melee cast to the same entity, nothing to do
@@ -331,15 +447,20 @@ export function should_redefine_target_action(ecs: ECS, entity: Entity, target_e
                     // something wrong, cast is melee attack but there is no component
                     return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
                 }
-            } else if (entity_cast.type() == CAST_ACTION.HIDE_ACTIVATION) {
+            } else if (entity_cast_type == CAST_ACTION.HIDE_ACTIVATION) {
                 // currently cast hide activation, interrupt it
                 return UPDATE_TARGET_ACTION_STATUS.YES;
-            } else if (entity_cast.type() == CAST_ACTION.RANGE_ATTACK) {
-                // is not supported yet
-                return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
-            } else if (entity_cast.type() == CAST_ACTION.SHADOW_ATTACK) {
-                // TODO: check the target, and if it the same, nothing to do
-                return UPDATE_TARGET_ACTION_STATUS.YES;
+            } else if (entity_cast_type == CAST_ACTION.SHADOW_ATTACK) {
+                const entity_cast_shadow: CastShadowDamageComponent | null = ecs.get_component<CastShadowDamageComponent>(entity);
+                if (entity_cast_shadow) {
+                    if (entity_cast_shadow.target() == target_entity) {
+                        UPDATE_TARGET_ACTION_STATUS.NO;
+                    } else {
+                        return UPDATE_TARGET_ACTION_STATUS.YES;
+                    }
+                } else {
+                    return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
+                }
             } else {
                 // unknown type of cast action
                 return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
@@ -360,4 +481,16 @@ export function should_redefine_target_action(ecs: ECS, entity: Entity, target_e
     }
 
     return UPDATE_TARGET_ACTION_STATUS.YES;
+}
+
+export function output_update_entity_params(ecs: ECS, entity: Entity): void {
+    const select_radius: RadiusSelectComponent | null = ecs.get_component<RadiusSelectComponent>(entity);
+    const life: LifeComponent | null = ecs.get_component<LifeComponent>(entity);
+    const shield = ecs.get_component<ShieldComponent>(entity);
+    const attack_distance = ecs.get_component<AtackDistanceComponent>(entity);
+    const attack_time = ecs.get_component<AtackTimeComponent>(entity);
+
+    if (select_radius && life && shield && attack_distance && attack_time) {
+        external_update_entity_params(entity, life.life(), life.max_life(), shield.shield(), shield.max_shield(), select_radius.value(), attack_distance.value(), attack_time.value());
+    }
 }

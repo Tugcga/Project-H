@@ -12,7 +12,7 @@ import { PositionComponent } from "../components/position";
 import { ShiftCooldawnComponent } from "../components/shift_cooldawn";
 import { TargetActionComponent } from "../components/target_action";
 import { RadiusComponent } from "../components/radius";
-import { CastMeleeDamageComponent,
+import { CastWeaponDamageComponent,
          CastShadowDamageComponent } from "../components/cast";
 import { TargetAngleComponent } from "../components/target_angle";
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
@@ -29,6 +29,8 @@ import { BuffShiftCooldawnComponent } from "../skills/buffs";
 import { external_entity_finish_shift,
          external_entity_start_cooldawn,
          external_entity_finish_melee_attack,
+         external_entity_finish_range_attack,
+         external_entity_finish_hand_attack,
          external_entity_finish_shadow_attack,
          external_entity_finish_stun,
          external_entity_finish_hide,
@@ -36,6 +38,7 @@ import { external_entity_finish_shift,
 import { clear_state_components, interrupt_to_iddle } from "../states";
 
 import { apply_melee_attack,
+         apply_hand_attack,
          apply_hide,
          apply_shadow_attack } from "../skills/apply";
 
@@ -187,10 +190,10 @@ export class CastSwitchSystem extends System {
                 const cast_type = cast.type();
 
                 // with respect of the cast type we should rotate the entity to the target
-                if (cast_type == CAST_ACTION.MELEE_ATTACK) {
+                if (cast_type == CAST_ACTION.MELEE_ATTACK || cast_type == CAST_ACTION.RANGE_ATTACK || cast_type == CAST_ACTION.HANDS_ATTACK) {
                     // rotate to the target
-                    // target is stored in CastMeleeDamageComponent
-                    const cast_damage: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
+                    // target is stored in CastWeaponDamageComponent
+                    const cast_damage: CastWeaponDamageComponent | null = this.get_component<CastWeaponDamageComponent>(entity);
                     if (cast_damage) {
                         const target_entity = cast_damage.target();
                         allign_to_target(local_ecs, entity, target_entity, position_x, position_y, target_angle);
@@ -207,20 +210,30 @@ export class CastSwitchSystem extends System {
                     // cast is finish
                     const cast_duration = cast.time_length();
                     // we should apply post cast action, delete cast action component and switch to the iddle state
-                    if (cast_type == CAST_ACTION.MELEE_ATTACK) {
-                        external_entity_finish_melee_attack(entity, false);
-                        
-                        apply_melee_attack(local_ecs, entity, cast_duration, tracking_system);
+                    if (cast_type == CAST_ACTION.MELEE_ATTACK || cast_type == CAST_ACTION.RANGE_ATTACK || cast_type == CAST_ACTION.HANDS_ATTACK) {
+                        // notify the finish of the cast
+                        // and apply damage
+                        if (cast_type == CAST_ACTION.MELEE_ATTACK) {
+                            external_entity_finish_melee_attack(entity, false);
+                            apply_melee_attack(local_ecs, entity, cast_duration, tracking_system);
+                        } else if (cast_type == CAST_ACTION.RANGE_ATTACK) {
+                            external_entity_finish_range_attack(entity, false);
+                            // TODO: for range attack we should emit the bullet in proper direction
+                        } else if (cast_type == CAST_ACTION.HANDS_ATTACK) {
+                            external_entity_finish_hand_attack(entity, false);
+                            apply_hand_attack(local_ecs, entity, cast_duration);
+                        }
+
                         // remove cast melee damage component
                         // it should exists
-                        const cast_melee: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
+                        const cast_melee: CastWeaponDamageComponent | null = this.get_component<CastWeaponDamageComponent>(entity);
                         let cast_target = 0;
                         let is_cast_correct = false;
                         if (cast_melee) {
                             cast_target = cast_melee.target();
                             is_cast_correct = true;
                         }
-                        this.remove_component<CastMeleeDamageComponent>(entity);
+                        this.remove_component<CastWeaponDamageComponent>(entity);
 
                         // turn to iddle state
                         clear_state_components(local_ecs, STATE.CASTING, entity);
