@@ -1,7 +1,7 @@
 import { ECS } from "../../simple_ecs/simple_ecs";
 import { Entity } from "../../simple_ecs/types";
 
-import { DAMAGE_TYPE, TARGET_ACTION, EPSILON, WEAPON_DAMAGE_TYPE } from "../constants";
+import { STATE, DAMAGE_TYPE, TARGET_ACTION, EPSILON, WEAPON_DAMAGE_TYPE } from "../constants";
 import { distance } from "../utilities";
 
 import { CastWeaponDamageComponent,
@@ -13,6 +13,7 @@ import { HideModeComponent } from "../components/hide_mode";
 import { EnemiesListComponent } from "../components/enemies_list";
 import { TargetActionComponent } from "../components/target_action";
 import { SpeedComponent } from "../components/speed";
+import { StateComponent } from "../components/state";
 
 import { NeighborhoodQuadGridTrackingSystem } from "../systems/neighborhood_quad_grid_tracking";
 import { SearchEnemiesSystem } from "../systems/search_enemies"
@@ -53,29 +54,33 @@ export function apply_melee_attack(ecs: ECS, entity: Entity, cast_duration: f32,
                     if (neigh_entity != entity) {
                         const neigh_entity_position: PositionComponent | null = ecs.get_component<PositionComponent>(neigh_entity);
                         const neigh_entity_radius: RadiusComponent | null = ecs.get_component<RadiusComponent>(neigh_entity);
-                        if (neigh_entity_position && neigh_entity_radius) {
-                            const neigh_entity_radius_value = neigh_entity_radius.value();
-                            // find to entity vector
-                            let to_x = neigh_entity_position.x() - position_x;
-                            let to_y = neigh_entity_position.y() - position_y;
-                            // normalize
-                            const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
-                            if (to_length > EPSILON) {
-                                to_x /= to_length;
-                                to_y /= to_length;
-                            }
+                        const neigh_state = ecs.get_component<StateComponent>(neigh_entity);
+                        if (neigh_entity_position && neigh_entity_radius && neigh_state) {
+                            const neigh_state_value = neigh_state.state();
+                            if (neigh_state_value != STATE.DEAD && neigh_state_value != STATE.SHIFTING) {
+                                const neigh_entity_radius_value = neigh_entity_radius.value();
+                                // find to entity vector
+                                let to_x = neigh_entity_position.x() - position_x;
+                                let to_y = neigh_entity_position.y() - position_y;
+                                // normalize
+                                const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+                                if (to_length > EPSILON) {
+                                    to_x /= to_length;
+                                    to_y /= to_length;
+                                }
 
-                            // calculate dot-product between to target and to entity vectors
-                            const to_entity_dot = to_x * to_target_x + to_y * to_target_y;
-                            // if this product is greater than cos(spread / 2), then entity in the cone
-                            if ((to_entity_dot >= spread_limit) && (to_length <= melee_distance + neigh_entity_radius_value)) {
-                                // entity inside the cone
-                                // add damage component
-                                const neigh_entity_damage: ApplyDamageComponent | null = ecs.get_component<ApplyDamageComponent>(neigh_entity);
-                                if (neigh_entity_damage) {
-                                    neigh_entity_damage.extend(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration);
-                                } else {
-                                    ecs.add_component<ApplyDamageComponent>(neigh_entity, new ApplyDamageComponent(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration));
+                                // calculate dot-product between to target and to entity vectors
+                                const to_entity_dot = to_x * to_target_x + to_y * to_target_y;
+                                // if this product is greater than cos(spread / 2), then entity in the cone
+                                if ((to_entity_dot >= spread_limit) && (to_length <= melee_distance + neigh_entity_radius_value)) {
+                                    // entity inside the cone
+                                    // add damage component
+                                    const neigh_entity_damage: ApplyDamageComponent | null = ecs.get_component<ApplyDamageComponent>(neigh_entity);
+                                    if (neigh_entity_damage) {
+                                        neigh_entity_damage.extend(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration);
+                                    } else {
+                                        ecs.add_component<ApplyDamageComponent>(neigh_entity, new ApplyDamageComponent(entity, melee_damage, DAMAGE_TYPE.MELEE, cast_duration));
+                                    }
                                 }
                             }
                         }
@@ -92,17 +97,21 @@ function apply_one_target_damage(ecs: ECS, entity: Entity, target_entity: Entity
                                  damage_value: u32, damage_type: DAMAGE_TYPE, cast_duration: f32): void {
     const target_position = ecs.get_component<PositionComponent>(target_entity);
     const target_radius = ecs.get_component<RadiusComponent>(target_entity);
-    if (target_position && target_radius) {
-        const target_pos_x = target_position.x();
-        const target_pos_y = target_position.y();
-        const d = distance(position_x, position_y, target_pos_x, target_pos_y);
+    const target_state = ecs.get_component<StateComponent>(target_entity);
+    if (target_position && target_radius && target_state) {
+        const target_state_value = target_state.state();
+        if (target_state_value != STATE.DEAD && target_state_value != STATE.SHIFTING) {
+            const target_pos_x = target_position.x();
+            const target_pos_y = target_position.y();
+            const d = distance(position_x, position_y, target_pos_x, target_pos_y);
 
-        if (d < damage_distance + target_radius.value()) {
-            const target_apply_damage: ApplyDamageComponent | null = ecs.get_component<ApplyDamageComponent>(target_entity);
-            if (target_apply_damage) {
-                target_apply_damage.extend(entity, damage_value, damage_type, cast_duration);
-            } else {
-                ecs.add_component<ApplyDamageComponent>(target_entity, new ApplyDamageComponent(entity, damage_value, damage_type, cast_duration));
+            if (d < damage_distance + target_radius.value()) {
+                const target_apply_damage: ApplyDamageComponent | null = ecs.get_component<ApplyDamageComponent>(target_entity);
+                if (target_apply_damage) {
+                    target_apply_damage.extend(entity, damage_value, damage_type, cast_duration);
+                } else {
+                    ecs.add_component<ApplyDamageComponent>(target_entity, new ApplyDamageComponent(entity, damage_value, damage_type, cast_duration));
+                }
             }
         }
     }

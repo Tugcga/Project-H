@@ -48,7 +48,8 @@ export class ApplyDamageSystem extends System {
                     const state_value = state.state();
                     const team_value = team.team();
                     // apply damage only to live entity
-                    if (state_value != STATE.DEAD) {
+                    // and entity without shift
+                    if (state_value != STATE.DEAD && state_value != STATE.SHIFTING) {
                         // iterate throw damages
                         for (let j: u32 = 0, j_len: u32 = damage.count(); j < j_len; j++) {
                             const damage_attacker = damage.attacker(j);

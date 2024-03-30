@@ -3,6 +3,7 @@ import { Entity } from "../simple_ecs/types";
 import { Navmesh } from "../pathfinder/navmesh/navmesh";
 
 import { STATE, EPSILON, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, COOLDAWN, UPDATE_TARGET_ACTION_STATUS } from "./constants";
+import { DefaultWeapons } from "./settings";
 
 import { get_navmesh_path, direction_to_angle } from "./utilities";
 
@@ -27,6 +28,7 @@ import { BuffShiftCooldawnComponent,
 
 import { InventarComponent } from "./components/inventar/inventar";
 import { EquipmentComponent } from "./components/inventar/equipment";
+import { InventarWeaponTypeComponent } from "./components/inventar/type";
 
 import { external_entity_start_shift,
          external_entity_start_cooldawn,
@@ -404,6 +406,27 @@ export function command_equip_main_weapon(ecs: ECS, player_entity: Entity, weapo
         player_equip.equip_main_weapon(weapon_entity);
 
         // next recalculate player parameters with new equipment
+        update_entity_parameters(ecs, player_entity, default_weapons);
+    }
+}
+
+export function command_free_equip_weapon(ecs: ECS, player_entity: Entity, default_weapons: DefaultWeapons): void {
+    const player_inventar = ecs.get_component<InventarComponent>(player_entity);
+    const player_equip = ecs.get_component<EquipmentComponent>(player_entity);
+
+    if (player_inventar && player_equip) {
+        if (player_equip.is_secondary_weapon()) {
+            const secondary_entity = player_equip.remove_secondary_weapon();
+
+            player_inventar.add_item(secondary_entity);
+        }
+
+        if (player_equip.is_main_weapon()) {
+            const main_entity = player_equip.remove_main_weapon();
+
+            player_inventar.add_item(main_entity);
+        }
+
         update_entity_parameters(ecs, player_entity, default_weapons);
     }
 }

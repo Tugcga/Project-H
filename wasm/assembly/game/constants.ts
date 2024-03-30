@@ -76,10 +76,12 @@ export enum UPDATE_TARGET_ACTION_STATUS {
 }
 
 export enum INVENTORY_ITEM_TYPE {
+    UNKNOWN,
     WEAPON,
 }
 
 export enum WEAPON_TYPE {
+    UNKNOWN,
     SWORD,
     BOW,
 }

@@ -1,5 +1,6 @@
 import { Game } from "./game";
 import { Settings } from "./game/settings";
+import { VirtualWeapon } from "./game/virtuals";
 
 export function create_settings(): Settings {
     return new Settings();
@@ -14,11 +15,6 @@ export function settings_set_generate(settings: Settings, level_size: u32, room_
     generate.set_level_size(level_size);
     generate.set_room_size(room_min_size, room_max_size);
     generate.set_rooms_count(rooms_count);
-}
-
-export function settings_set_monsters_per_room(settings: Settings, min_value: u32, max_value: u32): void {
-    const constants = settings.get_constants();
-    constants.set_monsters_per_room(min_value, max_value);
 }
 
 export function settings_set_use_debug(settings: Settings, in_use_debug: boolean): void {
@@ -39,19 +35,25 @@ export function settings_set_debug_flags(settings: Settings,
     debug.show_enemy_targets = in_show_enemy_targets;
 }
 
+/*---Engine settings---*/
 export function settings_set_neighbourhood_quad_size(settings: Settings, in_size: f32): void {
-    const constants = settings.get_constants();
-    constants.set_neighborhood_quad_size(in_size);
+    const engine = settings.get_engine();
+    engine.set_neighborhood_quad_size(in_size);
 }
 
 export function settings_set_visible_quad_size(settings: Settings, in_size: f32): void {
-    const constants = settings.get_constants();
-    constants.set_visible_quad_size(in_size);
+    const engine = settings.get_engine();
+    engine.set_visible_quad_size(in_size);
+}
+
+export function settings_set_search_quad_size(settings: Settings, in_size: f32): void {
+    const engine = settings.get_engine();
+    engine.set_search_quad_size(in_size);
 }
 
 export function settings_set_rvo_time_horizon(settings: Settings, in_time: f32): void {
-    const constants = settings.get_constants();
-    constants.set_rvo_time_horizon(in_time);
+    const engine = settings.get_engine();
+    engine.set_rvo_time_horizon(in_time);
 }
 
 export function settings_set_use_rvo(settings: Settings, in_value: boolean): void {
@@ -69,92 +71,160 @@ export function settings_set_velocity_boundary_control(settings: Settings, in_va
     engine.set_velocity_boundary_control(in_value);
 }
 
-export function settings_set_path_recalculate_time(settings: Settings, in_value: f32): void {
-    const constants = settings.get_constants();
-    constants.set_path_recalculate_time(in_value);
+export function settings_set_path_recalculate_time(settings: Settings, common_value: f32, follow_value: f32): void {
+    const engine = settings.get_engine();
+    engine.set_path_recalculate_time(common_value, follow_value);
 }
 
-export function settings_set_player_fast_shift(settings: Settings, speed_multiplier: f32, distance: f32, cooldawn: f32): void {
-    const constants = settings.get_constants();
-    constants.set_player_shift(speed_multiplier, distance, cooldawn);
+export function settings_set_tiles_visible_radius(settings: Settings, in_value: i32): void {
+    const engine = settings.get_engine();
+    engine.set_tiles_visible_radius(in_value);
 }
 
-export function settings_set_monster_iddle_time(settings: Settings, min_iddle: f32, max_iddle: f32): void {
+/*---Constants---*/
+export function settings_set_monster_iddle_time(settings: Settings, min_value: f32, max_value: f32): void {
     const constants = settings.get_constants();
-    constants.set_monster_iddle_time(min_iddle, max_iddle);
+    constants.set_monster_iddle_time(min_value, max_value);
 }
 
-export function settings_set_player_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
+export function settings_set_monsters_per_room(settings: Settings, min_value: u32, max_value: u32): void {
     const constants = settings.get_constants();
-    constants.set_player_melee_attack(distance, time_span, cooldawn, damage, damage_spread, damage_distance);
+    constants.set_monsters_per_room(min_value, max_value);
 }
 
-export function settings_set_monster_melee_attack(settings: Settings, distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
+export function settings_set_select_radius_delta(settings: Settings, in_value: f32): void {
     const constants = settings.get_constants();
-    constants.set_monster_melee_attack(distance, time_span, cooldawn, damage, damage_spread, damage_distance);
+    constants.set_select_radius_delta(in_value);
 }
 
-export function settings_set_player_shield(settings: Settings, shield: f32, resurrect: f32): void {
+export function settings_set_level_tile_size(settings: Settings, in_value: f32): void {
     const constants = settings.get_constants();
-    constants.set_player_shield(shield, resurrect);
+    constants.set_level_tile_size(in_value);
 }
 
-export function settings_set_monster_shield(settings: Settings, shield: f32, resurrect: f32): void {
+export function settings_set_monster_random_walk_radius(settings: Settings, in_value: f32): void {
     const constants = settings.get_constants();
-    constants.set_monster_shield(shield, resurrect);
+    constants.set_monster_random_walk_radius(in_value);
 }
 
-export function settings_set_player_life(settings: Settings, value: u32): void {
-    const constants = settings.get_constants();
-    constants.set_player_life(value);
+/*---Default monster---*/
+export function settings_set_default_monster_common(settings: Settings,
+                                                    rotation_speed: f32, shield_resurrect: f32, hide_speed_multiplier: f32, hide_activate_time: f32, hide_cooldawn: f32): void {
+    const defaults = settings.get_defaults();
+    const def_monster = defaults.default_monster_parameters;
+    def_monster.set_common_parameters(rotation_speed, shield_resurrect, hide_speed_multiplier, hide_activate_time, hide_cooldawn);
 }
 
-export function settings_set_monster_life(settings: Settings, value: u32): void {
-    const constants = settings.get_constants();
-    constants.set_monster_life(value);
+export function settings_set_default_monster_person(settings: Settings,
+                                                    radius: f32, speed: f32, life: u32, search_radius: f32, search_spread: f32, team: i32): void {
+    const defaults = settings.get_defaults();
+    const def_monster = defaults.default_monster_parameters;
+    def_monster.set_person_parameters(radius, speed, life, search_radius, search_spread, team);
 }
 
-export function settings_set_default_melee_stun(settings: Settings, value: f32): void {
-    const constants = settings.get_constants();
-    constants.set_default_melee_stun(value);
+/*---Default player---*/
+export function settings_set_player(settings: Settings,
+                                    radius: f32, speed: f32, life: u32, rotation_speed: f32, shield_resurrect: f32, default_team: i32,
+                                    shift_speed_multiplier: f32, shift_distance: f32, shift_cooldawn: f32,
+                                    hide_speed_multiplier: f32, hide_cooldawn: f32, hide_activate_time: f32): void {
+    const defaults = settings.get_defaults();
+    const dpp = defaults.default_player_parameters;
+
+    dpp.radius = radius;
+    dpp.speed = speed;
+    dpp.life = life;
+    dpp.rotation_speed = rotation_speed;
+    dpp.shield_resurrect = shield_resurrect;
+    dpp.default_team = default_team;
+    
+    dpp.shift_speed_multiplier = shift_speed_multiplier;
+    dpp.shift_distance = shift_distance;
+    dpp.shift_cooldawn = shift_cooldawn;
+
+    dpp.hide_speed_multiplier = hide_speed_multiplier;
+    dpp.hide_cooldawn = hide_cooldawn;
+    dpp.hide_activate_time = hide_activate_time;
 }
 
-export function settings_set_search_radius_spread(settings: Settings, radius: f32, spread:f32): void {
-    const constants = settings.get_constants();
-    constants.set_search_radius_spread(radius, spread);
+/*---Monster weapon*/
+export function settings_set_default_monster_weapon(settings: Settings,
+                                                    attack_time: f32, attack_distance: f32, attack_cooldawn: f32, shield: f32, damage: u32, damage_distance: f32): void {
+    const defaults = settings.get_defaults();
+    const dmw = defaults.default_monster_weapon;
+
+    dmw.attack_time = attack_time;
+    dmw.attack_distance = attack_distance;
+    dmw.attack_cooldawn = attack_cooldawn;
+    dmw.shield = shield;
+    dmw.damage = damage;
+    dmw.damage_distance = damage_distance;
 }
 
-export function settings_set_player_speed(settings: Settings, speed: f32): void {
-    const constants = settings.get_constants();
-    constants.set_player_speed(speed);
+/*---Default weapons---*/
+export function settings_set_default_empty_weapon(settings: Settings,
+                                                  attack_time: f32, attack_distance: f32, attack_cooldawn: f32, damage_distance: f32, damage: u32, shield: f32): void {
+    const default_weapon = settings.get_default_weapons();
+    default_weapon.set_empty_weapon(attack_time, attack_distance, attack_cooldawn, damage_distance, damage, shield);
 }
 
-export function settings_set_hide_speed_multipler(settings: Settings, value: f32): void {
-    const constants = settings.get_constants();
-    constants.set_hide_speed_multiplier(value);
+export function settings_set_default_shadow_weapon(settings: Settings,
+                                                   attack_time: f32, attack_distance: f32, attack_cooldawn: f32, damage_distance: f32): void {
+    const default_weapon = settings.get_default_weapons();
+    default_weapon.set_shadow_weapon(attack_time, attack_distance, attack_cooldawn, damage_distance);
 }
 
-export function settings_set_hide_cast(settings: Settings, cooldawn: f32, activate_time: f32): void {
-    const constants = settings.get_constants();
-    constants.set_hide_cast(cooldawn, activate_time);
-}
-
-export function dev_game_spawn_monster(game: Game, radius: f32, position_x: f32, position_y: f32, move_speed: f32,
-                                                   damage: u32, damage_distance: f32, damage_spread: f32,
-                                                   attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
-                                                   life: u32, shield: f32,
-                                                   search_radius: f32, search_spread: f32, team: i32, friend_for_player: bool): void {
-    game.dev_emit_one_monster(radius, position_x, position_y, move_speed,
-                              damage, damage_distance, damage_spread,
-                              attack_cooldawn, attack_distance, attack_time,
-                              life, shield,
-                              search_radius, search_spread, team, friend_for_player);
+/*---Utility funcions, for gameplay tests---*/
+export function dev_game_spawn_monster(game: Game,
+                                       radius: f32, position_x: f32, position_y: f32, move_speed: f32, life: u32, 
+                                       virtual_weapon: VirtualWeapon, search_radius: f32, search_spread: f32, team: i32, friend_for_player: bool): void {
+    game.dev_emit_one_monster(radius, position_x, position_y, move_speed, life, virtual_weapon, search_radius, search_spread, team, friend_for_player);
 }
 
 export function dev_game_move_entity(game: Game, entity: u32, pos_x: f32, pos_y: f32): void {
     game.dev_move_entity(entity, pos_x, pos_y);
 }
 
+export function dev_add_sword_to_player(game: Game,
+                                        attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32,
+                                        damage_spread: f32, damage_distance: f32): void {
+    game.dev_create_sword(attack_distance, attack_time, attack_cooldawn, damage, shield, damage_spread, damage_distance);
+}
+
+export function dev_add_bow_to_player(game: Game,
+                                      attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32): void {
+    game.dev_create_bow(attack_distance, attack_time, attack_cooldawn, damage, shield);
+}
+
+export function dev_player_equip_sword(game: Game): void {
+    game.dev_equip_sword();
+}
+
+export function dev_player_equip_bow(game: Game): void {
+    game.dev_equip_bow();
+}
+
+export function dev_player_equip_free_hands(game: Game): void {
+    game.dev_equip_free_hands();
+}
+
+export function dev_create_virtual_sword(game: Game,
+                                         attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32,
+                                         damage_distance: f32, damage_spread: f32): VirtualWeapon {
+    return game.dev_create_virtual_sword(attack_distance, attack_time, attack_cooldawn, shield, damage, damage_distance, damage_spread);
+}
+
+export function dev_create_virtual_bow(game: Game,
+                                       attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32): VirtualWeapon {
+    return game.dev_create_virtual_bow(attack_distance, attack_time, attack_cooldawn, shield, damage);
+}
+
+export function dev_create_virtual_empty_weapon(game: Game,
+                                         attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32,
+                                         damage_distance: f32): VirtualWeapon {
+    return game.dev_create_virtual_empty_weapon(attack_distance, attack_time, attack_cooldawn, shield, damage, damage_distance);
+}
+
+/*---Game API---*/
 export function create_game(settings: Settings): Game {
     return new Game(settings);
 }

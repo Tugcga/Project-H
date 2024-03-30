@@ -77,7 +77,7 @@ export const COOLDAWN_RANGE_ATTACK_COLOR = "rgba(219, 149, 35, 0.5)";
 export const COOLDAWN_RANGE_ATTACK_WIDTH = 2.0;
 export const COOLDAWN_RANGE_ATTACK_RADIUS = 8.0;
 
-export const COOLDAWN_HAND_ATTACK_COLOR = "rgba(152, 35, 219, 0.25)";
+export const COOLDAWN_HAND_ATTACK_COLOR = "rgba(103, 136, 174, 0.25)";
 export const COOLDAWN_HAND_ATTACK_WIDTH = 2.0;
 export const COOLDAWN_HAND_ATTACK_RADIUS = 8.0;
 
@@ -101,4 +101,8 @@ export const EFFECT_HIDE_ACTIVATION_STROKE = "rgba(21, 29, 43, 1.0)";
 export const EFFECT_SHADOW_ATTACK_COLOR = "rgba(212, 37, 6, 0.5)";
 export const EFFECT_SHADOW_ATTACK_WIDTH = 4.0;
 
-export const EFFECT_HAND_ATTACK_COLOR = "rgba(152, 35, 219, 0.5)";
+export const EFFECT_HAND_ATTACK_COLOR = "rgba(103, 136, 174, 0.5)";
+
+export const EFFECT_RANGE_ATTACK_COLOR = "rgba(219, 149, 35, 0.75)";
+export const EFFECT_RANGE_ATTACK_WIDTH = 2.0;
+export const EFFECT_RANGE_ATTACK_DELTA = 6.0;  // gap between person circle and effect line

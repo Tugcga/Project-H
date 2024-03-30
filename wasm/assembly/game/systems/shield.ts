@@ -39,7 +39,7 @@ export class ShieldIncreaseSystem extends System {
                 const state_value = state.state();
                 if (state_value != STATE.SHIELD && state_value != STATE.DEAD) {
                     const increase_value = shield_incerease.value();
-                    const  is_increase = shield.update(increase_value * dt);
+                    const is_increase = shield.update(increase_value * dt);
                     if (is_increase) {
                         update_to_client.set_value(true);
                     }

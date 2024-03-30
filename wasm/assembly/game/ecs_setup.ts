@@ -4,8 +4,8 @@ import { Navmesh } from "../pathfinder/navmesh/navmesh";
 import { PseudoRandom } from "../promethean/pseudo_random";
 import { Level } from "../promethean/level";
 
-import { STATE, ACTOR, INVENTORY_ITEM_TYPE, WEAPON_TYPE } from "./constants";
-import { DefaultWeapons } from "./settings";
+import { STATE, ACTOR, INVENTORY_ITEM_TYPE, WEAPON_TYPE, WEAPON_DAMAGE_TYPE } from "./constants";
+import { DefaultWeapons, Defaults, ConstantsSettings } from "./settings";
 
 // import components
 import { AngleComponent } from "./components/angle";
@@ -60,6 +60,7 @@ import { SpreadSearchComponent } from "./components/spread_search";
 import { ShadowAttackCooldawnComponent } from "./components/shadow_attack_cooldawn";
 import { ShadowAttackTimeComponent } from "./components/shadow_attack_time";
 import { ShadowAttackDistanceComponent } from "./components/shadow_attack_distance";
+import { WeaponDamageTypeComponent } from "./components/weapon_damage_type";
 
 import { EquipmentComponent } from "./components/inventar/equipment";
 import { WeaponAttackDistanceComponent,
@@ -112,6 +113,11 @@ import { BuffShiftCooldawnComponent,
          BuffTimerHandAttackCooldawnSystem,
          BuffTimerHideCooldawnSystem,
          BuffTimerShadowAttackCooldawnSystem } from "./skills/buffs";
+
+import { VirtualWeapon,
+         VirtualWeaponEmpty,
+         VirtualWeaponSword,
+         VirtualWeaponBow } from "./virtuals";
 
 import { DebugSettings, EngineSettings } from "./settings";
 
@@ -510,6 +516,13 @@ export function setup_components(ecs: ECS): void {
     // comment: data component, store value for the spread angle of the search cone
     ecs.register_component<SpreadSearchComponent>();
 
+    // assigned: only monsters
+    // read systems: -
+    // write systems: -
+    // comment: use to identify the weapon type for mosnters
+    // for player we use equipment component for these perposes
+    ecs.register_component<WeaponDamageTypeComponent>();
+
     /*---Inventar items---*/
     ecs.register_component<WeaponAttackDistanceComponent>();
     ecs.register_component<WeaponAttackTimeComponent>();
@@ -532,15 +545,8 @@ export function setup_systems(ecs: ECS,
                               level_width: i32,
                               level_height: i32,
                               tile_size: f32,
-                              visible_quad_size: f32,
-                              neighborhood_quad_size: f32,
-                              rvo_time_horizon: f32,
-                              monster_random_walk_target_radius: f32,
-                              monster_iddle_time: Array<f32>,
-                              path_recalculate_time: f32,
-                              path_to_target_recalculate_time: f32,
-                              default_melee_stun: f32,
-                              search_radius: f32,
+                              defaults: Defaults,
+                              constants: ConstantsSettings,
                               debug_settings: DebugSettings,
                               engine_settings: EngineSettings): void {
     // reset to zero preferred velocities for all movable entities (player, mosnters)
@@ -551,7 +557,7 @@ export function setup_systems(ecs: ECS,
     // does not move entity here
     // we need position to define is the entity jamps over current target point or not
     // if yes, increase index of the target point in the trajectory path
-    ecs.register_system<WalkToPointSystem>(new WalkToPointSystem(navmesh, path_recalculate_time, path_to_target_recalculate_time));
+    ecs.register_system<WalkToPointSystem>(new WalkToPointSystem(navmesh, engine_settings.path_recalculate_time, engine_settings.path_to_target_recalculate_time));
     ecs.set_system_with_component<WalkToPointSystem, PositionComponent>();
     ecs.set_system_with_component<WalkToPointSystem, SpeedComponent>();
     ecs.set_system_with_component<WalkToPointSystem, StateWalkToPointComponent>();
@@ -580,11 +586,11 @@ export function setup_systems(ecs: ECS,
     // calculate quad index (used for neigborhoods) from the position of the player and monsters
     // store it in the component
     // if the index is changed, then move entity index in the inner array of the system, whcich tracking all changes and store actual indices
-    const neighborhood_tracking_system = ecs.register_system<NeighborhoodQuadGridTrackingSystem>(new NeighborhoodQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, neighborhood_quad_size));
+    const neighborhood_tracking_system = ecs.register_system<NeighborhoodQuadGridTrackingSystem>(new NeighborhoodQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.neighborhood_quad_size));
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, NeighborhoodQuadGridIndexComponent>();
 
-    const search_tracking_system = ecs.register_system<SearchQuadGridTrackingSystem>(new SearchQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, search_radius));
+    const search_tracking_system = ecs.register_system<SearchQuadGridTrackingSystem>(new SearchQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.search_quad_size));
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, SearchQuadGridIndexComponent>();
 
@@ -628,7 +634,8 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<SearchEnemiesSystem, AngleComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, StateComponent>();
 
-    ecs.register_system<BehaviourSystem>(new BehaviourSystem(navmesh, random, monster_iddle_time[0], monster_iddle_time[1], monster_random_walk_target_radius));
+    const monster_iddle_time = constants.monster_iddle_time;
+    ecs.register_system<BehaviourSystem>(new BehaviourSystem(navmesh, random, monster_iddle_time[0], monster_iddle_time[1], constants.monster_random_walk_target_radius));
     ecs.set_system_with_component<BehaviourSystem, StateComponent>();
     ecs.set_system_with_component<BehaviourSystem, EnemiesListComponent>();
     ecs.set_system_with_component<BehaviourSystem, PositionComponent>();
@@ -638,7 +645,7 @@ export function setup_systems(ecs: ECS,
         // system for rvo algorithm
         // for player we simply copy preferred velocity to velocity
         // for monsters calculate proper velocities
-        ecs.register_system<RVOSystem>(new RVOSystem(neighborhood_tracking_system, rvo_time_horizon));
+        ecs.register_system<RVOSystem>(new RVOSystem(neighborhood_tracking_system, engine_settings.rvo_time_horizon));
         ecs.set_system_with_component<RVOSystem, PreferredVelocityComponent>();
         ecs.set_system_with_component<RVOSystem, VelocityComponent>();
         ecs.set_system_with_component<RVOSystem, ActorTypeComponent>();
@@ -660,7 +667,7 @@ export function setup_systems(ecs: ECS,
         ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
     }
 
-    ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem(default_melee_stun));
+    ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem(defaults.default_stun_time));
     ecs.set_system_with_component<ApplyDamageSystem, UpdateToClientComponent>();  // if life or shield is changed, activate update
     ecs.set_system_with_component<ApplyDamageSystem, LifeComponent>();
     ecs.set_system_with_component<ApplyDamageSystem, ShieldComponent>();
@@ -712,7 +719,7 @@ export function setup_systems(ecs: ECS,
 
     // calculate quad index from monster position
     // if index is changed, update data in the inner system variable
-    const visible_tracking_system = ecs.register_system<VisibleQuadGridTrackingSystem>(new VisibleQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, visible_quad_size));
+    const visible_tracking_system = ecs.register_system<VisibleQuadGridTrackingSystem>(new VisibleQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.visible_quad_size));
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, MonsterComponent>();  // does not tracking player
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, VisibleQuadGridIndexComponent>();
@@ -768,38 +775,11 @@ export function setup_systems(ecs: ECS,
     }
 }
 
-export function setup_player(ecs: ECS, 
-                             level: Level, 
-                             pos_x: f32, 
-                             pos_y: f32, 
-                             speed: f32,
-                             shift_speed_multiplier: f32,
-                             shift_distance: f32,
-                             shift_cooldawn: f32,
-                             melee_attack_cooldaw: f32,
-                             shadow_attack_cooldawn: f32,
-                             radius: f32, 
-                             angle: f32, 
-                             rotation_speed: f32, 
-                             tiles_visible_radius: i32, 
-                             level_width: f32, 
-                             neighborhood_quad_size: f32,
-                             radius_select_delta: f32,
-                             atack_distance: f32,
-                             melee_timing: f32,
-                             melee_damage_damage: u32,
-                             melee_damage_distance: f32,
-                             melee_damage_spread: f32,
-                             shadow_damage_distance: f32,
-                             life: u32,
-                             shield: f32,
-                             shield_resurect: f32,
-                             team: i32,
-                             search_radius: f32,
-                             hide_speed_multiplier: f32,
-                             hide_cooldawn: f32,
-                             hide_activate_time: f32,
-                             default_weapons: DefaultWeapons): Entity {
+export function setup_player(ecs: ECS, level: Level, 
+                             pos_x: f32, pos_y: f32, angle: f32, level_width: f32, defaults: Defaults, constants: ConstantsSettings, engine: EngineSettings): Entity {
+    const default_weapons = defaults.default_weapons;
+    const default_player = defaults.default_player_parameters;
+
     const player_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(player_entity, new ActorTypeComponent(ACTOR.PLAYER));
     ecs.add_component<PlayerComponent>(player_entity, new PlayerComponent());
@@ -811,37 +791,37 @@ export function setup_player(ecs: ECS,
     ecs.add_component<VelocityComponent>(player_entity, new VelocityComponent());
     ecs.add_component<PositionComponent>(player_entity, new PositionComponent(pos_x, pos_y));
     ecs.add_component<PreviousPositionComponent>(player_entity, new PreviousPositionComponent(pos_x, pos_y));  // set the same position
-    ecs.add_component<RadiusComponent>(player_entity, new RadiusComponent(radius));
-    ecs.add_component<RadiusSelectComponent>(player_entity, new RadiusSelectComponent(radius + radius_select_delta));  // use slightly bigger select radius
-    ecs.add_component<RotationSpeedComponent>(player_entity, new RotationSpeedComponent(rotation_speed));
+    ecs.add_component<RadiusComponent>(player_entity, new RadiusComponent(default_player.radius));
+    ecs.add_component<RadiusSelectComponent>(player_entity, new RadiusSelectComponent(default_player.radius + constants.radius_select_delta));  // use slightly bigger select radius
+    ecs.add_component<RotationSpeedComponent>(player_entity, new RotationSpeedComponent(default_player.rotation_speed));
     ecs.add_component<AngleComponent>(player_entity, new AngleComponent(angle));
     ecs.add_component<TargetAngleComponent>(player_entity, new TargetAngleComponent(angle));  // set the same target angle at the start
     ecs.add_component<NeighborhoodTilesComponent>(player_entity, new NeighborhoodTilesComponent(level));
-    ecs.add_component<NeighborhoodRadiusComponent>(player_entity, new NeighborhoodRadiusComponent(tiles_visible_radius));
+    ecs.add_component<NeighborhoodRadiusComponent>(player_entity, new NeighborhoodRadiusComponent(engine.tiles_visible_radius));
     ecs.add_component<TilePositionComponent>(player_entity, new TilePositionComponent());
     ecs.add_component<MoveTagComponent>(player_entity, new MoveTagComponent());
     ecs.add_component<VisibleQuadGridNeighborhoodComponent>(player_entity, new VisibleQuadGridNeighborhoodComponent());
     ecs.add_component<UpdateToClientComponent>(player_entity, new UpdateToClientComponent());
-    ecs.add_component<NeighborhoodQuadGridIndexComponent>(player_entity, new NeighborhoodQuadGridIndexComponent(level_width, neighborhood_quad_size));
-    ecs.add_component<TeamComponent>(player_entity, new TeamComponent(team));
-    ecs.add_component<SearchQuadGridIndexComponent>(player_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
-    ecs.add_component<HideModeComponent>(player_entity, new HideModeComponent(hide_speed_multiplier, hide_cooldawn, hide_activate_time));
+    ecs.add_component<NeighborhoodQuadGridIndexComponent>(player_entity, new NeighborhoodQuadGridIndexComponent(level_width, engine.neighborhood_quad_size));
+    ecs.add_component<TeamComponent>(player_entity, new TeamComponent(default_player.default_team));
+    ecs.add_component<SearchQuadGridIndexComponent>(player_entity, new SearchQuadGridIndexComponent(level_width, engine.search_quad_size));
+    ecs.add_component<HideModeComponent>(player_entity, new HideModeComponent(default_player.hide_speed_multiplier, default_player.hide_cooldawn, default_player.hide_activate_time));
     ecs.add_component<TargetActionComponent>(player_entity, new TargetActionComponent());
 
     // standart parameters, which should not change
-    ecs.add_component<SpeedComponent>(player_entity, new SpeedComponent(speed));
-    ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(shield_resurect));
+    ecs.add_component<SpeedComponent>(player_entity, new SpeedComponent(default_player.speed));
+    ecs.add_component<ShieldIncreaseComponent>(player_entity, new ShieldIncreaseComponent(default_player.shield_resurrect));
 
     // parameters, defined by the equip
     // when create player we use default weapons (with empty equipment), then we will update these parameters
     // shift
-    ecs.add_component<ShiftSpeedMultiplierComponent>(player_entity, new ShiftSpeedMultiplierComponent(shift_speed_multiplier));
-    ecs.add_component<ShiftDistanceComponent>(player_entity, new ShiftDistanceComponent(shift_distance));
-    ecs.add_component<ShiftCooldawnComponent>(player_entity, new ShiftCooldawnComponent(shift_cooldawn));
+    ecs.add_component<ShiftSpeedMultiplierComponent>(player_entity, new ShiftSpeedMultiplierComponent(default_player.shift_speed_multiplier));
+    ecs.add_component<ShiftDistanceComponent>(player_entity, new ShiftDistanceComponent(default_player.shift_distance));
+    ecs.add_component<ShiftCooldawnComponent>(player_entity, new ShiftCooldawnComponent(default_player.shift_cooldawn));
 
     // life and shield
-    ecs.add_component<LifeComponent>(player_entity, new LifeComponent(life));
-    ecs.add_component<ShieldComponent>(player_entity, new ShieldComponent(0.0));
+    ecs.add_component<LifeComponent>(player_entity, new LifeComponent(default_player.life));
+    ecs.add_component<ShieldComponent>(player_entity, new ShieldComponent(Infinity));
 
     // attack
     // values for these components defined by weapons
@@ -864,35 +844,13 @@ export function setup_player(ecs: ECS,
     return player_entity;
 }
 
-export function setup_monster(ecs: ECS, 
-                              pos_x: f32, 
-                              pos_y: f32, 
-                              angle: f32, 
-                              speed: f32, 
-                              melee_attack_cooldaw: f32,
-                              shadow_attack_cooldawn: f32,
-                              radius: f32, 
-                              rotation_speed: f32,
-                              level_width: f32, 
-                              visible_quad_size: f32,
-                              neighborhood_quad_size: f32,
-                              radius_select_delta: f32,
-                              atack_distance: f32,
-                              melee_timing: f32,
-                              melee_damage_damage: u32,
-                              melee_damage_distance: f32,
-                              melee_damage_spread: f32,
-                              shadow_damage_distance: f32,
-                              life: u32,
-                              shield: f32,
-                              shield_resurect: f32,
-                              team: i32,
-                              search_radius: f32,
-                              search_spread: f32,
-                              hide_speed_multiplier: f32,
-                              hide_cooldawn: f32,
-                              hide_activate_time: f32,
-                              default_weapons: DefaultWeapons): Entity {
+export function setup_monster(ecs: ECS, level_width: f32, 
+                              pos_x: f32, pos_y: f32, angle: f32, speed: f32, radius: f32, life: u32,
+                              team: i32, search_radius: f32, search_spread: f32,
+                              weapon: VirtualWeapon, defaults: Defaults, constants: ConstantsSettings, engine: EngineSettings): Entity {
+    const default_monster = defaults.default_monster_parameters;
+    const default_weapons = defaults.default_weapons;
+
     const monster_entity = ecs.create_entity();
     ecs.add_component<ActorTypeComponent>(monster_entity, new ActorTypeComponent(ACTOR.MONSTER));
     ecs.add_component<MonsterComponent>(monster_entity, new MonsterComponent());
@@ -904,38 +862,58 @@ export function setup_monster(ecs: ECS,
     ecs.add_component<PositionComponent>(monster_entity, new PositionComponent(pos_x, pos_y));
     ecs.add_component<PreviousPositionComponent>(monster_entity, new PreviousPositionComponent(pos_x, pos_y));  // set the same position
     ecs.add_component<RadiusComponent>(monster_entity, new RadiusComponent(radius));
-    ecs.add_component<RadiusSelectComponent>(monster_entity, new RadiusSelectComponent(radius + radius_select_delta));  // use slightly bigger select radius
-    ecs.add_component<RotationSpeedComponent>(monster_entity, new RotationSpeedComponent(rotation_speed));
+    ecs.add_component<RadiusSelectComponent>(monster_entity, new RadiusSelectComponent(radius + constants.radius_select_delta));  // use slightly bigger select radius
+    ecs.add_component<RotationSpeedComponent>(monster_entity, new RotationSpeedComponent(default_monster.rotation_speed));
     ecs.add_component<AngleComponent>(monster_entity, new AngleComponent(angle));
     ecs.add_component<TargetAngleComponent>(monster_entity, new TargetAngleComponent(angle));
     ecs.add_component<MoveTagComponent>(monster_entity, new MoveTagComponent());
-    ecs.add_component<VisibleQuadGridIndexComponent>(monster_entity, new VisibleQuadGridIndexComponent(level_width, visible_quad_size));
+    ecs.add_component<VisibleQuadGridIndexComponent>(monster_entity, new VisibleQuadGridIndexComponent(level_width, engine.visible_quad_size));
     ecs.add_component<UpdateToClientComponent>(monster_entity, new UpdateToClientComponent());
-    ecs.add_component<NeighborhoodQuadGridIndexComponent>(monster_entity, new NeighborhoodQuadGridIndexComponent(level_width, neighborhood_quad_size));
+    ecs.add_component<NeighborhoodQuadGridIndexComponent>(monster_entity, new NeighborhoodQuadGridIndexComponent(level_width, engine.neighborhood_quad_size));
     ecs.add_component<TargetActionComponent>(monster_entity, new TargetActionComponent());
     ecs.add_component<TeamComponent>(monster_entity, new TeamComponent(team));
-    ecs.add_component<SearchQuadGridIndexComponent>(monster_entity, new SearchQuadGridIndexComponent(level_width, search_radius));
+    ecs.add_component<SearchQuadGridIndexComponent>(monster_entity, new SearchQuadGridIndexComponent(level_width, engine.search_quad_size));
     ecs.add_component<EnemiesListComponent>(monster_entity, new EnemiesListComponent());
     ecs.add_component<RadiusSearchComponent>(monster_entity, new RadiusSearchComponent(search_radius));
     ecs.add_component<SpreadSearchComponent>(monster_entity, new SpreadSearchComponent(search_spread));
     ecs.add_component<BehaviourComponent>(monster_entity, new BehaviourComponent());
-    ecs.add_component<HideModeComponent>(monster_entity, new HideModeComponent(hide_speed_multiplier, hide_cooldawn, hide_activate_time));
+    ecs.add_component<HideModeComponent>(monster_entity, new HideModeComponent(default_monster.hide_speed_multiplier, default_monster.hide_cooldawn, default_monster.hide_activate_time));
 
     ecs.add_component<SpeedComponent>(monster_entity, new SpeedComponent(speed));
-    ecs.add_component<ShieldIncreaseComponent>(monster_entity, new ShieldIncreaseComponent(shield_resurect));
+    ecs.add_component<ShieldIncreaseComponent>(monster_entity, new ShieldIncreaseComponent(default_monster.shield_resurrect));
 
     ecs.add_component<LifeComponent>(monster_entity, new LifeComponent(life));
-    ecs.add_component<ShieldComponent>(monster_entity, new ShieldComponent(shield));
+
+    // define weapon
+    ecs.add_component<ShieldComponent>(monster_entity, new ShieldComponent(weapon.shield()));
 
     // attack
-    ecs.add_component<AtackTimeComponent>(monster_entity, new AtackTimeComponent(melee_timing));
-    ecs.add_component<AtackDistanceComponent>(monster_entity, new AtackDistanceComponent(atack_distance));
-    ecs.add_component<AttackCooldawnComponent>(monster_entity, new AttackCooldawnComponent(melee_attack_cooldaw));
+    ecs.add_component<AtackTimeComponent>(monster_entity, new AtackTimeComponent(weapon.attack_time()));
+    ecs.add_component<AtackDistanceComponent>(monster_entity, new AtackDistanceComponent(weapon.attack_distance()));
+    ecs.add_component<AttackCooldawnComponent>(monster_entity, new AttackCooldawnComponent(weapon.attack_cooldawn()));
 
     // damage
-    ecs.add_component<DamageDamageComponent>(monster_entity, new DamageDamageComponent(melee_damage_damage));
-    ecs.add_component<DamageDistanceComponent>(monster_entity, new DamageDistanceComponent(melee_damage_distance));
-    ecs.add_component<DamageSpreadComponent>(monster_entity, new DamageSpreadComponent(melee_damage_spread));
+    ecs.add_component<DamageDamageComponent>(monster_entity, new DamageDamageComponent(weapon.damage()));
+    // but other parameters can be defined with respect to input virtual weapon
+    const weapon_type = weapon.type();
+    if (weapon_type == WEAPON_TYPE.UNKNOWN) {
+        const weapon_hands = weapon as VirtualWeaponEmpty;
+
+        ecs.add_component<DamageDistanceComponent>(monster_entity, new DamageDistanceComponent(weapon_hands.damage_distance()));
+
+        ecs.add_component<WeaponDamageTypeComponent>(monster_entity, new WeaponDamageTypeComponent(WEAPON_DAMAGE_TYPE.EMPTY));
+    } else if (weapon_type == WEAPON_TYPE.SWORD) {
+        const weapon_sword = weapon as VirtualWeaponSword;
+
+        ecs.add_component<DamageDistanceComponent>(monster_entity, new DamageDistanceComponent(weapon_sword.damage_distance()));
+        ecs.add_component<DamageSpreadComponent>(monster_entity, new DamageSpreadComponent(weapon_sword.damage_spread()));
+
+        ecs.add_component<WeaponDamageTypeComponent>(monster_entity, new WeaponDamageTypeComponent(WEAPON_DAMAGE_TYPE.MELEE));
+    } else if (weapon_type == WEAPON_TYPE.BOW) {
+        // no special parameters
+        ecs.add_component<WeaponDamageTypeComponent>(monster_entity, new WeaponDamageTypeComponent(WEAPON_DAMAGE_TYPE.RANGE));
+    }
+    
 
     // shadow
     // use the same defaults as player

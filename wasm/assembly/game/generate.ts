@@ -6,7 +6,7 @@ import { Tile } from "../promethean/options";
 import { create_generator } from "../promethean/promethean";
 import { Settings, ConstantsSettings } from "./settings";
 
-import { GenerateSettings } from "./settings";
+import { GenerateSettings, DefaultPlayerParameters, Defaults } from "./settings";
 
 export function generate_level(seed: u32, generate: GenerateSettings): Level {
     let level_generator: LevelGenerator = create_generator(
@@ -33,8 +33,10 @@ function setup_baker(level: Level, settings: Settings): NavmeshBaker {
     const baker: NavmeshBaker = new NavmeshBaker();
     const level_tiles: StaticArray<StaticArray<Tile>> = level.render();
     const constants: ConstantsSettings = settings.get_constants();
+    const defaults: Defaults = settings.get_defaults();
+    const player_defaults: DefaultPlayerParameters = defaults.default_player_parameters;
     const tile_size = constants.tile_size;
-    const player_radius = constants.player_radius;
+    const player_radius = player_defaults.radius;
     for (let y = 0, y_len = level_tiles.length; y < y_len; y++) {
         const level_row = level_tiles[y];
         for (let x = 0, x_len = level_row.length; x < x_len; x++) {

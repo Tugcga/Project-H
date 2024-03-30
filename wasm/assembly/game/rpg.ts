@@ -21,6 +21,7 @@ import { DamageDistanceComponent,
          DamageSpreadComponent,
          DamageDamageComponent } from "./components/damage";
 import { ActorTypeComponent } from "./components/actor_type";
+import { WeaponDamageTypeComponent } from "./components/weapon_damage_type";
 
 function get_item_shield(ecs: ECS, entity: Entity): f32 {
     const shield = ecs.get_component<WeaponShieldeComponent>(entity);
@@ -85,23 +86,28 @@ function get_item_spread(ecs: ECS, entity: Entity): f32 {
     }
 }
 
-function define_shield(ecs: ECS, initial_value: f32, entity: Entity, equipment: EquipmentComponent): void {
+function define_shield(ecs: ECS, empty_value: f32, entity: Entity, equipment: EquipmentComponent): void {
     // define shield as sum of shields for main and secondary weapon
-    // empty weapon corresponds to the shield = 1.0 (get from default settings)
-    // all other increase this value
+    // for empty weapon use default value
     const shield = ecs.get_component<ShieldComponent>(entity);
 
     if (shield) {
-        let value: f32 = initial_value;
-        if (equipment.is_main_weapon()) {
-            value += get_item_shield(ecs, equipment.get_main_weapon());
-        }
+        if (equipment.is_main_weapon() || equipment.is_secondary_weapon()) {
+            let value: f32 = 0.0;
 
-        if (equipment.is_secondary_weapon()) {
-            value += get_item_shield(ecs, equipment.get_secondary_weapon());
-        }
+            if (equipment.is_main_weapon()) {
+                value += get_item_shield(ecs, equipment.get_main_weapon());
+            }
 
-        shield.define_max_value(value);
+            if (equipment.is_secondary_weapon()) {
+                value += get_item_shield(ecs, equipment.get_secondary_weapon());
+            }
+
+            shield.define_max_value(value);
+        } else {
+            // empty weapon
+            shield.define_max_value(empty_value);
+        }        
     }
 }
 
@@ -244,9 +250,14 @@ export function get_weapon_damage_type(ecs: ECS, entity: Entity): WEAPON_DAMAGE_
                 return WEAPON_DAMAGE_TYPE.UNKNOWN;
             }
         } else if (actor_type == ACTOR.MONSTER) {
-            // for all mosnter now (for simplicity) we use melee damage
-            // TODO: may be use empty hands damage?
-            return WEAPON_DAMAGE_TYPE.MELEE;
+            // all mosnters contains special component which allows to define the weapon damage type
+            const weapon_damage_type = ecs.get_component<WeaponDamageTypeComponent>(entity);
+            if (weapon_damage_type) {
+                return weapon_damage_type.type();
+            } else {
+                // no data component
+                return WEAPON_DAMAGE_TYPE.UNKNOWN;
+            }
         } else {
             // unknown actor
             return WEAPON_DAMAGE_TYPE.UNKNOWN;

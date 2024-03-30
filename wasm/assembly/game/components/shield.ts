@@ -45,6 +45,9 @@ export class ShieldComponent {
         // clamp current value
         if (this.m_shield > value) {
             this.m_shield = value;
+            this.m_is_full = true;
+        } else {
+            this.m_is_full = false;
         }
     }
 

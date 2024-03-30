@@ -20,8 +20,19 @@ export class DebugSettings {
 
 export class EngineSettings {
     snap_to_navmesh: bool = true;
-    use_rvo: bool = true;
+    
     velocity_boundary_control: bool = true;
+
+    use_rvo: bool = true;
+    rvo_time_horizon: f32 = 0.5;
+
+    visible_quad_size: f32 = 18.0;  // the size of one quad, used for tracking neighborhood movable items (in fact close to tile_size * visible_radius)
+    neighborhood_quad_size: f32 = 1.5;  // this quad size used for building neighborhood grid and use it in rvo (for finding close actors)
+    search_quad_size: f32 = 5.0;
+    tiles_visible_radius: i32 = 12;
+
+    path_recalculate_time: f32 = 1.0;  // in seconds, after this time we should calculate the path to the target point
+    path_to_target_recalculate_time: f32 = 0.1; // in seconds, time for recalculate path when the entity follow to the target actor (it can move, so, we should update the path)
 
     set_snap_to_navmesh(in_value: bool): void {
         this.snap_to_navmesh = in_value;
@@ -31,65 +42,12 @@ export class EngineSettings {
         this.use_rvo = in_value;
     }
 
-    set_velocity_boundary_control(in_value: bool):void {
-        this.velocity_boundary_control = in_value;
-    }
-}
-
-export class ConstantsSettings {
-    tile_size: f32 = 1.5;  // tile size of the map
-    visible_quad_size: f32 = 18.0;  // the size of one quad, used for tracking neighborhood movable items (in fact close to tile_size * visible_radius)
-    neighborhood_quad_size: f32 = 1.5;  // this quad size used for building neighborhood grid and use it in rvo (for finding close actors)
-    tiles_visible_radius: i32 = 12;
-    player_radius: f32 = 0.5;
-    player_atack_distance: f32 = 0.85;  // these constants should defined by character equip
-    monster_radius: f32 = 0.35;
-    monster_atack_distance: f32 = 0.5;
-    player_speed: f32 = 5.0;
-    hide_speed_multiplier: f32 = 0.5;
-    hide_cooldawn: f32 = 0.5;
-    hide_activate_time: f32 = 0.25;
-    monster_speed: f32 = 3.5;
-    player_rotation_speed: f32 = 10.0;
-    monster_rotation_speed: f32 = 7.5;
-    rvo_time_horizon: f32 = 0.5;
-    monster_random_walk_target_radius: f32 = 3.0;  // radius where we select next random point to walk in
-    monster_iddle_time: Array<f32> = [1.0, 5.0];  // in seconds
-    monsters_per_room: Array<u32> = [3, 7];
-    path_recalculate_time: f32 = 1.0;  // in seconds, after this time we should calculate the path to the target point
-    path_to_target_recalculate_time: f32 = 0.1; // in seconds, time for recalculate path when the entity follow to the target actor (it can move, so, we should update the path)
-    player_shift_speed_multiplier: f32 = 5.0;
-    player_shift_distance: f32 = 2.0;
-    player_shift_cooldawn: f32 = 0.5;
-    radius_select_delta: f32 = 0.25;  // this value is add to the entity radius to define select circle
-    player_melle_atack_time_span: f32 = 1.0;  // how long the atack cast
-    monster_melle_atack_time_span: f32 = 1.2;
-    player_melee_atack_cooldawn: f32 = 2.0;
-    monster_melee_atack_cooldawn: f32 = 2.0;
-    player_melee_damage_spread: f32 = 1.75;
-    player_melee_damage_distance: f32 = 1.5;  // the size of the cone for melee damage
-    player_shadow_damage_distance: f32 = 1.5;
-    monster_melee_damage_spread: f32 = 0.785;
-    monster_melee_damage_distance: f32 = 0.5;
-    monster_shadow_damage_distance: f32 = 0.5;
-    player_shadow_attack_cooldawn: f32 = 2.0;
-    monster_shadow_attack_cooldawn: f32 = 2.0;
-    player_melee_damage: u32 = 5;
-    monster_melee_damage: u32 = 3;
-    player_life: u32 = 24;
-    monster_life: u32 = 8;
-    player_shield: f32 = 4.0;
-    monster_shield: f32 = 3.0;
-    player_shield_resurect: f32 = 1.0;
-    monster_shield_resurect: f32 = 0.5;
-    default_melee_stun: f32 = 1.0;
-    player_default_team: i32 = 1;
-    monster_default_team: i32 = -1;
-    search_radius: f32 = 5.0;
-    search_spread: f32 = <f32>Math.PI / 2.0;
-
     set_rvo_time_horizon(in_value: f32): void {
         this.rvo_time_horizon = in_value;
+    }
+
+    set_velocity_boundary_control(in_value: bool):void {
+        this.velocity_boundary_control = in_value;
     }
 
     set_visible_quad_size(in_value: f32): void {
@@ -100,45 +58,31 @@ export class ConstantsSettings {
         this.neighborhood_quad_size = in_value;
     }
 
-    set_path_recalculate_time(in_value: f32): void {
-        this.path_recalculate_time = in_value;
+    set_path_recalculate_time(common_value: f32, target_follow_value: f32): void {
+        this.path_recalculate_time = common_value;
+        this.path_to_target_recalculate_time = target_follow_value;
     }
+
+    set_search_quad_size(in_value: f32): void {
+        this.search_quad_size = in_value;
+    }
+
+    set_tiles_visible_radius(in_value: i32): void {
+        this.tiles_visible_radius = in_value;
+    }
+}
+
+export class ConstantsSettings {
+    radius_select_delta: f32 = 0.25;  // this value is add to the entity radius to define select circle
+    tile_size: f32 = 1.5;  // tile size of the map
+    
+    monster_random_walk_target_radius: f32 = 3.0;  // radius where we select next random point to walk in
+    monster_iddle_time: Array<f32> = [1.0, 5.0];  // in seconds
+    monsters_per_room: Array<u32> = [3, 7];
 
     set_monster_iddle_time(in_min: f32, in_max: f32): void {
         this.monster_iddle_time[0] = in_min;
         this.monster_iddle_time[1] = in_max;
-    }
-
-    set_player_speed(in_speed: f32): void {
-        this.player_speed = in_speed;
-    }
-
-    set_hide_speed_multiplier(in_value: f32): void {
-        this.hide_speed_multiplier = in_value;
-    }
-
-    set_player_shift(in_multiplier: f32, in_distance: f32, in_cooldawn: f32): void {
-        this.player_shift_speed_multiplier = in_multiplier;
-        this.player_shift_distance = in_distance;
-        this.player_shift_cooldawn = in_cooldawn;
-    }
-
-    set_player_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
-        this.player_atack_distance = distance;
-        this.player_melle_atack_time_span = time_span;
-        this.player_melee_atack_cooldawn = cooldawn;
-        this.player_melee_damage_spread = damage_spread;
-        this.player_melee_damage_distance = damage_distance;
-        this.player_melee_damage = damage;
-    }
-
-    set_monster_melee_attack(distance: f32, time_span: f32, cooldawn: f32, damage: u32, damage_spread: f32, damage_distance: f32): void {
-        this.monster_atack_distance = distance;
-        this.monster_melle_atack_time_span = time_span;
-        this.monster_melee_atack_cooldawn = cooldawn;
-        this.monster_melee_damage_spread = damage_spread;
-        this.monster_melee_damage_distance = damage_distance;
-        this.monster_melee_damage = damage;
     }
 
     set_monsters_per_room(min_count: u32, max_count: u32): void {
@@ -146,37 +90,79 @@ export class ConstantsSettings {
         this.monsters_per_room[1] = max_count;
     }
 
-    set_player_life(in_value: u32): void {
-        this.player_life = in_value;
+    set_select_radius_delta(in_value: f32): void {
+        this.radius_select_delta = in_value;
     }
 
-    set_player_shield(in_shield: f32, in_resurect: f32): void {
-        this.player_shield = in_shield;
-        this.player_shield_resurect = in_resurect;
+    set_level_tile_size(in_value: f32): void {
+        this.tile_size = in_value;
     }
 
-    set_monster_life(in_value: u32): void {
-        this.monster_life = in_value;
+    set_monster_random_walk_radius(in_value: f32): void {
+        this.monster_random_walk_target_radius = in_value;
+    }
+}
+
+export class DefaultMonsterParameters {
+    // these parameters are common for all monsters
+    // it has tecnical aspect
+    rotation_speed: f32 = 7.5;
+    shield_resurrect: f32 = 1.0;
+    hide_speed_multiplier: f32 = 0.3;
+    hide_activate_time: f32 = 0.5;
+    hide_cooldawn: f32 = 2.0;
+
+    // these parameters can be varied for create monsters of the different type
+    speed: f32 = 3.5;
+    radius: f32 = 0.6;
+    life: u32 = 12;
+    team: i32 = -1;
+    search_radius: f32 = 5.0;
+    search_spread: f32 = Mathf.PI / 2.0;
+
+    set_common_parameters(rotation_speed: f32, shield_resurrect: f32, hide_speed_multiplier: f32, hide_activate_time: f32, hide_cooldawn: f32): void {
+        this.rotation_speed = rotation_speed;
+        this.shield_resurrect = shield_resurrect;
+        this.hide_speed_multiplier = hide_speed_multiplier;
+        this.hide_activate_time = hide_activate_time;
+        this.hide_cooldawn = hide_cooldawn;
     }
 
-    set_monster_shield(in_shield: f32, in_resurect: f32): void {
-        this.monster_shield = in_shield;
-        this.monster_shield_resurect = in_resurect;
+    set_person_parameters(radius: f32, speed: f32, life: u32, search_radius: f32, search_spread: f32, team: i32):void {
+        this.radius = radius;
+        this.speed = speed;
+        this.life = life;
+        this.search_radius = search_radius;
+        this.search_spread = search_spread;
+        this.team = team;
     }
+}
 
-    set_default_melee_stun(value: f32): void {
-        this.default_melee_stun = value;
-    }
+export class DefaultPlayerParameters {
+    default_team: i32 = 1;
+    radius: f32 = 0.5;
+    rotation_speed: f32 = 7.5;
+    speed: f32 = 5.0;
+    shield_resurrect: f32 = 1.0;
+    life: u32 = 24;
 
-    set_search_radius_spread(radius: f32, spread: f32): void {
-        this.search_radius = radius;
-        this.search_spread = spread;
-    }
+    shift_speed_multiplier: f32 = 5.0;
+    shift_distance: f32 = 2.0;
+    shift_cooldawn: f32 = 0.5;
 
-    set_hide_cast(in_cooldawn: f32, in_activate_time: f32): void {
-        this.hide_cooldawn = in_cooldawn;
-        this.hide_activate_time = in_activate_time;
-    }
+    hide_speed_multiplier: f32 = 0.5;
+    hide_cooldawn: f32 = 0.5;
+    hide_activate_time: f32 = 0.25;
+}
+
+export class DefaultMonsterWeapon {
+    // for deafult mosnter we use free-hand weapon
+    attack_time: f32 = 0.75;
+    attack_distance: f32 = 1.25;
+    attack_cooldawn: f32 = 1.0;
+    shield: f32 = 5.0;
+    damage: u32 = 3;
+    damage_distance: f32 = 1.5;
 }
 
 export class DefaultWeapons {
@@ -185,12 +171,43 @@ export class DefaultWeapons {
     empty_weapon_attack_cooldawn: f32 = 2.0;
     empty_weapon_damage_distance: f32 = 1.5;
     empty_weapon_damage: u32 = 1;
-    empty_weapon_shield: f32 = 1.0;
+    empty_weapon_shield: f32 = 5.0;
 
     shadow_attack_time: f32 = 1.0;
     shadow_attack_distance: f32 = 1.25;
     shadow_attack_cooldawn: f32 = 2.0;
     shadow_damage_distance: f32 = 1.5;
+
+    set_empty_weapon(attack_time: f32, attack_distance: f32, attack_cooldawn: f32, damage_distance: f32, damage: u32, shield: f32): void {
+        this.empty_weapon_attack_time = attack_time;
+        this.empty_weapon_attack_distance = attack_distance;
+        this.empty_weapon_attack_cooldawn = attack_cooldawn;
+        this.empty_weapon_damage_distance = damage_distance;
+        this.empty_weapon_damage = damage;
+        this.empty_weapon_shield = shield;
+    }
+
+    set_shadow_weapon(attack_time: f32, attack_distance: f32, attack_cooldawn: f32, damage_distance: f32): void {
+        this.shadow_attack_time = attack_time;
+        this.shadow_attack_distance =attack_distance;
+        this.shadow_attack_cooldawn = attack_cooldawn;
+        this.shadow_damage_distance = damage_distance;
+    }
+}
+
+export class Defaults {
+    default_weapons: DefaultWeapons;
+    default_monster_weapon: DefaultMonsterWeapon;
+    default_monster_parameters: DefaultMonsterParameters;
+    default_player_parameters: DefaultPlayerParameters;
+    default_stun_time: f32 = 1.0;
+
+    constructor() {
+        this.default_weapons = new DefaultWeapons();
+        this.default_monster_weapon = new DefaultMonsterWeapon();
+        this.default_monster_parameters = new DefaultMonsterParameters();
+        this.default_player_parameters = new DefaultPlayerParameters();
+    }
 }
 
 export class GenerateSettings {
@@ -249,7 +266,7 @@ export class Settings {
     seed: u32;
     generate: GenerateSettings;
     constants: ConstantsSettings;
-    defaul_weapons: DefaultWeapons;
+    defaults: Defaults;
     engine: EngineSettings;
     debug: DebugSettings;
 
@@ -257,7 +274,7 @@ export class Settings {
         this.seed = 1;
         this.generate = new GenerateSettings();
         this.constants = new ConstantsSettings();
-        this.defaul_weapons = new DefaultWeapons();
+        this.defaults = new Defaults();
         this.engine = new EngineSettings();
         this.debug = new DebugSettings();
     }
@@ -279,8 +296,12 @@ export class Settings {
         return this.constants;
     }
 
+    get_defaults(): Defaults {
+        return this.defaults;
+    }
+
     get_default_weapons(): DefaultWeapons {
-        return this.defaul_weapons;
+        return this.defaults.default_weapons;
     }
 
     get_engine(): EngineSettings {

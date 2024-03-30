@@ -37,6 +37,7 @@ import { ShieldComponent } from "./game/components/shield";
 import { AtackDistanceComponent } from "./game/components/atack_distance";
 import { AtackTimeComponent } from "./game/components/atack_time";
 import { AngleComponent } from "./game/components/angle";
+import { RadiusComponent } from "./game/components/radius";
 
 import { InventarComponent } from "./game/components/inventar/inventar";
 import { EquipmentComponent } from "./game/components/inventar/equipment";
@@ -48,6 +49,11 @@ import { UpdateDebugSystem } from "./game/systems/update_debug";
 import { NeighborhoodQuadGridTrackingSystem } from "./game/systems/neighborhood_quad_grid_tracking";
 import { RVOSystem } from "./game/systems/rvo";
 
+import { VirtualWeapon,
+         VirtualWeaponEmpty,
+         VirtualWeaponSword,
+         VirtualWeaponBow } from "./game/virtuals";
+
 import { command_activate_shield, 
          command_init_attack, 
          command_move_to_point, 
@@ -55,7 +61,8 @@ import { command_activate_shield,
          command_shift, 
          command_stun, 
          command_toggle_hide_mode,
-         command_equip_main_weapon } from "./game/commands";
+         command_equip_main_weapon,
+         command_free_equip_weapon } from "./game/commands";
 import { update_entity_parameters } from "./game/rpg";
 import { output_update_entity_params } from "./game/states";
 
@@ -103,50 +110,20 @@ export class Game {
         const start_point = level_stat.room_centers[start_room];
 
         const local_constants: ConstantsSettings = in_settings.get_constants();
-        const tile_size = local_constants.tile_size;
-        const visible_quad_size = local_constants.visible_quad_size;
-        const neighborhood_quad_size = local_constants.neighborhood_quad_size;
-        const player_speed = local_constants.player_speed;
-        const player_shift_speed_multiplier = local_constants.player_shift_speed_multiplier;
-        const player_shift_distance = local_constants.player_shift_distance;
-        const player_shift_cooldawn = local_constants.player_shift_cooldawn;
-        const player_radius = local_constants.player_radius;
-        const player_rotation_speed = local_constants.player_rotation_speed;
-        const tiles_visible_raidus = local_constants.tiles_visible_radius;
-        const rvo_time_horizon = local_constants.rvo_time_horizon;
-        const monster_random_walk_target_radius = local_constants.monster_random_walk_target_radius;
-        const monster_iddle_time = local_constants.monster_iddle_time;
-        const path_recalculate_time = local_constants.path_recalculate_time;
-        const path_to_target_recalculate_time = local_constants.path_to_target_recalculate_time;
-        const radius_select_delta = local_constants.radius_select_delta;
-        const atack_distance = local_constants.player_atack_distance;
-        const melle_atack_timing = local_constants.player_melle_atack_time_span;
-        const player_melee_atack_cooldawn = local_constants.player_melee_atack_cooldawn;
-        const player_melee_damage = local_constants.player_melee_damage;
-        const player_melee_damage_distance = local_constants.player_melee_damage_distance;
-        const player_melee_damage_spread = local_constants.player_melee_damage_spread;
-        const player_shadow_damage_distance = local_constants.player_shadow_damage_distance;
-        const player_shadow_attack_cooldawn = local_constants.player_shadow_attack_cooldawn;
-        const player_life = local_constants.player_life;
-        const player_shield = local_constants.player_shield;
-        const player_shield_resurect = local_constants.player_shield_resurect;
-        const default_melee_stun = local_constants.default_melee_stun;
-        const player_team = local_constants.player_default_team;
-        const search_radius = local_constants.search_radius;
-        const hide_speed_multiplier = local_constants.hide_speed_multiplier;
-        const hide_cooldawn = local_constants.hide_cooldawn;
-        const hide_activate_time = local_constants.hide_activate_time;
+        const local_engine = in_settings.get_engine();
+        const local_defaults = in_settings.get_defaults();
+        const default_player = local_defaults.default_player_parameters;
         const default_weapons = in_settings.get_default_weapons();
 
         const debug_settings = in_settings.get_debug();
         const engine_settings = in_settings.get_engine();
 
+        const tile_size = local_constants.tile_size;
         const start_x: f32 = tile_size * <f32>start_point.y();  // in the level tile x - index of the row, y - index of the column, so, we should swap it
         const start_y: f32 = tile_size * <f32>start_point.x();
 
         // start player rotation angle
-        // const start_angle = <f32>local_random.next_float(0.0, 2* Math.PI);
-        const start_angle: f32 = 0.0;
+        const start_angle = <f32>local_random.next_float(0.0, 2* Math.PI);
 
         // init ecs
         let local_ecs = new ECS();
@@ -161,51 +138,15 @@ export class Game {
             local_level.width(),
             local_level.height(),
             tile_size,
-            visible_quad_size,
-            neighborhood_quad_size,
-            rvo_time_horizon,
-            monster_random_walk_target_radius,
-            monster_iddle_time,
-            path_recalculate_time,
-            path_to_target_recalculate_time,
-            default_melee_stun,
-            search_radius,
+            local_defaults,
+            local_constants,
             debug_settings,
             engine_settings);
 
         // setup player entity
-        const player_entity = setup_player(local_ecs, 
-            local_level, 
-            start_x, 
-            start_y, 
-            player_speed, 
-            player_shift_speed_multiplier,
-            player_shift_distance,
-            player_shift_cooldawn,
-            player_melee_atack_cooldawn,
-            player_shadow_attack_cooldawn,
-            player_radius, 
-            start_angle, 
-            player_rotation_speed, 
-            tiles_visible_raidus, 
-            <f32>local_level.width() * tile_size, 
-            neighborhood_quad_size,
-            radius_select_delta,
-            atack_distance,
-            melle_atack_timing,
-            player_melee_damage,
-            player_melee_damage_distance,
-            player_melee_damage_spread,
-            player_shadow_damage_distance,
-            player_life,
-            player_shield,
-            player_shield_resurect,
-            player_team,
-            search_radius,
-            hide_speed_multiplier,
-            hide_cooldawn,
-            hide_activate_time,
-            default_weapons);
+        const player_entity = setup_player(local_ecs, local_level, 
+                                           start_x, start_y, start_angle, <f32>local_level.width() * tile_size, 
+                                           local_defaults, local_constants, local_engine);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
         update_system.init(player_entity);
@@ -217,14 +158,18 @@ export class Game {
         update_entity_parameters(local_ecs, player_entity, default_weapons);
         
         // output player position and radius
-        external_create_player(player_entity, start_x, start_y, player_radius, player_team);
+        const position = local_ecs.get_component<PositionComponent>(player_entity);
+        const radius = local_ecs.get_component<RadiusComponent>(player_entity);
+        const team = local_ecs.get_component<TeamComponent>(player_entity);
+        if (position && radius && team) {
+            external_create_player(player_entity, position.x(), position.y(), radius.value(), team.team());
+        }
 
         // send to the client actual player parameters
         output_update_entity_params(local_ecs, player_entity);
         // and also other parameters
         const life: LifeComponent | null = local_ecs.get_component<LifeComponent>(player_entity);
         const shield = local_ecs.get_component<ShieldComponent>(player_entity);
-        const position = local_ecs.get_component<PositionComponent>(player_entity);
         const angle = local_ecs.get_component<AngleComponent>(player_entity);
 
         if (life && shield && position && angle) {
@@ -245,7 +190,9 @@ export class Game {
             const room_center = level_stat.room_centers[i];
             const room_radius = level_stat.room_sizes[i]
 
-            this.add_monsters_at_room(room_center.x(), room_center.y(), room_radius.x(), room_radius.y())
+            if (start_point.x() != room_center.x() && start_point.y() != room_center.y()) {
+                this.add_monsters_at_room(room_center.x(), room_center.y(), room_radius.x(), room_radius.y())
+            }
         }
     }
 
@@ -375,59 +322,21 @@ export class Game {
         }
     }
 
-    emit_one_monster(radius: f32, position_x: f32, position_y: f32,
-                     look_angle: f32, move_speed: f32,
-                     damage: u32, damage_distance: f32, damage_spread: f32,
-                     attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
-                     life: u32, shield: f32,
-                     search_radius: f32, search_spread: f32, team: i32): Entity {
+    emit_one_monster(radius: f32, position_x: f32, position_y: f32, look_angle: f32, move_speed: f32,
+                     life: u32, virtual_weapon: VirtualWeapon, search_radius: f32, search_spread: f32, team: i32): Entity {
         const local_ecs = this.ecs;
         const local_level = this.level;
         const local_settings = this.settings;
         const local_constants = local_settings.get_constants();
+        const local_defaults = local_settings.get_defaults();
+        const lolca_engine = local_settings.get_engine();
         if (local_ecs && local_level && local_constants) {
-            const monster_rotation_speed = local_constants.monster_rotation_speed;
             const tile_size = local_constants.tile_size;
-            const visible_quad_size = local_constants.visible_quad_size;
-            const neighborhood_quad_size = local_constants.neighborhood_quad_size;
-            const radius_select_delta = local_constants.radius_select_delta;
-            const monster_shield_resurect = local_constants.monster_shield_resurect;
-            const hide_speed_multiplier = local_constants.hide_speed_multiplier;
-            const hide_cooldawn = local_constants.hide_cooldawn;
-            const hide_activate_time = local_constants.hide_activate_time;
-            const monster_shadow_damage_distance = local_constants.monster_shadow_damage_distance;
-            const monster_shadow_attack_cooldawn = local_constants.monster_shadow_attack_cooldawn;
-            const default_weapons = local_settings.get_default_weapons();
 
-            const monster_entity = setup_monster(local_ecs, 
-                                                 position_x, 
-                                                 position_y, 
-                                                 look_angle, 
-                                                 move_speed, 
-                                                 attack_cooldawn,
-                                                 monster_shadow_attack_cooldawn,
-                                                 radius, 
-                                                 monster_rotation_speed, 
-                                                 <f32>local_level.width() * tile_size, 
-                                                 visible_quad_size, 
-                                                 neighborhood_quad_size,
-                                                 radius_select_delta,
-                                                 attack_distance,
-                                                 attack_time,
-                                                 damage,
-                                                 damage_distance,
-                                                 damage_spread,
-                                                 monster_shadow_damage_distance,
-                                                 life,
-                                                 shield,
-                                                 monster_shield_resurect,
-                                                 team,
-                                                 search_radius,
-                                                 search_spread,
-                                                 hide_speed_multiplier,
-                                                 hide_cooldawn,
-                                                 hide_activate_time,
-                                                 default_weapons);
+            const monster_entity = setup_monster(local_ecs, <f32>local_level.width() * tile_size,
+                                                 position_x, position_y, look_angle, move_speed, radius, life,
+                                                 team, search_radius, search_spread,
+                                                 virtual_weapon, local_defaults, local_constants, lolca_engine);
             // we should not call any external methods
             // because created monster entity can be outside of the player visibility
             return monster_entity;
@@ -438,29 +347,18 @@ export class Game {
 
     emit_one_monster_default(pos_x: f32, pos_y: f32, angle: f32): void {
         const local_ecs = this.ecs;
-        const local_settings = this.settings;
-        const local_constants = local_settings.get_constants();
         const local_level = this.level;
         if (local_ecs && local_level) {
-            const monster_speed = local_constants.monster_speed;
-            const monster_radius = local_constants.monster_radius;
-            const atack_distance = local_constants.monster_atack_distance;
-            const melle_atack_timing = local_constants.monster_melle_atack_time_span;
-            const monster_melee_atack_cooldawn = local_constants.monster_melee_atack_cooldawn;
-            const monster_melee_damage_distance = local_constants.monster_melee_damage_distance;
-            const monster_melee_damage_spread = local_constants.monster_melee_damage_spread;
-            const monster_melee_damage = local_constants.monster_melee_damage;
-            const monster_life = local_constants.monster_life;
-            const monster_shield = local_constants.monster_shield;
-            const monster_team = local_constants.monster_default_team;
-            const search_radius = local_constants.search_radius;
-            const search_spread = local_constants.search_spread;
+            const local_settings = this.settings;
+            const local_defaults = local_settings.get_defaults();
+            const def = local_defaults.default_monster_parameters;
+            // create virtual weapon for this monster
+            const wdef = local_defaults.default_monster_weapon;
+            const weapon = new VirtualWeaponEmpty(wdef.attack_distance, wdef.attack_time, wdef.attack_cooldawn, wdef.shield, wdef.damage,
+                                                  wdef.damage_distance);
 
-            this.emit_one_monster(monster_radius, pos_x, pos_y,
-                                  angle, monster_speed,
-                                  monster_melee_damage, monster_melee_damage_distance, monster_melee_damage_spread,
-                                  monster_melee_atack_cooldawn, atack_distance, melle_atack_timing,
-                                  monster_life, monster_shield, search_radius, search_spread, monster_team);
+            this.emit_one_monster(def.radius, pos_x, pos_y, angle, def.speed,
+                                  def.life, weapon, def.search_radius, def.search_spread, def.team);
         }
     }
 
@@ -568,10 +466,7 @@ export class Game {
     }
 
     dev_emit_one_monster(radius: f32, position_x: f32, position_y: f32, move_speed: f32,
-                         damage: u32, damage_distance: f32, damage_spread: f32,
-                         attack_cooldawn: f32, attack_distance: f32, attack_time: f32,
-                         life: u32, shield: f32,
-                         search_radius: f32, search_spread: f32, team: i32, friend_for_player: bool): void {
+                         life: u32, virtual_weapon: VirtualWeapon, search_radius: f32, search_spread: f32, team: i32, friend_for_player: bool): void {
         // find valid position
         const local_navmesh = this.navmesh;
         const local_random = this.random;
@@ -583,21 +478,18 @@ export class Game {
 
                 const look_angle = <f32>local_random.next_float(0.0, 2.0 * Math.PI);
 
-                const monster_entity = this.emit_one_monster(radius, pos_x, pos_y,
-                                                             look_angle, move_speed,
-                                                             damage, damage_distance, damage_spread,
-                                                             attack_cooldawn, attack_distance, attack_time,
-                                                             life, shield,
-                                                             search_radius, search_spread, team);
+                const monster_entity = this.emit_one_monster(radius, pos_x, pos_y, look_angle, move_speed,
+                                                             life, virtual_weapon, search_radius, search_spread, team);
                 const local_ecs = this.ecs;
                 const local_settings = this.settings;
-                const local_constants = local_settings.get_constants();
+                const local_defaults = local_settings.get_defaults();
+                const local_default_player = local_defaults.default_player_parameters;
 
-                if (local_ecs && local_constants && monster_entity != 0) {
+                if (local_ecs && monster_entity != 0) {
                     const monster_team: TeamComponent | null = local_ecs.get_component<TeamComponent>(monster_entity);
                     if (monster_team) {
                         if (friend_for_player) {
-                            monster_team.extend(local_constants.player_default_team);
+                            monster_team.extend(local_default_player.default_team);
                         }
                     }
                 }
@@ -629,7 +521,8 @@ export class Game {
         const local_ecs = this.ecs;
 
         if (local_ecs) {
-            const sword_entity = setup_weapon_sword(attack_distance, attack_time, attack_cooldawn, damage, shield,
+            const sword_entity = setup_weapon_sword(local_ecs,
+                                                    attack_distance, attack_time, attack_cooldawn, damage, shield,
                                                     damage_spread, damage_distance);
             // add this sword to the inventar of the player
             const player_entity = this.player_entity;
@@ -640,10 +533,21 @@ export class Game {
         }
     }
 
-    // test method
-    // find the first sword weapon item in the player inventar
-    // and equip it
-    dev_equip_sword(): void {
+    dev_create_bow(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32): void {
+        const local_ecs = this.ecs;
+
+        if (local_ecs) {
+            const bow_entity = setup_weapon_bow(local_ecs,
+                                                attack_distance, attack_time, attack_cooldawn, damage, shield);
+            const player_entity = this.player_entity;
+            const player_inventar = local_ecs.get_component<InventarComponent>(player_entity);
+            if (player_inventar) {
+                player_inventar.add_item(bow_entity);
+            }
+        }
+    }
+
+    private _equip_weapon(weapon_type: WEAPON_TYPE): void {
         const local_ecs = this.ecs;
         const player_entity= this.player_entity;
         if (local_ecs) {
@@ -652,31 +556,64 @@ export class Game {
             if (player_inventar) {
                 const items = player_inventar.all_items();
                 for (let i = 0, len = items.length; i < len; i++) {
-                    const item_entity: Entity | null = items[i];
-                    if (item_entity) {
-                        // inventar cell is not empty
-                        const item_type = local_ecs.get_component<InventarItemTypeComponent>(item_entity);
-                        if (item_type) {
-                            const item_type_value = item_type.type();
-                            if (item_type_value == INVENTORY_ITEM_TYPE.WEAPON) {
-                                // this item is a weapon
-                                const item_weapon_type = local_ecs.get_component<InventarWeaponTypeComponent>(item_entity);
-                                if (item_weapon_type) {
-                                    const item_weapon_type_value = item_weapon_type.type();
-                                    if (item_weapon_type_value == WEAPON_TYPE.SWORD) {
-                                        // this item is sword
-                                        command_equip_main_weapon(local_ecs, player_entity, item_entity, this.settings.get_default_weapons());
-                                        break;
-                                    }
+                    const item_entity: Entity = items[i];
+                    const item_type = local_ecs.get_component<InventarItemTypeComponent>(item_entity);
+                    if (item_type) {
+                        const item_type_value = item_type.type();
+                        if (item_type_value == INVENTORY_ITEM_TYPE.WEAPON) {
+                            // this item is a weapon
+                            const item_weapon_type = local_ecs.get_component<InventarWeaponTypeComponent>(item_entity);
+                            if (item_weapon_type) {
+                                const item_weapon_type_value = item_weapon_type.type();
+                                if (item_weapon_type_value == weapon_type) {
+                                    command_equip_main_weapon(local_ecs, player_entity, item_entity, this.settings.get_default_weapons());
+                                    break;
                                 }
                             }
                         }
                     }
                 }
             }
+            output_update_entity_params(local_ecs, player_entity);
         }
+    }
 
-        output_update_entity_params(local_ecs, player_entity);
+    // test method
+    // find the first sword weapon item in the player inventar
+    // and equip it
+    dev_equip_sword(): void {
+        this._equip_weapon(WEAPON_TYPE.SWORD);
+    }
+
+    dev_equip_bow(): void {
+        this._equip_weapon(WEAPON_TYPE.BOW);
+    }
+
+    // remove weapond from equip and add it to the inventar
+    // only for the player
+    dev_equip_free_hands(): void {
+        const local_ecs = this.ecs;
+        const player_entity = this.player_entity;
+        const settings = this.settings;
+        if (local_ecs) {
+            command_free_equip_weapon(local_ecs, player_entity, settings.get_default_weapons());
+
+            output_update_entity_params(local_ecs, player_entity);
+        }
+    }
+
+    dev_create_virtual_sword(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32,
+                             damage_distance: f32, damage_spread: f32): VirtualWeaponSword {
+        return new VirtualWeaponSword(attack_distance, attack_time, attack_cooldawn, shield, damage, damage_distance, damage_spread);
+    }
+
+    dev_create_virtual_bow(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32): VirtualWeaponBow {
+        return new VirtualWeaponBow(attack_distance, attack_time, attack_cooldawn, shield, damage);
+    }
+
+    dev_create_virtual_empty_weapon(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32,
+                                    damage_distance: f32): VirtualWeaponEmpty {
+        return new VirtualWeaponEmpty(attack_distance, attack_time, attack_cooldawn, shield, damage, damage_distance);
     }
 
     toString(): string {

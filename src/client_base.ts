@@ -1,4 +1,4 @@
-import { __Internref20, instantiate } from "../wasm/build/game_api";
+import { __Internref24, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
@@ -10,7 +10,7 @@ import { GameUI } from "./ui/ui";
 // it implement functionality for connecting between wasm module (the server) and client IO
 // particular graphic backend should use this base class
 export abstract class ClientBase {
-    m_game_ptr: __Internref20;
+    m_game_ptr: __Internref24;
     m_scene_canvas: HTMLCanvasElement;
     m_scene_ctx: CanvasRenderingContext2D;
 
@@ -259,25 +259,35 @@ export abstract class ClientBase {
                 // setup engine settings
                 module.settings_set_snap_to_navmesh(settings_ptr, true);
                 module.settings_set_use_rvo(settings_ptr, true);
-                module.settings_set_path_recalculate_time(settings_ptr, 1.0);
+                module.settings_set_path_recalculate_time(settings_ptr, 1.0, 0.1);
                 module.settings_set_velocity_boundary_control(settings_ptr, true);
                 // setup game items default parameters
-                module.settings_set_player_fast_shift(settings_ptr, 2.0, 5.0, 0.5);
+                module.settings_set_player(settings_ptr, 0.5,  // radius
+                    5.0,  // speed
+                    12,  // life
+                    24.0,  // rotation speed
+                    1.0,  // shield resurrect
+                    1,  // team
+                    3.0,  // shift speed multiplier
+                    7.0,  // shift distance
+                    1.0,  // shift cooldawn
+                    0.5,  // hide speed multiplier
+                    1.0,  // hide cooldawn
+                    0.5);  // hide activate time
+                module.settings_set_default_empty_weapon(settings_ptr, 0.5,  // attack time
+                    1.0,  // attack distance
+                    0.75,  // attack cooldawn
+                    1.5,  // damage distance
+                    4,  // damage
+                    5.0);  // shield
                 module.settings_set_monster_iddle_time(settings_ptr, 1000.0, 2000.0);
-                module.settings_set_monsters_per_room(settings_ptr, 0, 0);  // no random monsters
-                module.settings_set_player_melee_attack(settings_ptr, 1.25,  // attack distance
-                                                                      0.75,  // how long attack cast
-                                                                      1.0,  // cooldawn, start after attack is finish
-                                                                      5,  // damage
-                                                                      Math.PI / 2.0,  // angles spread
-                                                                      1.5);  // damage cone size
-                module.settings_set_monster_melee_attack(settings_ptr, 0.75,  // distance
-                                                                       0.75,  // how long
-                                                                       0.75,  // cooldawn
-                                                                       3,  // damage
-                                                                       Math.PI / 4,  // spread
-                                                                       1.0);  // cone size
-                module.settings_set_player_shield(settings_ptr, 15.0, 5.0);
+                module.settings_set_monsters_per_room(settings_ptr, 2, 5);  // no random monsters
+                module.settings_set_default_monster_person(settings_ptr, 0.5,  // radius
+                    3.0,  // speed
+                    8,  // life
+                    5.0,  // search radius
+                    Math.PI / 2.5,  // search spread
+                    -1);  // team
                 
                 // create the game
                 // this method calls some callbacks:
@@ -288,6 +298,12 @@ export abstract class ClientBase {
 
                 console.log("generate the level:", (performance.now() - local_this.m_current_time) / 1000.0, "seconds");
                 local_this.m_current_time = performance.now();
+
+                // add weapons to the player inventory
+                module.dev_add_sword_to_player(local_this.m_game_ptr,
+                                               1.0, 0.75, 1.25, 7, 12.0, Math.PI / 2.0, 2.0);
+                module.dev_add_bow_to_player(local_this.m_game_ptr,
+                                             5.5, 2.0, 2.5, 7, 7.0);
 
                 // call client start method
                 local_this.start();
@@ -464,18 +480,22 @@ export abstract class ClientBase {
                     // add monster over cursor
                     const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
                     const c_world = this.point_to_world(c[0], c[1]);
+                    // create virtual weapon
+                    const weapon_ptr = this.m_module.dev_create_virtual_sword(this.m_game_ptr,
+                        0.75,  // attack distance
+                        0.5,  // attack time
+                        1.5,  // attack cooldawn
+                        6.0,  // shield
+                        4,  // damage
+                        1.5,  // damage distance
+                        Math.PI / 2.0);  // damage spread
+                    
                     this.m_module.dev_game_spawn_monster(this.m_game_ptr,
                                                          0.5,  // radius
                                                          c_world[0], c_world[1],  // position
                                                          3.0,  // move speed
-                                                         4,  // damage
-                                                         1.5,  // damage distance
-                                                         Math.PI / 2.0,  // damage spread
-                                                         1.5,  // attack cooldawn
-                                                         0.75,  // attack distance
-                                                         0.5,  // attack time
                                                          12,  // life
-                                                         6.0,  // shield
+                                                         weapon_ptr,  // pointer to the weapon
                                                          5.0,  // search radius
                                                          Math.PI / 2.0,  // search spread
                                                          -1,  // team
@@ -484,18 +504,21 @@ export abstract class ClientBase {
                     // add friend to player monster over cursor
                     const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
                     const c_world = this.point_to_world(c[0], c[1]);
+
+                    const weapon_ptr = this.m_module.dev_create_virtual_empty_weapon(this.m_game_ptr,
+                        0.75,  // attack distance
+                        0.25,  // attack time
+                        1.3,  // attack cooldawn
+                        4.0,  // shield
+                        2,  // damage
+                        1.5);  // damage distance
+                    
                     this.m_module.dev_game_spawn_monster(this.m_game_ptr,
                                                          0.4,  // radius
                                                          c_world[0], c_world[1],  // position
-                                                         5.0,  // move speed
-                                                         1,  // damage
-                                                         1.0,  // damage distance
-                                                         Math.PI / 2.0,  // damage spread
-                                                         0.4,  // attack cooldawn
-                                                         0.5,  // attack distance
-                                                         0.3,  // attack time
-                                                         5,  // life
-                                                         6.0,  // shield
+                                                         4.0,  // move speed
+                                                         8,  // life
+                                                         weapon_ptr,  // pointer to the weapon
                                                          5.0,  // search radius
                                                          Math.PI / 2.0,  // search spread
                                                          -2,  // team
@@ -506,10 +529,19 @@ export abstract class ClientBase {
                     this.m_module.game_damage_all_entities(this.m_game_ptr, 1.5);
                 } else if (key == "t") {
                     this.m_module.game_stun_all_entities(this.m_game_ptr, 1.0);
+                } else if (key == "1") {
+                    this.m_module.dev_player_equip_free_hands(this.m_game_ptr);
+                } else if (key == "2") {
+                    this.m_module.dev_player_equip_sword(this.m_game_ptr);
+                } else if (key == "3") {
+                    this.m_module.dev_player_equip_bow(this.m_game_ptr);
                 } else if(key == "m") {
                     this.m_map.toggle_active();
                 } else if(key == "h") {
-                    this.m_module.game_client_toggle_hide(this.m_game_ptr);
+                    // allow to toggle only if mouse is not pressed
+                    if (!this.m_is_left_mouse_press && !this.m_is_right_mouse_press) {
+                        this.m_module.game_client_toggle_hide(this.m_game_ptr);
+                    }
                 } else if(key == "i") {
                     // toggle debug draws
                     this.debug_toggle_draw_flag();
