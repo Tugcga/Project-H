@@ -19,7 +19,7 @@ declare function tile_create(x: u32, y: u32, index: u32, type: u32): void;
 declare function create_player(entity: u32, pos_x: f32, pos_y: f32, radius: f32, team: i32): void;
 
 @external("env", "host.update_entity_params")
-declare function update_entity_params(entity: u32, life: u32, max_life: u32, shield: f32, max_shield: f32, select_radius: f32, atack_distance: f32, attack_time: f32): void;
+declare function update_entity_params(entity: u32, is_dead: bool, life: u32, max_life: u32, shield: f32, max_shield: f32, select_radius: f32, atack_distance: f32, attack_time: f32): void;
 
 @external("env", "host.remove_monster")
 declare function remove_monster(entity: u32): void;
@@ -104,6 +104,9 @@ declare function entity_finish_hide(entity: u32, interrupt: bool): void;
 @external("env", "host.entity_switch_hide")
 declare function entity_switch_hide(entity: u32, hide_active: bool): void;
 
+@external("env", "host.entity_resurrect")
+declare function entity_resurrect(entity: u32, life: u32, max_life: u32): void;
+
 @external("env", "host.debug_entity_walk_path")
 declare function debug_entity_walk_path(entity: u32, points: StaticArray<f32>): void;
 
@@ -169,15 +172,16 @@ export function external_create_player(entity: u32, pos_x: f32, pos_y: f32, radi
 }
 
 export function external_update_entity_params(entity: u32, 
+                                              is_dead: bool,
                                               life: u32, max_life: u32, 
                                               shield: f32, max_shield: f32,
                                               select_radius: f32,
                                               atack_distance: f32, 
                                               atack_time: f32): void {
     if (use_external) {
-        update_entity_params(entity, life, max_life, shield, max_shield, select_radius, atack_distance, atack_time);
+        update_entity_params(entity, is_dead, life, max_life, shield, max_shield, select_radius, atack_distance, atack_time);
     } else {
-        console.log("ext -> update_entity_params: entity " + entity.toString() + " life " + life.toString() + "/" + max_life.toString() + " shield " + shield.toString() + "/" + max_shield.toString() + " select radius " + select_radius.toString() + " atack distance " + atack_distance.toString() + " attack time " + atack_time.toString());
+        console.log("ext -> update_entity_params: entity " + entity.toString() + " is dead " + is_dead.toString() + " life " + life.toString() + "/" + max_life.toString() + " shield " + shield.toString() + "/" + max_shield.toString() + " select radius " + select_radius.toString() + " atack distance " + atack_distance.toString() + " attack time " + atack_time.toString());
     }
 }
 
@@ -402,6 +406,14 @@ export function external_entity_switch_hide(entity: u32, hide_active: bool): voi
         entity_switch_hide(entity, hide_active);
     } else {
         console.log("ext -> entity_switch_hide: " + entity.toString() + " " + hide_active.toString());
+    }
+}
+
+export function external_entity_resurrect(entity: u32, life: u32, max_life: u32): void {
+    if (use_external) {
+        entity_resurrect(entity, life, max_life);
+    } else {
+        console.log("ext -> entity_resurrect: " + entity.toString() + " life " + life.toString() + "/" + max_life.toString());
     }
 }
 

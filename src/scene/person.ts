@@ -43,6 +43,10 @@ export class Person extends SceneItem {
         this.m_is_dead = in_value;
     }
 
+    set_alive() {
+        this.m_is_dead = false;
+    }
+
     get_is_dead(): boolean {
         return this.m_is_dead;
     }

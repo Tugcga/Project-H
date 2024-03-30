@@ -67,7 +67,7 @@ export abstract class ClientBase {
     abstract scene_update_entity_move_status(id: number, move_status: MOVE_STATUS): void;
     abstract scene_update_entity_life(id: number, life: number, max_life: number): void;
     abstract scene_update_entity_shield(id: number, shield: number, max_shield: number): void;
-    abstract scene_update_entity_params(entity: number, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number): void;
+    abstract scene_update_entity_params(entity: number, is_dead: boolean, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number): void;
     abstract scene_create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number): void;
     abstract scene_remove_monster(entity: number): void;
     abstract scene_entity_start_shift(entity: number): void;
@@ -94,6 +94,7 @@ export abstract class ClientBase {
     abstract scene_entity_switch_hide(entity: number, is_hide: boolean): void;
     abstract scene_player_activate_hide(): void;
     abstract scene_player_deactivate_hide(): void;
+    abstract scene_entity_resurrect(entity: number, life: number, max_life: number): void;
     // debug callbacks
     // if debug is off, then these callbacks are not required
     // it never called from the module
@@ -141,6 +142,7 @@ export abstract class ClientBase {
             entity_switch_hide: this.entity_switch_hide.bind(this),
             entity_start_hide: this.entity_start_hide.bind(this),
             entity_finish_hide: this.entity_finish_hide.bind(this),
+            entity_resurrect: this.entity_resurrect.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
@@ -239,7 +241,7 @@ export abstract class ClientBase {
                 // controllable seed ↓ for test
                 module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
-                module.settings_set_visible_quad_size(settings_ptr, 18.0);  // visibility radius for the player
+                module.settings_set_visible_quad_size(settings_ptr, 6.0);  // visibility radius for the player
                 module.settings_set_neighbourhood_quad_size(settings_ptr, 2.0);  // tweak this for greater radius for search close entities
                 module.settings_set_generate(settings_ptr,
                     22,  // level size
@@ -255,12 +257,14 @@ export abstract class ClientBase {
                 const use_debug = true;
                 module.settings_set_use_debug(settings_ptr, use_debug);
                 this.debug_define_draw_flag(use_debug);  // for the client
-                module.settings_set_debug_flags(settings_ptr, true, true, false, true, true);
+                module.settings_set_debug_flags(settings_ptr, true, true, true, true, true);
                 // setup engine settings
                 module.settings_set_snap_to_navmesh(settings_ptr, true);
                 module.settings_set_use_rvo(settings_ptr, true);
                 module.settings_set_path_recalculate_time(settings_ptr, 1.0, 0.1);
                 module.settings_set_velocity_boundary_control(settings_ptr, true);
+                module.settings_set_level_tile_size(settings_ptr, 1.5);  // size of one tile in the map
+                module.settings_set_tiles_visible_radius(settings_ptr, 12);  // how many map tiles are visible around the player
                 // setup game items default parameters
                 module.settings_set_player(settings_ptr, 0.5,  // radius
                     5.0,  // speed
@@ -280,7 +284,7 @@ export abstract class ClientBase {
                     1.5,  // damage distance
                     4,  // damage
                     5.0);  // shield
-                module.settings_set_monster_iddle_time(settings_ptr, 1000.0, 2000.0);
+                module.settings_set_monster_iddle_time(settings_ptr, 1.0, 2.0);
                 module.settings_set_monsters_per_room(settings_ptr, 2, 5);  // no random monsters
                 module.settings_set_default_monster_person(settings_ptr, 0.5,  // radius
                     3.0,  // speed
@@ -523,6 +527,8 @@ export abstract class ClientBase {
                                                          Math.PI / 2.0,  // search spread
                                                          -2,  // team
                                                          true);  // friend for player
+                } else if (key == "r") {
+                    this.m_module.dev_game_resurrect_player(this.m_game_ptr);
                 } else if(key == "a") {
                     this.m_module.game_make_aggressive(this.m_game_ptr);
                 } else if(key == "d") {
@@ -658,13 +664,14 @@ export abstract class ClientBase {
         this.scene_create_player(radius);
     }
 
-    update_entity_params(id: number, life: number, max_life: number, shield: number, max_shield: number, select_radius: number, attack_distance: number, attack_time: number) {
+    update_entity_params(id: number, is_dead: boolean, life: number, max_life: number, shield: number, max_shield: number, select_radius: number, attack_distance: number, attack_time: number) {
+        this.m_scene.set_entity_dead(id, is_dead);
         this.m_scene.set_entity_attack_distance(id, attack_distance);
         this.m_scene.set_entity_life(id, life, max_life);
         this.m_scene.set_entity_shield(id, shield, max_shield);
         this.m_scene.set_entity_attack_time(id, attack_time);
         this.m_scene.set_entity_select_radius(id, select_radius);
-        this.scene_update_entity_params(id, life, max_life, select_radius, attack_distance, attack_time);
+        this.scene_update_entity_params(id, is_dead, life, max_life, select_radius, attack_distance, attack_time);
     }
 
     create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number) {
@@ -830,6 +837,12 @@ export abstract class ClientBase {
     entity_finish_hide(entity: number, interrupt: boolean) {
         this.m_scene.entity_finish_hide_cast(entity);
         this.scene_entity_finish_hide_activation(entity, interrupt);
+    }
+
+    entity_resurrect(entity: number, life: number, max_life: number) {
+        this.m_scene.set_entity_alive(entity);
+        this.m_scene.set_entity_life(entity, life, max_life);
+        this.scene_entity_resurrect(entity, life, max_life);
     }
 
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {

@@ -2,6 +2,8 @@ import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { List } from "../../pathfinder/common/list";
 
+import { STATE } from "../constants";
+
 import { VisibleQuadGridTrackingSystem } from "./visible_quad_grid_tracking";
 import { PositionComponent } from "../components/position";
 import { VisibleQuadGridNeighborhoodComponent } from "../components/visible_quad_grid_neighborhood";
@@ -17,6 +19,7 @@ import { LifeComponent } from "../components/life";
 import { ShieldComponent } from "../components/shield";
 import { AtackDistanceComponent } from "../components/atack_distance";
 import { AtackTimeComponent } from "../components/atack_time";
+import { StateComponent } from "../components/state";
 
 import { external_remove_monster,
          external_create_monster,
@@ -75,8 +78,9 @@ export class VisibleQuadGridNeighborhoodSystem extends System {
                     const e_shield = this.get_component<ShieldComponent>(e);
                     const e_attack_distance = this.get_component<AtackDistanceComponent>(e);
                     const e_attack_time = this.get_component<AtackTimeComponent>(e);
-                    if (e_select_radius && e_life && e_shield && e_attack_distance && e_attack_time) {
-                        external_update_entity_params(e, e_life.life(), e_life.max_life(), e_shield.shield(), e_shield.max_shield(), e_select_radius.value(), e_attack_distance.value(), e_attack_time.value());
+                    const e_state = this.get_component<StateComponent>(e);
+                    if (e_select_radius && e_life && e_shield && e_attack_distance && e_attack_time && e_state) {
+                        external_update_entity_params(e, e_state.state() == STATE.DEAD, e_life.life(), e_life.max_life(), e_shield.shield(), e_shield.max_shield(), e_select_radius.value(), e_attack_distance.value(), e_attack_time.value());
                     }
                 }
             }

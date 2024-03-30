@@ -174,6 +174,10 @@ export function settings_set_default_shadow_weapon(settings: Settings,
 }
 
 /*---Utility funcions, for gameplay tests---*/
+export function dev_game_resurrect_player(game: Game): void {
+    game.dev_resurrect_player();
+}
+
 export function dev_game_spawn_monster(game: Game,
                                        radius: f32, position_x: f32, position_y: f32, move_speed: f32, life: u32, 
                                        virtual_weapon: VirtualWeapon, search_radius: f32, search_spread: f32, team: i32, friend_for_player: bool): void {

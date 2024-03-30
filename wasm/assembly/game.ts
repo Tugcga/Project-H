@@ -13,7 +13,6 @@ import { external_define_level,
          external_define_navmesh,
          external_define_total_tiles,
          external_create_player,
-         external_update_entity_params,
          external_click_entity,
          external_click_position,
          external_define_entity_changes } from "./external";
@@ -60,6 +59,7 @@ import { command_activate_shield,
          command_release_shield, 
          command_shift, 
          command_stun, 
+         command_resurrect,
          command_toggle_hide_mode,
          command_equip_main_weapon,
          command_free_equip_weapon } from "./game/commands";
@@ -447,7 +447,7 @@ export class Game {
                 const entity: Entity = rvo_entities[i];
                 const entity_damage: ApplyDamageComponent | null = local_ecs.get_component<ApplyDamageComponent>(entity);
                 if (entity_damage) {
-                    entity_damage.extend(0, damage, DAMAGE_TYPE.UNKNOWN, 0.0);
+                    entity_damage.extend(0, damage, DAMAGE_TYPE.UNKNOWN, 0.0);  // attacker, damage value, type and duration
                 } else {
                     local_ecs.add_component<ApplyDamageComponent>(entity, new ApplyDamageComponent(0, damage, DAMAGE_TYPE.UNKNOWN, 0.0));
                 }
@@ -513,6 +513,14 @@ export class Game {
                     position.set(pos_x, pos_y);
                 }
             }
+        }
+    }
+
+    dev_resurrect_player(): void {
+        const local_ecs = this.ecs;
+        const player_entity = this.player_entity;
+        if (local_ecs) {
+            command_resurrect(local_ecs, player_entity);
         }
     }
 

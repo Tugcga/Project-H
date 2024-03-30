@@ -26,7 +26,9 @@ import { StateComponent,
          StateCastComponent,
          StateShieldComponent,
          StateStunComponent } from "./components/state";
-import { PlayerComponent, MonsterComponent } from "./components/tags";
+import { PlayerComponent,
+         MonsterComponent,
+         DeadComponent } from "./components/tags";
 import { TargetAngleComponent } from "./components/target_angle";
 import { TilePositionComponent } from "./components/tile_position";
 import { VelocityComponent } from "./components/velocity";
@@ -134,6 +136,12 @@ export function setup_components(ecs: ECS): void {
     // write systems: -
     // comment: tag, assigned to each monster entity
     ecs.register_component<MonsterComponent>();
+
+    // assigned: player and monsters
+    // read systems: -
+    // write systems: -
+    // comment: use this tag for exclude entities from systems
+    ecs.register_component<DeadComponent>();
 
     // assigned: player, monsters
     // read systems: WalkToPointSystem
@@ -549,9 +557,10 @@ export function setup_systems(ecs: ECS,
                               constants: ConstantsSettings,
                               debug_settings: DebugSettings,
                               engine_settings: EngineSettings): void {
-    // reset to zero preferred velocities for all movable entities (player, mosnters)
+    // reset to zero preferred velocities for all movable entities (player, monsters)
     ecs.register_system<ResetVelocitySystem>(new ResetVelocitySystem());
     ecs.set_system_with_component<ResetVelocitySystem, PreferredVelocityComponent>();
+    ecs.set_system_without_component<ResetVelocitySystem, DeadComponent>();
 
     // calculate preferred velocity for all entites which walks to the point
     // does not move entity here
@@ -563,6 +572,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<WalkToPointSystem, StateWalkToPointComponent>();
     ecs.set_system_with_component<WalkToPointSystem, PreferredVelocityComponent>();
     ecs.set_system_with_component<WalkToPointSystem, TargetActionComponent>();
+    ecs.set_system_without_component<WalkToPointSystem, DeadComponent>();
 
     // alternative to walk to point system
     // calculate the proper velocity (in fact preferred velocity) for entities in the fast shift action state
@@ -572,9 +582,11 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<ShiftSystem, SpeedComponent>();
     ecs.set_system_with_component<ShiftSystem, ShiftSpeedMultiplierComponent>();
     ecs.set_system_with_component<ShiftSystem, PreferredVelocityComponent>();
+    ecs.set_system_without_component<ShiftSystem, DeadComponent>();
 
     ecs.register_system<ShieldSystem>(new ShieldSystem());
     ecs.set_system_with_component<ShieldSystem, StateShieldComponent>();
+    ecs.set_system_without_component<ShieldSystem, DeadComponent>();
 
     ecs.register_system<ShieldIncreaseSystem>(new ShieldIncreaseSystem());
     ecs.set_system_with_component<ShieldIncreaseSystem, ShieldComponent>();
@@ -582,6 +594,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<ShieldIncreaseSystem, StateComponent>();
     ecs.set_system_with_component<ShieldIncreaseSystem, UpdateToClientComponent>();  // mark entity to update when update the shield
     ecs.set_system_without_component<ShieldIncreaseSystem, StateShieldComponent>();
+    ecs.set_system_without_component<ShieldIncreaseSystem, DeadComponent>();
 
     // calculate quad index (used for neigborhoods) from the position of the player and monsters
     // store it in the component
@@ -589,10 +602,14 @@ export function setup_systems(ecs: ECS,
     const neighborhood_tracking_system = ecs.register_system<NeighborhoodQuadGridTrackingSystem>(new NeighborhoodQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.neighborhood_quad_size));
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, NeighborhoodQuadGridIndexComponent>();
+    // for dead entity we should not required update it grid index
+    ecs.set_system_without_component<NeighborhoodQuadGridTrackingSystem, DeadComponent>();
 
     const search_tracking_system = ecs.register_system<SearchQuadGridTrackingSystem>(new SearchQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.search_quad_size));
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, SearchQuadGridIndexComponent>();
+    // the same for search grid tracking
+    ecs.set_system_without_component<SearchQuadGridTrackingSystem, DeadComponent>();
 
     // check is the entity comes to the target point of the path
     // if yes, switch to the iddle state (for the player) or iddle wait state (for mosnters)
@@ -601,6 +618,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<WalkToPointSwitchSystem, StateComponent>();
     ecs.set_system_with_component<WalkToPointSwitchSystem, PreferredVelocityComponent>();
     ecs.set_system_with_component<WalkToPointSwitchSystem, TargetActionComponent>();
+    ecs.set_system_without_component<WalkToPointSwitchSystem, DeadComponent>();
 
     // controll when the action shift is over and change the entity state to iddle
     // for player to simple iddle
@@ -610,6 +628,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<ShiftSwitchSystem, StateShiftComponent>();
     ecs.set_system_with_component<ShiftSwitchSystem, ShiftCooldawnComponent>();
     ecs.set_system_with_component<ShiftSwitchSystem, ActorTypeComponent>();
+    ecs.set_system_without_component<ShiftSwitchSystem, DeadComponent>();
 
     // tracking_system required to find closed entities to the attacker entity
     ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(neighborhood_tracking_system, navmesh));
@@ -618,11 +637,13 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<CastSwitchSystem, ActorTypeComponent>();
     ecs.set_system_with_component<CastSwitchSystem, TargetAngleComponent>();
     ecs.set_system_with_component<CastSwitchSystem, PositionComponent>();
+    ecs.set_system_without_component<CastSwitchSystem, DeadComponent>();
 
     ecs.register_system<StunSwitchSystem>(new StunSwitchSystem());
     ecs.set_system_with_component<StunSwitchSystem, StateComponent>();
     ecs.set_system_with_component<StunSwitchSystem, ActorTypeComponent>();
     ecs.set_system_with_component<StunSwitchSystem, StateStunComponent>();
+    ecs.set_system_without_component<StunSwitchSystem, DeadComponent>();
 
     ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system, navmesh));
     ecs.set_system_with_component<SearchEnemiesSystem, PositionComponent>();
@@ -633,6 +654,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<SearchEnemiesSystem, SpreadSearchComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, AngleComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, StateComponent>();
+    ecs.set_system_without_component<SearchEnemiesSystem, DeadComponent>();
 
     const monster_iddle_time = constants.monster_iddle_time;
     ecs.register_system<BehaviourSystem>(new BehaviourSystem(navmesh, random, monster_iddle_time[0], monster_iddle_time[1], constants.monster_random_walk_target_radius));
@@ -640,6 +662,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<BehaviourSystem, EnemiesListComponent>();
     ecs.set_system_with_component<BehaviourSystem, PositionComponent>();
     ecs.set_system_with_component<BehaviourSystem, BehaviourComponent>();
+    ecs.set_system_without_component<BehaviourSystem, DeadComponent>();
 
     if (engine_settings.use_rvo) {
         // system for rvo algorithm
@@ -653,10 +676,12 @@ export function setup_systems(ecs: ECS,
         ecs.set_system_with_component<RVOSystem, RadiusComponent>();
         ecs.set_system_with_component<RVOSystem, SpeedComponent>();
         ecs.set_system_with_component<RVOSystem, StateComponent>();
+        ecs.set_system_without_component<RVOSystem, DeadComponent>();
     } else {
         ecs.register_system<PrefToVelocitySystem>(new PrefToVelocitySystem());
         ecs.set_system_with_component<PrefToVelocitySystem, PreferredVelocityComponent>();
         ecs.set_system_with_component<PrefToVelocitySystem, VelocityComponent>();
+        ecs.set_system_without_component<PrefToVelocitySystem, DeadComponent>();
     }
 
     // we does not need this without active rvo
@@ -665,6 +690,7 @@ export function setup_systems(ecs: ECS,
     if (engine_settings.velocity_boundary_control) {
         ecs.register_system<PostVelocitySystem>(new PostVelocitySystem(navmesh));
         ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
+        ecs.set_system_without_component<PostVelocitySystem, DeadComponent>();
     }
 
     ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem(defaults.default_stun_time));
@@ -676,6 +702,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<ApplyDamageSystem, TargetAngleComponent>();  // to rotate entity to attacker with active shield
     ecs.set_system_with_component<ApplyDamageSystem, PositionComponent>();
     ecs.set_system_with_component<ApplyDamageSystem, TeamComponent>();
+    ecs.set_system_without_component<ApplyDamageSystem, DeadComponent>();
 
     // move entities by using calculated velocities and curent positions
     // navmesh used for snapping to the walkable area
@@ -685,6 +712,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<MoveSystem, VelocityComponent>();
     ecs.set_system_with_component<MoveSystem, PositionComponent>();
     ecs.set_system_with_component<MoveSystem, StateComponent>();
+    ecs.set_system_without_component<MoveSystem, DeadComponent>();
 
     // calculate tile index for the current player position
     // also find new, current and old tiles
@@ -706,6 +734,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<MoveTrackingSystem, TargetAngleComponent>();  // set target angle with respect to prev and current position
     ecs.set_system_with_component<MoveTrackingSystem, StateComponent>();  // to check how the entity is move
     ecs.set_system_with_component<MoveTrackingSystem, UpdateToClientComponent>();
+    ecs.set_system_without_component<MoveTrackingSystem, DeadComponent>();
 
     // rotate (change AngleComponent) if the target angle is different from current angle
     // the rotation can happens only when the entity is moved (MoveTagComponent is used)
@@ -716,6 +745,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<RotateSystem, RotationSpeedComponent>();
     ecs.set_system_with_component<RotateSystem, UpdateToClientComponent>();
     ecs.set_system_with_component<RotateSystem, StateComponent>();
+    ecs.set_system_without_component<RotateSystem, DeadComponent>();
 
     // calculate quad index from monster position
     // if index is changed, update data in the inner system variable
@@ -723,6 +753,8 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, MonsterComponent>();  // does not tracking player
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, VisibleQuadGridIndexComponent>();
+    // if mosnter is dead, then it placed in the same grid cell, so, it should not be tracked
+    ecs.set_system_without_component<VisibleQuadGridTrackingSystem, DeadComponent>();
 
     // tracking old and new monsters in the neighborhood of the player
     // call external method when the monster should be removed from the client
@@ -731,6 +763,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<VisibleQuadGridNeighborhoodSystem, PlayerComponent>();  // only for player
     ecs.set_system_with_component<VisibleQuadGridNeighborhoodSystem, PositionComponent>();
     ecs.set_system_with_component<VisibleQuadGridNeighborhoodSystem, VisibleQuadGridNeighborhoodComponent>();
+    // this system should be executed every time, even if the player is dead (because some mosnter can come to the visible area)
 
     // system for controll the time of the buff, which we assign to the entity after fast shif action
     // with this buff the new action is not allowed
@@ -763,6 +796,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<UpdateToClientSystem, PositionComponent>();
     ecs.set_system_with_component<UpdateToClientSystem, AngleComponent>();
     ecs.set_system_with_component<UpdateToClientSystem, MoveTagComponent>();
+    ecs.set_system_without_component<UpdateToClientSystem, DeadComponent>();
 
     if (debug_settings.use_debug) {
         ecs.register_system<UpdateDebugSystem>(new UpdateDebugSystem(debug_settings, neighborhood_tracking_system, visible_tracking_system));

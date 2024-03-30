@@ -13,6 +13,7 @@ import { TargetAngleComponent } from "../components/target_angle";
 import { PositionComponent } from "../components/position";
 import { TeamComponent } from "../components/team";
 import { EnemiesListComponent } from "../components/enemies_list";
+import { DeadComponent } from "../components/tags";
 
 import { external_entity_dead,
          external_entity_damaged } from "../../external";
@@ -133,9 +134,11 @@ export class ApplyDamageSystem extends System {
                             command_entity_unhide(local_ecs, entity);
 
                             // add atacker to the enemies list for the target
-                            const target_enemies_list = local_ecs.get_component<EnemiesListComponent>(entity);
-                            if (target_enemies_list) {
-                                target_enemies_list.add_target(damage_attacker);
+                            if (damage_type != DAMAGE_TYPE.UNKNOWN) {
+                                const target_enemies_list = local_ecs.get_component<EnemiesListComponent>(entity);
+                                if (target_enemies_list) {
+                                    target_enemies_list.add_target(damage_attacker);
+                                }
                             }
                         }
 
@@ -143,6 +146,7 @@ export class ApplyDamageSystem extends System {
                             // interrupt any action and make the enity dead
                             const is_iddle = interrupt_to_iddle(local_ecs, entity, state);
                             state.set_state(STATE.DEAD);
+                            local_ecs.add_component(entity, new DeadComponent());
                             external_entity_dead(entity);
                         }
 

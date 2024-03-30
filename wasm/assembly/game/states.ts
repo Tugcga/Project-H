@@ -29,6 +29,7 @@ import { ShadowAttackTimeComponent } from "./components/shadow_attack_time";
 import { LifeComponent } from "./components/life";
 import { ShieldComponent } from "./components/shield";
 import { AtackTimeComponent } from "./components/atack_time";
+import { DeadComponent } from "./components/tags";
 
 import { BuffMeleeAttackCooldawnComponent,
          BuffRangeAttackCooldawnComponent,
@@ -48,7 +49,8 @@ import { external_entity_start_melee_attack,
          external_entity_start_cooldawn,
          external_entity_release_shield,
          external_entity_finish_hide,
-         external_update_entity_params } from "../external";
+         external_update_entity_params,
+         external_entity_resurrect } from "../external";
 
 export function clear_state_components(ecs: ECS, state_value: STATE, entity: Entity): void {
     if (state_value == STATE.WALK_TO_POINT) {
@@ -61,6 +63,8 @@ export function clear_state_components(ecs: ECS, state_value: STATE, entity: Ent
         ecs.remove_component<StateShieldComponent>(entity);
     } else if(state_value == STATE.STUN) {
         ecs.remove_component<StateStunComponent>(entity);
+    } else if (state_value == STATE.DEAD) {
+        ecs.remove_component<DeadComponent>(entity);
     }
 }
 
@@ -408,6 +412,23 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
     return true;
 }
 
+export function resurrect(ecs: ECS, entity: Entity): void {
+    const state = ecs.get_component<StateComponent>(entity);
+    if (state) {
+        clear_state_components(ecs, STATE.DEAD, entity);
+        state.set_state(STATE.IDDLE);
+
+        const life = ecs.get_component<LifeComponent>(entity);
+        if (life) {
+            life.heal(life.max_life());
+
+            external_entity_resurrect(entity, life.life(), life.max_life());
+        }
+
+        output_update_entity_params(ecs, entity);
+    }
+}
+
 export function should_redefine_target_action(ecs: ECS, entity: Entity, target_entity: Entity, entity_target_action: TargetActionComponent, entity_state_value: STATE): UPDATE_TARGET_ACTION_STATUS {
     // check what entity is doing
     if (entity_state_value == STATE.WALK_TO_POINT) {
@@ -489,8 +510,9 @@ export function output_update_entity_params(ecs: ECS, entity: Entity): void {
     const shield = ecs.get_component<ShieldComponent>(entity);
     const attack_distance = ecs.get_component<AtackDistanceComponent>(entity);
     const attack_time = ecs.get_component<AtackTimeComponent>(entity);
+    const state = ecs.get_component<StateComponent>(entity);
 
-    if (select_radius && life && shield && attack_distance && attack_time) {
-        external_update_entity_params(entity, life.life(), life.max_life(), shield.shield(), shield.max_shield(), select_radius.value(), attack_distance.value(), attack_time.value());
+    if (select_radius && life && shield && attack_distance && attack_time && state) {
+        external_update_entity_params(entity, state.state() == STATE.DEAD, life.life(), life.max_life(), shield.shield(), shield.max_shield(), select_radius.value(), attack_distance.value(), attack_time.value());
     }
 }

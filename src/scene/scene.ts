@@ -246,6 +246,19 @@ export class Scene {
         }
     }
 
+    set_entity_alive(id: number) {
+        if (this.m_player_id == id) {
+            this.m_player.set_alive();
+        } else {
+            if(this.m_monsters.has(id)) {
+                const monster = this.m_monsters.get(id);
+                if(monster) {
+                    monster.set_alive();
+                }
+            }
+        }
+    }
+
     set_entity_attack_time(id: number, value: number) {
         if (this.m_player_id == id) {
             

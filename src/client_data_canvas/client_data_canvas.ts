@@ -58,7 +58,7 @@ export class ClientDataCanvas extends ClientBase {
     scene_create_player(radius: number): void { 
         this.m_scene.get_player().set_debug_draw(this.m_use_debug_draw);
     }
-    scene_update_entity_params(id: number, life: number, max_life: number, select_radius: number, atack_distance: number, attack_time: number): void { }
+    scene_update_entity_params(id: number, is_dead: boolean, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number): void { }
     // mouse_click(inc_x: number, inc_y: number, inw_x: number, inw_y: number): void { }
     // when define player position, we should update camera to output shapes to the canvas
     scene_update_entity_position(id: number, pos_x: number, pos_y: number): void {
@@ -105,6 +105,7 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_switch_hide(id: number, is_hide: boolean): void {}
     scene_player_activate_hide(): void {}
     scene_player_deactivate_hide(): void {}
+    scene_entity_resurrect(entity: number, life: number, max_life: number): void {}
 
     debug_entity_trajectory(entity: number, coordinates: Float32Array): void {
         if (this.m_use_debug_draw) {

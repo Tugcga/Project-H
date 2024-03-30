@@ -40,6 +40,7 @@ import { external_entity_start_shift,
 import { assign_cast_state, 
          interrupt_to_iddle, 
          is_entity_in_hide, 
+         resurrect,
          should_redefine_target_action,
          try_start_weapon_attack, 
          try_start_shadow_attack } from "./states";
@@ -372,6 +373,15 @@ export function command_stun(ecs: ECS, entity: Entity, duration: f32): void {
                 external_entity_start_stun(entity, duration);
                 command_entity_unhide(ecs, entity);
             }
+        }
+    }
+}
+
+export function command_resurrect(ecs: ECS, entity: Entity): void {
+    const state = ecs.get_component<StateComponent>(entity);
+    if (state) {
+        if (state.state() == STATE.DEAD) {
+            resurrect(ecs, entity);
         }
     }
 }
