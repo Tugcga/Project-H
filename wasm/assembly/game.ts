@@ -419,7 +419,9 @@ export class Game {
             const player_entity = this.player_entity;
 
             const player_position: PositionComponent | null = local_ecs.get_component<PositionComponent>(player_entity);
-            if (player_position) {
+            const player_team = local_ecs.get_component<TeamComponent>(player_entity);
+            if (player_position && player_team) {
+                const player_team_value = player_team.team();
                 for (let i = 0, len = rvo_entities.length; i < len; i++) {
                     const entity: Entity = rvo_entities[i];
 

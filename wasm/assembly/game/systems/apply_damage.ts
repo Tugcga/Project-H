@@ -12,6 +12,7 @@ import { UpdateToClientComponent } from "../components/update_to_client";
 import { TargetAngleComponent } from "../components/target_angle";
 import { PositionComponent } from "../components/position";
 import { TeamComponent } from "../components/team";
+import { EnemiesListComponent } from "../components/enemies_list";
 
 import { external_entity_dead,
          external_entity_damaged } from "../../external";
@@ -57,10 +58,11 @@ export class ApplyDamageSystem extends System {
                             const damage_type = damage.type(j);
                             const damage_duration = damage.duration(j);  // the of the cast for this damage
 
-                            // if current entity in the friend list of the attacker, then does not reciev the damage
+                            // if attacker and target from the SAME team, then skip damage
+                            // for friends damage is allowed
                             const attacker_team: TeamComponent | null = this.get_component<TeamComponent>(damage_attacker);
                             if (damage_type != DAMAGE_TYPE.UNKNOWN && attacker_team) {
-                                if (attacker_team.is_friend(team_value)) {
+                                if (attacker_team.team() == team_value) {
                                     // skip this loop step, continue with the other
                                     continue;
                                 }
@@ -129,6 +131,12 @@ export class ApplyDamageSystem extends System {
 
                             external_entity_damaged(damage_attacker, entity, damage_value, damage_type);
                             command_entity_unhide(local_ecs, entity);
+
+                            // add atacker to the enemies list for the target
+                            const target_enemies_list = local_ecs.get_component<EnemiesListComponent>(entity);
+                            if (target_enemies_list) {
+                                target_enemies_list.add_target(damage_attacker);
+                            }
                         }
 
                         if (life.life() == 0) {
