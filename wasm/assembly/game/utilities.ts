@@ -6,6 +6,20 @@ import { EPSILON } from "./constants";
 
 const OFFSET_DELTA: f32 = 0.1;  // hardcode value, used for offset path
 
+export function max<T>(a: T, b: T): T {
+    if (a > b) {
+        return a;
+    }
+    return b;
+}
+
+export function min<T>(a: T, b: T): T {
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+
 // convert direction (x, y) to angle from positive x-axist in conter clock-wise direction
 // we assume that input vector is normalized
 export function direction_to_angle(vec_x: f32, vec_y: f32): f32 {

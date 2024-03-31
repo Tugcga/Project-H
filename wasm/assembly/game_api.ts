@@ -81,6 +81,11 @@ export function settings_set_tiles_visible_radius(settings: Settings, in_value: 
     engine.set_tiles_visible_radius(in_value);
 }
 
+export function settings_set_search_system_chunk_count(settings: Settings, in_value: u32): void {
+    const engine = settings.get_engine();
+    engine.set_search_system_chunk_count(in_value);
+}
+
 /*---Constants---*/
 export function settings_set_monster_iddle_time(settings: Settings, min_value: f32, max_value: f32): void {
     const constants = settings.get_constants();

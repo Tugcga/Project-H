@@ -645,7 +645,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_with_component<StunSwitchSystem, StateStunComponent>();
     ecs.set_system_without_component<StunSwitchSystem, DeadComponent>();
 
-    ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system, navmesh));
+    ecs.register_system<SearchEnemiesSystem>(new SearchEnemiesSystem(search_tracking_system, navmesh, engine_settings.search_system_chunks_count));
     ecs.set_system_with_component<SearchEnemiesSystem, PositionComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, ActorTypeComponent>();
     ecs.set_system_with_component<SearchEnemiesSystem, TeamComponent>();

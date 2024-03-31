@@ -47,6 +47,7 @@ export class VisibleQuadGridNeighborhoodSystem extends System {
             const pos_y = position.y();
 
             const quad_index = tracking.get_quad_index(pos_x, pos_y);
+            // here we should obtain all entities from the grid
             const neight_entities: List<Entity> = tracking.get_items_from_position(pos_x, pos_y);
             quad_neight.set_entities(neight_entities);
             quad_neight.set_quad_index(quad_index);

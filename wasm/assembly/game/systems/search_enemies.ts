@@ -3,7 +3,7 @@ import { Entity } from "../../simple_ecs/types";
 import { Navmesh } from "../../pathfinder/navmesh/navmesh";
 
 import { EPSILON, ACTOR, STATE } from "../constants";
-import { distance } from "../utilities";
+import { distance, max, min } from "../utilities";
 
 import { PositionComponent } from "../components/position";
 import { RadiusSearchComponent } from "../components/radius";
@@ -24,11 +24,16 @@ import { command_entity_unhide } from "../commands";
 export class SearchEnemiesSystem extends System {
     private m_tracking: SearchQuadGridTrackingSystem;
     private m_navmesh: Navmesh;
+    private m_segments_count: u32;  // split all entities into several segments and iterate only through one segment
+    private m_segment: u32;  // index of the current segment
 
-    constructor(in_tracking: SearchQuadGridTrackingSystem, in_navmesh: Navmesh) {
+    constructor(in_tracking: SearchQuadGridTrackingSystem, in_navmesh: Navmesh, in_segments: u32) {
         super();
         this.m_tracking = in_tracking;
         this.m_navmesh = in_navmesh;
+        this.m_segments_count = in_segments;
+
+        this.m_segment = 0;
     }
 
     update(dt: f32): void {
@@ -36,9 +41,16 @@ export class SearchEnemiesSystem extends System {
         const local_tracking = this.m_tracking;
         const local_navmesh = this.m_navmesh;
         const local_ecs = this.get_ecs();
+        const local_segments_count = this.m_segments_count;
+        const local_segment = this.m_segment;
 
         if (local_ecs) {
-            for (let i = 0, len = entities.length; i < len; i++) {
+            const entities_count = entities.length;
+            const onse_step_size = max<u32>(entities_count / local_segments_count, 1);
+            const start_index = local_segment * onse_step_size;
+            const end_index = min<u32>(onse_step_size * (local_segment + 1), entities_count);
+
+            for (let i = start_index; i < end_index; i++) {
                 const active_entity: Entity = entities[i];
 
                 const active_actor_type: ActorTypeComponent | null = this.get_component<ActorTypeComponent>(active_entity);
@@ -64,6 +76,7 @@ export class SearchEnemiesSystem extends System {
                         // for each monster we should check all visible actors
                         const pos_x = active_position.x();
                         const pos_y = active_position.y();
+                        // in fact here we need not all entities from the grid, but only with non-dead state
                         const in_search = local_tracking.get_items_from_position(pos_x, pos_y);
                         for (let j = 0, j_len = in_search.length; j < j_len; j++) {
                             const target_entity = in_search[j];
@@ -140,6 +153,11 @@ export class SearchEnemiesSystem extends System {
                         }
                     }
                 }
+            }
+
+            this.m_segment += 1;
+            if (end_index == entities_count) {
+                this.m_segment = 0;
             }
         }
     }

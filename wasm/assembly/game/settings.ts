@@ -34,6 +34,8 @@ export class EngineSettings {
     path_recalculate_time: f32 = 1.0;  // in seconds, after this time we should calculate the path to the target point
     path_to_target_recalculate_time: f32 = 0.1; // in seconds, time for recalculate path when the entity follow to the target actor (it can move, so, we should update the path)
 
+    search_system_chunks_count: u32 = 1;  // split all entities in the search system into chincks and each update operate only one chunk
+
     set_snap_to_navmesh(in_value: bool): void {
         this.snap_to_navmesh = in_value;
     }
@@ -69,6 +71,10 @@ export class EngineSettings {
 
     set_tiles_visible_radius(in_value: i32): void {
         this.tiles_visible_radius = in_value;
+    }
+
+    set_search_system_chunk_count(in_value: u32): void {
+        this.search_system_chunks_count = in_value;
     }
 }
 

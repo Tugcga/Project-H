@@ -265,6 +265,7 @@ export abstract class ClientBase {
                 module.settings_set_velocity_boundary_control(settings_ptr, true);
                 module.settings_set_level_tile_size(settings_ptr, 1.5);  // size of one tile in the map
                 module.settings_set_tiles_visible_radius(settings_ptr, 12);  // how many map tiles are visible around the player
+                module.settings_set_search_system_chunk_count(settings_ptr, 5);
                 // setup game items default parameters
                 module.settings_set_player(settings_ptr, 0.5,  // radius
                     5.0,  // speed
