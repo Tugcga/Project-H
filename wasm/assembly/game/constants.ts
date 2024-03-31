@@ -1,5 +1,7 @@
 export const EPSILON: f32 = 0.0001;
 
+export const ASSERT_ERRORS: bool = true;
+
 export enum STATE {
     IDDLE,
     WALK_TO_POINT,

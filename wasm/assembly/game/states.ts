@@ -1,7 +1,7 @@
 import { ECS } from "../simple_ecs/simple_ecs";
 import { Entity } from "../simple_ecs/types";
 
-import { CAST_ACTION, COOLDAWN, START_CAST_STATUS, STATE, TARGET_ACTION, UPDATE_TARGET_ACTION_STATUS, WEAPON_DAMAGE_TYPE } from "./constants";
+import { ASSERT_ERRORS, CAST_ACTION, COOLDAWN, START_CAST_STATUS, STATE, TARGET_ACTION, UPDATE_TARGET_ACTION_STATUS, WEAPON_DAMAGE_TYPE } from "./constants";
 import { distance } from "./utilities";
 
 import { PositionComponent } from "./components/position";
@@ -101,6 +101,7 @@ export function assign_cast_state(ecs: ECS,
             return START_CAST_STATUS.FAIL_COOLDAWN;
         }
     } else {
+        assert(!ASSERT_ERRORS, "assign_cast_state -> unknown cast action " + cast_type.toString());
         return START_CAST_STATUS.FAIL_WRONG_CAST;
     }
 
@@ -147,6 +148,7 @@ function check_attack_condition(ecs: ECS,
             return START_CAST_STATUS.FAIL_DISTANCE;
         }
     } else {
+        assert(!ASSERT_ERRORS, "check_attack_condition -> entity does not contains required components: StateComponent, PositionComponent. Target does not contains required components: PositionComponent, StateComponent, RadiusComponent");
         return START_CAST_STATUS.FAIL;
     }
 }
@@ -179,9 +181,13 @@ function post_check_melee_attack(ecs: ECS,
             const attack_cooldawn_value = attack_cooldawn.value();
             ecs.add_component(entity, new BuffMeleeAttackCooldawnComponent(attack_cooldawn_value));
             external_entity_start_cooldawn(entity, COOLDAWN.MELEE_ATTACK, attack_cooldawn_value);
+        } else {
+            assert(!ASSERT_ERRORS, "post_check_melee_attack -> entity does not contains AttackCooldawnComponent");
         }
 
         return true;
+    } else {
+        assert(!ASSERT_ERRORS, "post_check_melee_attack -> entity does not contains required components: TargetActionComponent, DamageDistanceComponent, DamageSpreadComponent, DamageDamageComponent");
     }
 
     return false;
@@ -207,9 +213,13 @@ function post_check_range_attack(ecs: ECS,
             const attack_cooldawn_value = attack_cooldawn.value();
             ecs.add_component<BuffRangeAttackCooldawnComponent>(entity, new BuffRangeAttackCooldawnComponent(attack_cooldawn_value));
             external_entity_start_cooldawn(entity, COOLDAWN.RANGE_ATTACK, attack_cooldawn_value);
+        } else {
+            assert(!ASSERT_ERRORS, "post_check_range_attack -> entity does not contains AttackCooldawnComponent");
         }
 
         return true;
+    } else {
+        assert(!ASSERT_ERRORS, "post_check_range_attack -> entity does not contains DamageDamageComponent");
     }
 
     return false;
@@ -237,9 +247,13 @@ function post_check_hands_attack(ecs: ECS,
             const attack_cooldawn_value = attack_cooldawn.value();
             ecs.add_component<BuffHandAttackCooldawnComponent>(entity, new BuffHandAttackCooldawnComponent(attack_cooldawn_value));
             external_entity_start_cooldawn(entity, COOLDAWN.HAND_ATTACK, attack_cooldawn_value);
+        } else {
+            assert(!ASSERT_ERRORS, "post_check_hands_attack -> entity does not contains AttackCooldawnComponent");
         }
 
         return true;
+    } else {
+        assert(!ASSERT_ERRORS, "post_check_hands_attack -> entity does not contains required components: TargetActionComponent, DamageDamageComponent, DamageDistanceComponent");
     }
 
     return false;
@@ -264,9 +278,13 @@ function post_check_shadow_attack(ecs: ECS,
             const shadow_cooldawn_value = shadow_cooldawn.value();
             ecs.add_component(entity, new BuffShadowAttackCooldawnComponent(shadow_cooldawn_value));
             external_entity_start_cooldawn(entity, COOLDAWN.SHADOW_ATTACK, shadow_cooldawn_value);
+        } else {
+            assert(!ASSERT_ERRORS, "post_check_shadow_attack -> entity does not contains ShadowAttackCooldawnComponent");
         }
 
         return true;
+    } else {
+        assert(!ASSERT_ERRORS, "post_check_shadow_attack -> entity does not contains required components: TargetActionComponent, ShadowDamageDistanceComponent");
     }
 
     return false;
@@ -299,6 +317,7 @@ export function try_start_weapon_attack(ecs: ECS, entity: Entity, target_entity:
                 return cast_state;
             }
         } else {
+            assert(!ASSERT_ERRORS, "try_start_weapon_attack -> entity does not contains AtackDistanceComponent");
             return START_CAST_STATUS.FAIL;
         }
     }
@@ -325,6 +344,7 @@ export function try_start_shadow_attack(ecs: ECS, entity: Entity, target_entity:
             return cast_state;
         }
     } else {
+        assert(!ASSERT_ERRORS, "try_start_shadow_attack -> entity does not contains ShadowAttackDistanceComponent");
         START_CAST_STATUS.FAIL;
     }
 
@@ -337,6 +357,7 @@ export function is_entity_in_hide(ecs: ECS, entity: Entity): boolean {
         return hide_mode.is_active();
     } else {
         // entity does not contains hide mode component
+        assert(!ASSERT_ERRORS, "is_entity_in_hide -> entity does not contains HideModeComponent");
         return false;
     }
 }
@@ -386,11 +407,12 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
                 clear_state_components(ecs, STATE.CASTING, entity);
                 external_entity_finish_shadow_attack(entity, true);
             } else {
+                assert(!ASSERT_ERRORS, "interrupt_to_iddle -> unknown CAST_ACTION = " + entity_cast_type.toString());
                 // unsupported cast type
-
                 return false;
             }
         } else {
+            assert(!ASSERT_ERRORS, "interrupt_to_iddle -> entity in CASTING state but does not contains StateCastComponent");
             // cast component is invalid
             // something wrong
             return false;
@@ -406,6 +428,7 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
         return false;
     } else {
         // unknown state
+        assert(!ASSERT_ERRORS, "interrupt_to_iddle -> unknown state = " + state_value.toString());
         return false;
     }
 
@@ -426,6 +449,8 @@ export function resurrect(ecs: ECS, entity: Entity): void {
         }
 
         output_update_entity_params(ecs, entity);
+    } else {
+        assert(!ASSERT_ERRORS, "resurrect -> entity does not contains StateComponent");
     }
 }
 
@@ -459,13 +484,14 @@ export function should_redefine_target_action(ecs: ECS, entity: Entity, target_e
                 if (entity_cast_melee) {
                     if (entity_cast_melee.target() == target_entity) {
                         // already make melee cast to the same entity, nothing to do
-                        UPDATE_TARGET_ACTION_STATUS.NO;
+                        return UPDATE_TARGET_ACTION_STATUS.NO;
                     } else {
                         // another target, interrupt it
                         return UPDATE_TARGET_ACTION_STATUS.YES;
                     }
                 } else {
                     // something wrong, cast is melee attack but there is no component
+                    assert(!ASSERT_ERRORS, "should_redefine_target_action -> CAST_ACTION is attack, but entity does not contains CastWeaponDamageComponent");
                     return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
                 }
             } else if (entity_cast_type == CAST_ACTION.HIDE_ACTIVATION) {
@@ -484,10 +510,12 @@ export function should_redefine_target_action(ecs: ECS, entity: Entity, target_e
                 }
             } else {
                 // unknown type of cast action
+                assert(!ASSERT_ERRORS, "should_redefine_target_action -> unknown cast action " + entity_cast_type.toString());
                 return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
             }
         } else {
             // something wrong, no cast component (but state is CAST)
+            assert(!ASSERT_ERRORS, "should_redefine_target_action -> state is CASTING, but entity does not contains StateCastComponent");
             return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
         }
     } else if (entity_state_value == STATE.SHIELD) {
@@ -514,5 +542,7 @@ export function output_update_entity_params(ecs: ECS, entity: Entity): void {
 
     if (select_radius && life && shield && attack_distance && attack_time && state) {
         external_update_entity_params(entity, state.state() == STATE.DEAD, life.life(), life.max_life(), shield.shield(), shield.max_shield(), select_radius.value(), attack_distance.value(), attack_time.value());
+    } else {
+        assert(!ASSERT_ERRORS, "output_update_entity_params -> Entity does not contains required components: RadiusSelectComponent, LifeComponent, ShieldComponent, AtackDistanceComponent, AtackTimeComponent, StateComponent");
     }
 }

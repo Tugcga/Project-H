@@ -2,7 +2,7 @@ import { ECS } from "../simple_ecs/simple_ecs";
 import { Entity } from "../simple_ecs/types";
 import { Navmesh } from "../pathfinder/navmesh/navmesh";
 
-import { STATE, EPSILON, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, COOLDAWN, UPDATE_TARGET_ACTION_STATUS } from "./constants";
+import { ASSERT_ERRORS, STATE, EPSILON, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, COOLDAWN, UPDATE_TARGET_ACTION_STATUS } from "./constants";
 import { DefaultWeapons } from "./settings";
 
 import { get_navmesh_path, direction_to_angle } from "./utilities";
@@ -98,6 +98,7 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
                         target_action.set_target_entity(target_entity, action_type);
                         return true;
                     } else {
+                        assert(!ASSERT_ERRORS, "command_move_to_target -> entity does not contains TargetActionComponent");
                         return false;
                     }
                 } else {
@@ -105,6 +106,7 @@ function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, targ
                 }
             }
         } else {
+            assert(!ASSERT_ERRORS, "command_move_to_target -> entity does not contains StateComponent, TargetActionComponent");
             // some component is invalid
         }
     } else {
@@ -124,6 +126,7 @@ export function try_start_attack(ecs: ECS, entity: Entity, target_entity: Entity
         if (shadow_attack_time) {
             return try_start_shadow_attack(ecs, entity, target_entity, shadow_attack_time.value());
         } else {
+            assert(!ASSERT_ERRORS, "try_start_attack -> entity does not contains ShadowAttackTimeComponent");
             return START_CAST_STATUS.FAIL;
         }
     } else {
@@ -133,6 +136,7 @@ export function try_start_attack(ecs: ECS, entity: Entity, target_entity: Entity
         if (attack_time) {
             return try_start_weapon_attack(ecs, entity, target_entity, attack_time.value());
         } else {
+            assert(!ASSERT_ERRORS, "try_start_attack -> entity does not contains AtackTimeComponent");
             return START_CAST_STATUS.FAIL;
         }
     }
@@ -174,9 +178,11 @@ export function command_move_to_point(ecs: ECS, navmesh: Navmesh, entity: Entity
                 return false;
             }
         } else {
+            assert(!ASSERT_ERRORS, "command_move_to_point -> entity does not contains PositionComponent, TargetActionComponent");
             return false;
         }
     } else {
+        assert(!ASSERT_ERRORS, "command_move_to_point -> entity does not contains StateComponent");
         return false;
     }
 }
@@ -186,6 +192,8 @@ export function command_init_attack(ecs: ECS, navmesh: Navmesh, entity: Entity, 
     const target_position: PositionComponent | null = ecs.get_component<PositionComponent>(target_entity);
     if (target_position) {
         return command_move_to_target(ecs, navmesh, entity, target_entity, target_position.x(), target_position.y(), TARGET_ACTION.ATTACK);
+    } else {
+        assert(!ASSERT_ERRORS, "command_init_attack -> entity does not contains PositionComponent");
     }
 
     return false;
@@ -257,9 +265,13 @@ export function command_shift(ecs: ECS, navmesh: Navmesh, entity: Entity, cursor
                         external_entity_start_shift(entity);
                         command_entity_unhide(ecs, entity);
                     }
+                } else {
+                    assert(!ASSERT_ERRORS, "command_shift -> entity does not contains AngleComponent, TargetAngleComponent, PositionComponent, ShiftDistanceComponent, TargetActionComponent");
                 }
             }
         }
+    } else {
+        assert(!ASSERT_ERRORS, "command_shift -> entity does not contains StateComponent");
     }
 }
 
@@ -280,6 +292,8 @@ export function command_activate_shield(ecs: ECS, entity: Entity): void {
                 command_entity_unhide(ecs, entity);
             }
         }
+    } else {
+        assert(!ASSERT_ERRORS, "command_release_shield -> entity does not contains StateComponent");
     }
 }
 
@@ -294,6 +308,8 @@ export function command_release_shield(ecs: ECS, entity: Entity): void {
             command_entity_unhide(ecs, entity);
         }
         // if the state is another, then nothing to do
+    } else {
+        assert(!ASSERT_ERRORS, "command_release_shield -> entity does not contains StateShieldComponent, StateComponent");
     }
 }
 
@@ -321,6 +337,8 @@ function command_entity_hide(ecs: ECS, entity: Entity): void {
         } else {
             // nothing to do, entity already in hide move
         }
+    } else {
+        assert(!ASSERT_ERRORS, "command_entity_hide -> entity does not contains HideModeComponent, StateComponent");
     }
 }
 
@@ -338,12 +356,16 @@ export function command_entity_unhide(ecs: ECS, entity: Entity): void {
                 const speed_value = speed.value();
                 // increase the speed
                 speed.set_value(speed_value / speed_multiplier);
+            } else {
+                assert(!ASSERT_ERRORS, "command_entity_unhide -> entity does not contains SpeedComponent");
             }
 
             external_entity_switch_hide(entity, false);
         } else {
             //nothing to do, entity already on unhide mode
         }
+    } else {
+        assert(!ASSERT_ERRORS, "command_entity_unhide -> entity does not contains HideModeComponent");
     }
 }
 
@@ -356,6 +378,8 @@ export function command_toggle_hide_mode(ecs: ECS, entity: Entity): void {
         } else {
             command_entity_hide(ecs, entity);
         }
+    } else {
+        assert(!ASSERT_ERRORS, "command_toggle_hide_mode -> entity does not contains HideModeComponent");
     }
 }
 
@@ -374,6 +398,8 @@ export function command_stun(ecs: ECS, entity: Entity, duration: f32): void {
                 command_entity_unhide(ecs, entity);
             }
         }
+    } else {
+        assert(!ASSERT_ERRORS, "command_stun -> entity does not contains StateComponent");
     }
 }
 
@@ -383,6 +409,8 @@ export function command_resurrect(ecs: ECS, entity: Entity): void {
         if (state.state() == STATE.DEAD) {
             resurrect(ecs, entity);
         }
+    } else {
+        assert(!ASSERT_ERRORS, "command_resurrect -> entity does not contains StateComponent");
     }
 }
 
@@ -417,6 +445,8 @@ export function command_equip_main_weapon(ecs: ECS, player_entity: Entity, weapo
 
         // next recalculate player parameters with new equipment
         update_entity_parameters(ecs, player_entity, default_weapons);
+    } else {
+        assert(!ASSERT_ERRORS, "command_equip_main_weapon -> entity does not contains required components: InventarComponent, EquipmentComponent, InventarWeaponTypeComponent");
     }
 }
 
@@ -438,5 +468,7 @@ export function command_free_equip_weapon(ecs: ECS, player_entity: Entity, defau
         }
 
         update_entity_parameters(ecs, player_entity, default_weapons);
+    } else {
+        assert(!ASSERT_ERRORS, "command_free_equip_weapon -> entity does not contains required components: InventarComponent, EquipmentComponent");
     }
 }
