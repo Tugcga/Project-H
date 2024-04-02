@@ -82,6 +82,23 @@ export class ApplyDamageSystem extends System {
                                 if (state_value == STATE.SHIELD) {
                                     const shield_state: StateShieldComponent | null = this.get_component<StateShieldComponent>(entity);
                                     if (shield_state) {
+                                        // if shield time is less than cast attack time, then interrupt the attacker and set stun state
+                                        // the behaviour is different for different type of attacks
+                                        // interruption for melee attack only
+                                        const shield_time = shield_state.time();
+                                        if (damage_type == DAMAGE_TYPE.MELEE) {
+                                            if (shield_time < damage_duration) {
+                                                command_stun(local_ecs, damage_attacker, local_melee_stun);
+                                            }
+                                        } else if (damage_type == DAMAGE_TYPE.RANGE) {
+                                            if (shield_time < damage_duration) {
+                                                // in this case block the arrow and does not apply damage
+                                                // simply reset damage value
+                                                damage_value_f32 = 0.0;
+                                            }
+                                        }
+
+                                        // even if we stun the attacker, aply damage to the shield
                                         // at first apply damage to the shield
                                         const shield_value = shield.shield();  // this is f32 value
                                         shield.damage(damage_value_f32);
@@ -91,15 +108,7 @@ export class ApplyDamageSystem extends System {
                                             damage_value_f32 = 0.0;
                                         }
 
-                                        // if shield time is less than cast attack time, then interrupt the attacker and set stun state
-                                        // the behaviour is different for different type of attacks
-                                        // interruption for melee attack only
-                                        const shield_time = shield_state.time();
-                                        if (damage_type == DAMAGE_TYPE.MELEE) {
-                                            if (shield_time < damage_duration) {
-                                                command_stun(local_ecs, damage_attacker, local_melee_stun);
-                                            }
-                                        }
+                                        
 
                                         if (shield.is_over()) {
                                             // turn the entity to the iddle state

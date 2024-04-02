@@ -3,8 +3,8 @@ import { Entity } from "../../simple_ecs/types";
 import { direction_to_angle } from "../utilities";
 import { EPSILON, ACTOR, STATE } from "../constants";
 
-import { PreviousPositionComponent } from "../components/previous_position";
-import { PositionComponent } from "../components/position";
+import { PositionComponent,
+         PreviousPositionComponent } from "../components/position";
 import { MoveTagComponent } from "../components/move";
 import { TargetAngleComponent } from "../components/target_angle";
 import { UpdateToClientComponent } from "../components/update_to_client";

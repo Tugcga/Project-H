@@ -21,11 +21,14 @@ declare function create_player(entity: u32, pos_x: f32, pos_y: f32, radius: f32,
 @external("env", "host.update_entity_params")
 declare function update_entity_params(entity: u32, is_dead: bool, life: u32, max_life: u32, shield: f32, max_shield: f32, select_radius: f32, atack_distance: f32, attack_time: f32): void;
 
-@external("env", "host.remove_monster")
-declare function remove_monster(entity: u32): void;
+@external("env", "host.remove_entity")
+declare function remove_entity(entity: u32, actor_type: u32, remove_reason: u32): void;
 
 @external("env", "host.create_monster")
 declare function create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, search_radius: f32, search_spread: f32, team: i32): void;
+
+@external("env", "host.create_bullet")
+declare function create_bullet(entity: u32, pos_x: f32, pos_y: f32, target_x: f32, target_y: f32, angle: f32, bullet_type: u32): void;
 
 @external("env", "host.define_entity_changes")
 declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32,
@@ -34,6 +37,9 @@ declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32,
                                        life: u32, max_life: u32,
                                        shield: f32, max_shield: f32,
                                        is_dead: bool): void;
+
+@external("env", "host.define_bullet_changes")
+declare function define_bullet_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32): void;
 
 @external("env", "host.define_total_update_entities")
 declare function define_total_update_entities(count: u32): void;
@@ -185,11 +191,11 @@ export function external_update_entity_params(entity: u32,
     }
 }
 
-export function external_remove_monster(entity: u32): void {
+export function external_remove_entity(entity: u32, actor_type: u32, remove_reason: u32): void {
     if(use_external) {
-        remove_monster(entity);
+        remove_entity(entity, actor_type, remove_reason);
     } else {
-        console.log("ext -> remove_monster: " + entity.toString());
+        console.log("ext -> remove_entity: " + entity.toString() + " actor " + actor_type.toString() + " reason " + remove_reason.toString());
     }
 }
 
@@ -202,6 +208,18 @@ export function external_create_monster(entity: u32, pos_x: f32, pos_y: f32, rad
                     ") radius " + radius.toString() + 
                     " search " + search_radius.toString() + ":" + search_spread.toString() + 
                     " team " + team.toString());
+    }
+}
+
+export function external_create_bullet(entity: u32, pos_x: f32, pos_y: f32, target_x: f32, target_y: f32, angle: f32, bullet_type: u32): void {
+    if (use_external) {
+        create_bullet(entity, pos_x, pos_y, target_x, target_y, angle, bullet_type);
+    } else {
+        console.log("ecs -> create_bullet: id " + entity.toString() +
+                    " position (" + pos_x.toString() + ", " + pos_y.toString() +
+                    " target (" + target_x.toString() + ", " + target_y.toString() +
+                    ") angle " + angle.toString() +
+                    " type " + bullet_type.toString());
     }
 }
 
@@ -222,6 +240,14 @@ export function external_define_entity_changes(entity: u32,
             " life " + life.toString() + "/" + max_life.toString() +
             " shield " + shield.toString() + "/" + max_shield.toString() +
             " is dead " + is_dead.toString());
+    }
+}
+
+export function external_define_bullet_changes(entity: u32, pos_x: f32, pos_y: f32, angle: f32): void {
+    if (use_external) {
+        define_bullet_changes(entity, pos_x, pos_y, angle);
+    } else {
+        console.log("ext -> define_bullet_changes: id: " + entity.toString() + " (" + pos_x.toString() + ", " + pos_y.toString() + ") angle " + angle.toString());
     }
 }
 

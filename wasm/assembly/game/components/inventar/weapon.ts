@@ -8,3 +8,4 @@ export class WeaponShieldeComponent extends OneFloatComponent {}
 
 export class WeaponDamageSpreadComponent extends OneFloatComponent {}
 export class WeaponDamageDistanceComponent extends OneFloatComponent {}
+export class WeaponDamageSpeedComponent extends OneFloatComponent {}

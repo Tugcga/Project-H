@@ -2,7 +2,7 @@ import { __Internref24, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
-import { COOLDAWN, DAMAGE_TYPE, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
+import { ACTOR, COOLDAWN, DAMAGE_TYPE, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, REMOVE_REASON, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
 import { cursor_coordinates, touch_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
 
@@ -69,7 +69,9 @@ export abstract class ClientBase {
     abstract scene_update_entity_shield(id: number, shield: number, max_shield: number): void;
     abstract scene_update_entity_params(entity: number, is_dead: boolean, life: number, max_life: number, select_radius: number, attack_distance: number, attack_time: number): void;
     abstract scene_create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number): void;
+    abstract scene_create_bullet(entity: number, pos_x: number, pos_y: number, target_x: number, target_y: number, angle: number, bullet_type: number): void;
     abstract scene_remove_monster(entity: number): void;
+    abstract scene_remove_bullet(entity: number, reason: REMOVE_REASON): void;
     abstract scene_entity_start_shift(entity: number): void;
     abstract scene_entity_finish_shift(entity: number): void;
     abstract scene_entity_activate_shield(entity: number): void;
@@ -117,8 +119,10 @@ export abstract class ClientBase {
             create_player: this.create_player.bind(this),
             update_entity_params: this.update_entity_params.bind(this),
             create_monster: this.create_monster.bind(this),
+            create_bullet: this.create_bullet.bind(this),
             define_entity_changes: this.define_entity_changes.bind(this),
-            remove_monster: this.remove_monster.bind(this),
+            define_bullet_changes: this.define_bullet_changes.bind(this),
+            remove_entity: this.remove_entity.bind(this),
             define_total_update_entities: this.define_total_update_entities.bind(this),
             entity_start_shift: this.entity_start_shift.bind(this),
             entity_finish_shift: this.entity_finish_shift.bind(this),
@@ -241,7 +245,7 @@ export abstract class ClientBase {
                 // controllable seed ↓ for test
                 module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
-                module.settings_set_visible_quad_size(settings_ptr, 6.0);  // visibility radius for the player
+                module.settings_set_visible_quad_size(settings_ptr, 4.0);  // visibility radius for the player
                 module.settings_set_neighbourhood_quad_size(settings_ptr, 2.0);  // tweak this for greater radius for search close entities
                 module.settings_set_generate(settings_ptr,
                     22,  // level size
@@ -285,8 +289,8 @@ export abstract class ClientBase {
                     1.5,  // damage distance
                     4,  // damage
                     5.0);  // shield
-                module.settings_set_monster_iddle_time(settings_ptr, 1.0, 2.0);
-                module.settings_set_monsters_per_room(settings_ptr, 2, 5);  // no random monsters
+                module.settings_set_monster_iddle_time(settings_ptr, 1000.0, 2000.0);
+                module.settings_set_monsters_per_room(settings_ptr, 0, 0);  // no random monsters
                 module.settings_set_default_monster_person(settings_ptr, 0.5,  // radius
                     3.0,  // speed
                     8,  // life
@@ -308,7 +312,7 @@ export abstract class ClientBase {
                 module.dev_add_sword_to_player(local_this.m_game_ptr,
                                                1.0, 0.75, 1.25, 7, 12.0, Math.PI / 2.0, 2.0);
                 module.dev_add_bow_to_player(local_this.m_game_ptr,
-                                             5.5, 2.0, 2.5, 7, 7.0);
+                                             5.5, 0.5, 0.75, 7, 7.0, 12.0);
 
                 // call client start method
                 local_this.start();
@@ -685,7 +689,19 @@ export abstract class ClientBase {
         this.m_scene.set_entity_team(entity, team);
         this.m_scene.set_monster_search_radius(entity, search_radius);
         this.m_scene.set_monster_search_spread(entity, search_spread);
+        this.m_scene.post_monster_create(entity);
+
         this.scene_create_monster(entity, pos_x, pos_y, radius, search_radius, search_spread, team);
+    }
+
+    create_bullet(entity: number, pos_x: number, pos_y: number, target_x: number, target_y: number, angle: number, bullet_type: number) {
+        this.m_scene.create_bullet(entity, bullet_type);
+
+        this.m_scene.set_entity_position(entity, pos_x, pos_y);
+        this.m_scene.set_entity_angle(entity, angle);
+        this.m_scene.set_bullet_target_position(entity, target_x, target_y);
+
+        this.scene_create_bullet(entity, pos_x, pos_y, target_x, target_y, angle, bullet_type);
     }
 
     define_entity_changes(entity: number, 
@@ -709,9 +725,22 @@ export abstract class ClientBase {
         this.scene_update_entity_shield(entity, shield, max_shield);
     }
 
-    remove_monster(entity: number) {
-        this.m_scene.remove_monster(entity);
-        this.scene_remove_monster(entity);
+    define_bullet_changes(entity: number, pos_x: number, pos_y: number, angle: number) {
+        this.m_scene.set_entity_position(entity, pos_x, pos_y);
+        this.m_scene.set_entity_angle(entity, angle);
+
+        this.scene_update_entity_position(entity, pos_x, pos_y);
+        this.scene_update_entity_angle(entity, angle);
+    }
+
+    remove_entity(entity: number, actor_type: number, remove_reason: number) {
+        if (actor_type == ACTOR.MONSTER) {
+            this.m_scene.remove_monster(entity);
+            this.scene_remove_monster(entity);
+        } else if (actor_type == ACTOR.BULLET) {
+            this.m_scene.remove_bullet(entity);
+            this.scene_remove_bullet(entity, remove_reason);
+        }
     }
 
     define_total_update_entities(count: number) {

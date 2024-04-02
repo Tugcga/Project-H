@@ -112,6 +112,11 @@ export function settings_set_monster_random_walk_radius(settings: Settings, in_v
     constants.set_monster_random_walk_radius(in_value);
 }
 
+export function settings_set_bullet_max_distance(settings: Settings, in_value: f32): void {
+    const constants = settings.get_constants();
+    constants.set_bullet_max_distance(in_value);
+}
+
 /*---Default monster---*/
 export function settings_set_default_monster_common(settings: Settings,
                                                     rotation_speed: f32, shield_resurrect: f32, hide_speed_multiplier: f32, hide_activate_time: f32, hide_cooldawn: f32): void {
@@ -200,8 +205,8 @@ export function dev_add_sword_to_player(game: Game,
 }
 
 export function dev_add_bow_to_player(game: Game,
-                                      attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32): void {
-    game.dev_create_bow(attack_distance, attack_time, attack_cooldawn, damage, shield);
+                                      attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32, speed: f32): void {
+    game.dev_create_bow(attack_distance, attack_time, attack_cooldawn, damage, shield, speed);
 }
 
 export function dev_player_equip_sword(game: Game): void {
@@ -223,8 +228,8 @@ export function dev_create_virtual_sword(game: Game,
 }
 
 export function dev_create_virtual_bow(game: Game,
-                                       attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32): VirtualWeapon {
-    return game.dev_create_virtual_bow(attack_distance, attack_time, attack_cooldawn, shield, damage);
+                                       attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32, bullet_speed: f32): VirtualWeapon {
+    return game.dev_create_virtual_bow(attack_distance, attack_time, attack_cooldawn, shield, damage, bullet_speed);
 }
 
 export function dev_create_virtual_empty_weapon(game: Game,

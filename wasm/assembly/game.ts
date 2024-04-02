@@ -17,7 +17,8 @@ import { external_define_level,
          external_click_position,
          external_define_entity_changes } from "./external";
 
-import { setup_components, 
+import { define_local_values,
+         setup_components, 
          setup_systems, 
          setup_player, 
          setup_monster,
@@ -124,6 +125,8 @@ export class Game {
 
         // start player rotation angle
         const start_angle = <f32>local_random.next_float(0.0, 2* Math.PI);
+
+        define_local_values( <f32>local_level.width() * tile_size, engine_settings.visible_quad_size);
 
         // init ecs
         let local_ecs = new ECS();
@@ -543,12 +546,12 @@ export class Game {
         }
     }
 
-    dev_create_bow(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32): void {
+    dev_create_bow(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32, speed: f32): void {
         const local_ecs = this.ecs;
 
         if (local_ecs) {
             const bow_entity = setup_weapon_bow(local_ecs,
-                                                attack_distance, attack_time, attack_cooldawn, damage, shield);
+                                                attack_distance, attack_time, attack_cooldawn, damage, shield, speed);
             const player_entity = this.player_entity;
             const player_inventar = local_ecs.get_component<InventarComponent>(player_entity);
             if (player_inventar) {
@@ -617,8 +620,8 @@ export class Game {
         return new VirtualWeaponSword(attack_distance, attack_time, attack_cooldawn, shield, damage, damage_distance, damage_spread);
     }
 
-    dev_create_virtual_bow(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32): VirtualWeaponBow {
-        return new VirtualWeaponBow(attack_distance, attack_time, attack_cooldawn, shield, damage);
+    dev_create_virtual_bow(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32, bullet_speed: f32): VirtualWeaponBow {
+        return new VirtualWeaponBow(attack_distance, attack_time, attack_cooldawn, shield, damage, bullet_speed);
     }
 
     dev_create_virtual_empty_weapon(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32,

@@ -1,9 +1,8 @@
 import { MOVE_STATUS } from "../constants";
-import { SceneItem } from "./scene_item";
+import { SceneIDItem, SceneItem } from "./scene_item";
 
 // base class for player, monster and other person stuff
-export class Person extends SceneItem {
-    private m_entity_id: number = -1;
+export class Person extends SceneIDItem {
     private m_radius: number = 0.0;
     private m_attack_distance: number = 0.0;
     private m_life: number = 0;
@@ -16,23 +15,12 @@ export class Person extends SceneItem {
     private m_search_radius: number = 0.0;
     private m_search_spread: number = 0.0;
     private m_active_shield: boolean = false;
-    private m_debug_draw: boolean = false;
     private m_team: number;
     private m_is_hide: boolean = false;
     private m_is_visible_search_cone: boolean = false;
 
     constructor(in_id: number) {
-        super();
-
-        this.m_entity_id = in_id;
-    }
-
-    set_debug_draw(value: boolean) {
-        this.m_debug_draw = value;
-    }
-
-    set_id(in_id: number) {
-        this.m_entity_id = in_id;
+        super(in_id);
     }
 
     set_team(in_value: number) {
@@ -49,10 +37,6 @@ export class Person extends SceneItem {
 
     get_is_dead(): boolean {
         return this.m_is_dead;
-    }
-
-    get_id(): number {
-        return this.m_entity_id;
     }
 
     set_radius(radius: number) {
@@ -159,9 +143,5 @@ export class Person extends SceneItem {
 
     get_is_visible_search_cone(): boolean {
         return this.m_is_visible_search_cone;
-    }
-
-    get_debug_draw(): boolean {
-        return this.m_debug_draw;
     }
 }

@@ -13,9 +13,20 @@ export enum STATE {
     DEAD,
 }
 
+export enum REMOVE_REASON {
+    VISIBILITY_OUT,
+    COME_TARGET,
+    DAMAGE_ELIMINATE
+}
+
 export enum ACTOR {
     PLAYER,
-    MONSTER
+    MONSTER,
+    BULLET,
+}
+
+export enum BULLET_TYPE {
+    ARROW,
 }
 
 export enum MOVE_STATUS {

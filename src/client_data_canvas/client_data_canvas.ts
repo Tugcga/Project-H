@@ -1,6 +1,6 @@
 import { ClientBase } from "../client_base";
-import { CAMERA_LERP_COEFFICIENT, COOLDAWN, DAMAGE_TYPE, MOVE_STATUS, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
-import { draw_background, draw_cursor, draw_level_tile, draw_lines, draw_monster, draw_neighbourhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
+import { CAMERA_LERP_COEFFICIENT, COOLDAWN, DAMAGE_TYPE, MOVE_STATUS, REMOVE_REASON, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
+import { draw_background, draw_bullet, draw_cursor, draw_level_tile, draw_lines, draw_monster, draw_neighbourhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
 
 // this version of the client application
 // use 2d canvas as draw device
@@ -80,7 +80,14 @@ export class ClientDataCanvas extends ClientBase {
             p.set_debug_draw(this.m_use_debug_draw);
         }
     }
+    scene_create_bullet(entity: number, pos_x: number, pos_y: number, target_x: number, target_y: number, angle: number, bullet_type: number): void {
+        const b = this.m_scene.get_bullet(entity);
+        if (b) {
+            b.set_debug_draw(this.m_use_debug_draw);
+        }
+    }
     scene_remove_monster(entity: number): void {}
+    scene_remove_bullet(entity: number, reason: REMOVE_REASON): void {}
     scene_entity_start_shift(entity: number): void {}
     scene_entity_finish_shift(entity: number): void {}
     scene_entity_activate_shield(entity: number): void {}
@@ -184,6 +191,10 @@ export class ClientDataCanvas extends ClientBase {
             for (const [id, monster] of this.m_scene.get_monsters()) {
                 monster.set_debug_draw(false);
             }
+
+            for (const [id, bullet] of this.m_scene.get_bullets()) {
+                bullet.set_debug_draw(false);
+            }
         } else {
             // enable debug draw for all persons
             const player = this.m_scene.get_player();
@@ -191,6 +202,10 @@ export class ClientDataCanvas extends ClientBase {
             
             for (const [id, monster] of this.m_scene.get_monsters()) {
                 monster.set_debug_draw(true);
+            }
+
+            for (const [id, bullet] of this.m_scene.get_bullets()) {
+                bullet.set_debug_draw(true);
             }
         }
     }
@@ -236,6 +251,12 @@ export class ClientDataCanvas extends ClientBase {
         for(let [entity, monster] of monsters) {
             const monster_id = monster.get_id();
             draw_monster(this.m_scene_ctx, this.m_wtc_tfm, monster, this.m_scene.get_person_cooldawns(monster_id), this.m_scene.get_person_effects(monster_id));
+        }
+
+        // bullets
+        const bullets = this.m_scene.get_bullets();
+        for (const [id, bullet] of bullets) {
+            draw_bullet(this.m_scene_ctx, this.m_wtc_tfm, bullet);
         }
 
         // draw debug trajectories

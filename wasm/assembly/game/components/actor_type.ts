@@ -16,6 +16,8 @@ export class ActorTypeComponent {
             return "player";
         } else if(this.m_type == ACTOR.MONSTER) {
             return "monster";
+        } else if (this.m_type == ACTOR.BULLET) {
+            return "bullet";
         } else {
             return "unknown";
         }

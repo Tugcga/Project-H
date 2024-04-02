@@ -12,8 +12,9 @@ import { PositionComponent } from "../components/position";
 import { ShiftCooldawnComponent } from "../components/shift_cooldawn";
 import { TargetActionComponent } from "../components/target_action";
 import { RadiusComponent } from "../components/radius";
-import { CastWeaponDamageComponent,
-         CastShadowDamageComponent } from "../components/cast";
+import { CastMeleeDamageComponent,
+         CastShadowDamageComponent,
+         CastRangeDamageComponent } from "../components/cast";
 import { TargetAngleComponent } from "../components/target_angle";
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
 import { ApplyDamageComponent } from "../components/apply_damage";
@@ -40,7 +41,8 @@ import { clear_state_components, interrupt_to_iddle } from "../states";
 import { apply_melee_attack,
          apply_hand_attack,
          apply_hide,
-         apply_shadow_attack } from "../skills/apply";
+         apply_shadow_attack,
+         emit_range_bullet } from "../skills/apply";
 
 import { command_init_attack, 
          try_start_attack } from "../commands";
@@ -159,17 +161,21 @@ function allign_to_target(ecs: ECS, entity: Entity, target_entity: Entity, posit
 export class CastSwitchSystem extends System {
     private m_navmesh: Navmesh;  // used to call attack after cast is finish
     private m_tracking_system: NeighborhoodQuadGridTrackingSystem;
+    private m_bullet_max_distance: f32;
 
-    constructor(in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_navmesh: Navmesh) {
+    constructor(in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_navmesh: Navmesh, in_bullet_max_distance: f32) {
         super();
 
         this.m_navmesh = in_navmesh;
         this.m_tracking_system = in_tracking_system;
+        this.m_bullet_max_distance = in_bullet_max_distance;
     }
 
     update(dt: f32): void {
         const tracking_system = this.m_tracking_system;
         const local_ecs = this.get_ecs();
+        const local_navmesh = this.m_navmesh;
+        const loca_bullet_max_distance = this.m_bullet_max_distance;
 
         const entities = this.entities();
 
@@ -190,10 +196,17 @@ export class CastSwitchSystem extends System {
                 const cast_type = cast.type();
 
                 // with respect of the cast type we should rotate the entity to the target
-                if (cast_type == CAST_ACTION.MELEE_ATTACK || cast_type == CAST_ACTION.RANGE_ATTACK || cast_type == CAST_ACTION.HANDS_ATTACK) {
+                if (cast_type == CAST_ACTION.MELEE_ATTACK || cast_type == CAST_ACTION.HANDS_ATTACK) {
                     // rotate to the target
-                    // target is stored in CastWeaponDamageComponent
-                    const cast_damage: CastWeaponDamageComponent | null = this.get_component<CastWeaponDamageComponent>(entity);
+                    // target is stored in CastMeleeDamageComponent
+                    const cast_damage: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
+                    if (cast_damage) {
+                        const target_entity = cast_damage.target();
+                        allign_to_target(local_ecs, entity, target_entity, position_x, position_y, target_angle);
+                    }
+                } else if ( cast_type == CAST_ACTION.RANGE_ATTACK) {
+                    // the same for range
+                    const cast_damage: CastRangeDamageComponent | null = this.get_component<CastRangeDamageComponent>(entity);
                     if (cast_damage) {
                         const target_entity = cast_damage.target();
                         allign_to_target(local_ecs, entity, target_entity, position_x, position_y, target_angle);
@@ -218,22 +231,33 @@ export class CastSwitchSystem extends System {
                             apply_melee_attack(local_ecs, entity, cast_duration, tracking_system);
                         } else if (cast_type == CAST_ACTION.RANGE_ATTACK) {
                             external_entity_finish_range_attack(entity, false);
-                            // TODO: for range attack we should emit the bullet in proper direction
+                            emit_range_bullet(local_ecs, entity, local_navmesh, loca_bullet_max_distance);
                         } else if (cast_type == CAST_ACTION.HANDS_ATTACK) {
                             external_entity_finish_hand_attack(entity, false);
                             apply_hand_attack(local_ecs, entity, cast_duration);
                         }
 
-                        // remove cast melee damage component
-                        // it should exists
-                        const cast_melee: CastWeaponDamageComponent | null = this.get_component<CastWeaponDamageComponent>(entity);
                         let cast_target = 0;
                         let is_cast_correct = false;
-                        if (cast_melee) {
-                            cast_target = cast_melee.target();
-                            is_cast_correct = true;
+                        if (cast_type == CAST_ACTION.MELEE_ATTACK || cast_type == CAST_ACTION.HANDS_ATTACK) {
+                            // remove cast melee damage component
+                            // it should exists
+                            const cast_melee: CastMeleeDamageComponent | null = this.get_component<CastMeleeDamageComponent>(entity);
+                            
+                            if (cast_melee) {
+                                cast_target = cast_melee.target();
+                                is_cast_correct = true;
+                            }
+                            this.remove_component<CastMeleeDamageComponent>(entity);
+                        } else if (cast_type == CAST_ACTION.RANGE_ATTACK) {
+                            const cast_range: CastRangeDamageComponent | null = this.get_component<CastRangeDamageComponent>(entity);
+                            
+                            if (cast_range) {
+                                cast_target = cast_range.target();
+                                is_cast_correct = true;
+                            }
+                            this.remove_component<CastRangeDamageComponent>(entity);
                         }
-                        this.remove_component<CastWeaponDamageComponent>(entity);
 
                         // turn to iddle state
                         clear_state_components(local_ecs, STATE.CASTING, entity);

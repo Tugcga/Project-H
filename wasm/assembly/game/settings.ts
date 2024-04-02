@@ -85,6 +85,7 @@ export class ConstantsSettings {
     monster_random_walk_target_radius: f32 = 3.0;  // radius where we select next random point to walk in
     monster_iddle_time: Array<f32> = [1.0, 5.0];  // in seconds
     monsters_per_room: Array<u32> = [3, 7];
+    bullet_max_distance: f32 = 32.0;  // maximum distance for bullet target
 
     set_monster_iddle_time(in_min: f32, in_max: f32): void {
         this.monster_iddle_time[0] = in_min;
@@ -106,6 +107,10 @@ export class ConstantsSettings {
 
     set_monster_random_walk_radius(in_value: f32): void {
         this.monster_random_walk_target_radius = in_value;
+    }
+
+    set_bullet_max_distance(in_value: f32): void {
+        this.bullet_max_distance = in_value;
     }
 }
 

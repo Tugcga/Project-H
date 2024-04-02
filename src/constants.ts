@@ -26,6 +26,25 @@ export enum EFFECT {
 }
 
 // the same as in wasm-side
+export enum ACTOR {
+    PLAYER,
+    MONSTER,
+    BULLET,
+}
+
+// sync with wasm side
+export enum BULLET_TYPE {
+    ARROW,
+}
+
+// use one of these keys when entity is removed from the scene
+// should be the same as in wasm side
+export enum REMOVE_REASON {
+    VISIBILITY_OUT,
+    COME_TARGET,
+    DAMAGE_ELIMINATE
+}
+
 export enum MOVE_STATUS {
     NONE,
     WALK,

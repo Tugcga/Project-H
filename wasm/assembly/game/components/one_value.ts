@@ -45,12 +45,12 @@ export class OneUIntComponent {
     }
 
     @inline
-    set_value(in_value: i32): void {
+    set_value(in_value: u32): void {
         this.m_value = in_value;
     }
 
     @inline
-    value(): i32 {
+    value(): u32 {
         return this.m_value;
     }
 

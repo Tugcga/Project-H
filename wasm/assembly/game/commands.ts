@@ -298,18 +298,25 @@ export function command_activate_shield(ecs: ECS, entity: Entity): void {
 }
 
 export function command_release_shield(ecs: ECS, entity: Entity): void {
-    const shield: StateShieldComponent | null = ecs.get_component<StateShieldComponent>(entity);
     const state: StateComponent | null = ecs.get_component<StateComponent>(entity);
-    if (shield && state) {
+    if (state) {
         const state_value = state.state();
         if (state_value == STATE.SHIELD) {
-            // should not require to send external call, because it already called from interrupt function
-            interrupt_to_iddle(ecs, entity, state);
-            command_entity_unhide(ecs, entity);
+            const shield: StateShieldComponent | null = ecs.get_component<StateShieldComponent>(entity);
+            if (shield) {
+                const state_value = state.state();
+                if (state_value == STATE.SHIELD) {
+                    // should not require to send external call, because it already called from interrupt function
+                    interrupt_to_iddle(ecs, entity, state);
+                    command_entity_unhide(ecs, entity);
+                }
+                // if the state is another, then nothing to do
+            } else {
+                assert(!ASSERT_ERRORS, "command_release_shield -> entity does not contains StateShieldComponent");
+            }
         }
-        // if the state is another, then nothing to do
     } else {
-        assert(!ASSERT_ERRORS, "command_release_shield -> entity does not contains StateShieldComponent, StateComponent");
+        assert(!ASSERT_ERRORS, "command_release_shield -> entity does not contains StateComponent");
     }
 }
 

@@ -44,6 +44,15 @@ export class QuadGridTrackingSystem extends System {
         return y_index * width_count + x_index;
     }
 
+    remove_entity(entity: Entity, grid_cell: i32): void {
+        const items_map = this.m_items_map;
+        
+        if (grid_cell >= 0 && grid_cell < items_map.length) {
+            const cell_list = items_map[grid_cell];
+            const v = cell_list.pop_value(entity);
+        }
+    }
+
     // return all movable entities in the quad with given position and also from the near quads
     get_items_from_position(pos_x: f32, pos_y: f32): List<Entity> {
         // get quad index
@@ -52,13 +61,14 @@ export class QuadGridTrackingSystem extends System {
         const items_map = this.m_items_map;
         const items_map_length = items_map.length;
 
+        const center = this.m_return_buffer;
+        center.reset();
+
         if (index >= 0 && index < items_map_length) {
             const visited_buffer = this.m_visited_buffer;
 
             visited_buffer.reset();
-
-            const center = this.m_return_buffer;
-            center.reset();
+    
             center.copy_from(items_map[index]);
             visited_buffer.push(index);
             
@@ -75,9 +85,8 @@ export class QuadGridTrackingSystem extends System {
                     }
                 }
             }
-            return center;
         }
 
-        return new List<Entity>();
+        return center;
     }
 }

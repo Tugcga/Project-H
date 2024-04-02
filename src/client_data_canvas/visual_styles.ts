@@ -21,6 +21,10 @@ export const MONSTER_MOVE_COLOR = "rgba(196, 94, 45, 0.5)";
 export const MONSTER_SHIFT_COLOR = "rgba(196, 94, 45, 0.25)";
 export const MONSTER_HIDE_COLOR = "rgba(196, 94, 45, 0.1)";
 
+export const BULLET_ARROW_COLOR = "rgba(32, 32, 59, 0.3)"
+export const BULLET_ARROW_HEAD_SIZE = 4;
+export const BULLET_ARROW_TAIL_SIZE = 12;
+
 export const SELECT_RADIUS_COLOR = "rgba(64, 64, 64, 0.1)";
 
 export const TILE_IS_STROKE = true;
@@ -54,6 +58,11 @@ export const DEBUG_NEIGHBOURHOOD_RECT_COLOR = "rgb(134, 227, 111)";
 export const DEBUG_SEARCH_RADIUS_COLOR = "rgba(186, 77, 19, 0.25)";
 export const DEBUG_ENEMIES_TARGET_LINE_COLOR = "rgba(186, 77, 19, 0.7)";
 export const DEBUG_ENEMIES_TARGET_LINE_WIDTH: number = 1.0;
+
+export const DEBUG_BULLET_TARGET_LINE_COLOR = "rgba(32, 32, 59, 0.25)";
+export const DEBUG_BULLET_TARGET_LINE_WIDTH = 1;
+export const DEBUG_BULLET_TARGET_POINT_COLOR = "rgba(32, 32, 59, 0.75)";
+export const DEBUG_BULLET_TARGET_POINT_SIZE = 2;
 
 export const SHIELD_ACTIVE_COLOR = "rgba(45, 71, 77, 0.75)";
 export const SHIELD_ACTIVE_WIDTH = 4.0;

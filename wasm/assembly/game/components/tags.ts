@@ -5,3 +5,5 @@ export class PlayerComponent { }
 export class MonsterComponent { }
 
 export class DeadComponent { }
+
+export class BulletComponent { }

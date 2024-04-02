@@ -20,6 +20,55 @@ export function min<T>(a: T, b: T): T {
     return b;
 }
 
+export function is_disc_intersect_interval(point_x: f32, point_y: f32, radius: f32,
+                                           start_x: f32, start_y: f32, end_x: f32, end_y: f32): bool {
+    let to_x = end_x - start_x;
+    let to_y = end_y - start_y;
+
+    const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+    if (to_length > EPSILON) {
+        to_x /= to_length;
+        to_y /= to_length;
+    }
+
+    const to_point_x = point_x - start_x;
+    const to_point_y = point_y - start_y;
+
+    const a = to_point_x * to_x + to_point_y * to_y;
+    if (a < 0.0) {
+        // point before the start
+        // calculate distance from start to point
+        const h = Mathf.sqrt(to_point_x * to_point_x + to_point_y * to_point_y);
+        if (h < radius) {
+            return true;
+        } else {
+            return false;
+        }
+    } else if (a > to_length) {
+        // point after the end
+        // simillary but for end point
+        const end_to_point_x = point_x - end_x;
+        const end_to_point_y = point_y - end_y;
+        const h = Mathf.sqrt(end_to_point_x * end_to_point_x + end_to_point_y * end_to_point_y);
+        if (h < radius) {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        // point between start and end
+        // check the distance from line to the point
+        const h = Mathf.sqrt(to_point_x * to_point_x + to_point_y * to_point_y - a * a);
+        if (h < radius) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    return false;
+}
+
 // convert direction (x, y) to angle from positive x-axist in conter clock-wise direction
 // we assume that input vector is normalized
 export function direction_to_angle(vec_x: f32, vec_y: f32): f32 {

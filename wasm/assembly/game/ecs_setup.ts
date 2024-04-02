@@ -4,15 +4,17 @@ import { Navmesh } from "../pathfinder/navmesh/navmesh";
 import { PseudoRandom } from "../promethean/pseudo_random";
 import { Level } from "../promethean/level";
 
-import { STATE, ACTOR, INVENTORY_ITEM_TYPE, WEAPON_TYPE, WEAPON_DAMAGE_TYPE } from "./constants";
+import { EPSILON, STATE, ACTOR, INVENTORY_ITEM_TYPE, WEAPON_TYPE, WEAPON_DAMAGE_TYPE, BULLET_TYPE } from "./constants";
 import { DefaultWeapons, Defaults, ConstantsSettings } from "./settings";
+import { direction_to_angle } from "./utilities";
 
 // import components
 import { AngleComponent } from "./components/angle";
 import { NeighborhoodRadiusComponent } from "./components/neighborhood_radius";
 import { NeighborhoodTilesComponent } from "./components/neighborhood_tiles";
-import { PositionComponent } from "./components/position";
-import { PreviousPositionComponent } from "./components/previous_position";
+import { PositionComponent,
+         PreviousPositionComponent,
+         TargetPositionComponent } from "./components/position";
 import { VisibleQuadGridIndexComponent } from "./components/visible_quad_grid_index";
 import { VisibleQuadGridNeighborhoodComponent } from "./components/visible_quad_grid_neighborhood";
 import { RadiusComponent,
@@ -28,7 +30,8 @@ import { StateComponent,
          StateStunComponent } from "./components/state";
 import { PlayerComponent,
          MonsterComponent,
-         DeadComponent } from "./components/tags";
+         DeadComponent,
+         BulletComponent } from "./components/tags";
 import { TargetAngleComponent } from "./components/target_angle";
 import { TilePositionComponent } from "./components/tile_position";
 import { VelocityComponent } from "./components/velocity";
@@ -46,9 +49,12 @@ import { AttackCooldawnComponent } from "./components/attack_cooldawn";
 import { DamageDistanceComponent,
          DamageSpreadComponent,
          DamageDamageComponent,
+         DamageSpeedComponent,
+         DamageBulletTypeComponent,
          ShadowDamageDistanceComponent } from "./components/damage";
-import { CastWeaponDamageComponent,
-         CastShadowDamageComponent } from "./components/cast";
+import { CastMeleeDamageComponent,
+         CastShadowDamageComponent,
+         CastRangeDamageComponent } from "./components/cast";
 import { LifeComponent } from "./components/life";
 import { ShieldComponent,
          ShieldIncreaseComponent } from "./components/shield";
@@ -63,6 +69,9 @@ import { ShadowAttackCooldawnComponent } from "./components/shadow_attack_coolda
 import { ShadowAttackTimeComponent } from "./components/shadow_attack_time";
 import { ShadowAttackDistanceComponent } from "./components/shadow_attack_distance";
 import { WeaponDamageTypeComponent } from "./components/weapon_damage_type";
+import { BulletTypeComponent } from "./components/bullet_type";
+import { LifeTimerComponent } from "./components/life_timer";
+import { HostComponent } from "./components/host";
 
 import { EquipmentComponent } from "./components/inventar/equipment";
 import { WeaponAttackDistanceComponent,
@@ -71,7 +80,8 @@ import { WeaponAttackDistanceComponent,
          WeaponDamageComponent,
          WeaponShieldeComponent,
          WeaponDamageSpreadComponent,
-         WeaponDamageDistanceComponent } from "./components/inventar/weapon";
+         WeaponDamageDistanceComponent,
+         WeaponDamageSpeedComponent } from "./components/inventar/weapon";
 import { InventarItemTypeComponent,
          InventarWeaponTypeComponent } from "./components/inventar/type";
 import { InventarComponent } from "./components/inventar/inventar";
@@ -102,6 +112,7 @@ import { ApplyDamageSystem } from "./systems/apply_damage";
 import { SearchQuadGridTrackingSystem } from "./systems/search_quad_grid_tracking";
 import { SearchEnemiesSystem } from "./systems/search_enemies";
 import { BehaviourSystem } from "./systems/behaviour";
+import { BulletSystem } from "./systems/bullet";
 
 import { BuffShiftCooldawnComponent,
          BuffMeleeAttackCooldawnComponent,
@@ -123,6 +134,14 @@ import { VirtualWeapon,
 
 import { DebugSettings, EngineSettings } from "./settings";
 
+let level_width: f32 = 0.0;
+let visible_quad_size: f32 = 0.0;
+
+export function define_local_values(in_level_width: f32, in_visible_quad_size: f32): void {
+    level_width = in_level_width;
+    visible_quad_size = in_visible_quad_size;
+}
+
 export function setup_components(ecs: ECS): void {
     // assigned: player
     // read systems: PositionToTileSystem
@@ -142,6 +161,12 @@ export function setup_components(ecs: ECS): void {
     // write systems: -
     // comment: use this tag for exclude entities from systems
     ecs.register_component<DeadComponent>();
+
+    // assigned: bullet (arrow or magic ball)
+    // read systems: -
+    // write systems: -
+    // comment: tag for bullet entity
+    ecs.register_component<BulletComponent>();
 
     // assigned: player, monsters
     // read systems: WalkToPointSystem
@@ -169,6 +194,12 @@ export function setup_components(ecs: ECS): void {
     // comment: store in this component position of the entity from the previous update call
     // used to define is entity is moved or not (by compare the current position with the previous one)
     ecs.register_component<PreviousPositionComponent>();
+
+    // assigned: bullet
+    // read systems: -
+    // write systems: -
+    // comment: define the finall position target for the bullet
+    ecs.register_component<TargetPositionComponent>();
 
     // assigned: player
     // read systems: PositionToTileSystem
@@ -443,6 +474,8 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<DamageDistanceComponent>();
     ecs.register_component<DamageSpreadComponent>();
     ecs.register_component<DamageDamageComponent>();
+    ecs.register_component<DamageSpeedComponent>();
+    ecs.register_component<DamageBulletTypeComponent>();
 
     ecs.register_component<ShadowDamageDistanceComponent>();
 
@@ -451,9 +484,10 @@ export function setup_components(ecs: ECS): void {
     // write systems: -
     // comment: data component, assign to entity when it start casting melee atack
     // contains data for post-cast process (apply damage and so on)
-    ecs.register_component<CastWeaponDamageComponent>();
+    ecs.register_component<CastMeleeDamageComponent>();
     // the same for shadow attack result
     ecs.register_component<CastShadowDamageComponent>();
+    ecs.register_component<CastRangeDamageComponent>();
 
     // assigned: all players and monsters
     // read systems: -
@@ -524,6 +558,25 @@ export function setup_components(ecs: ECS): void {
     // comment: data component, store value for the spread angle of the search cone
     ecs.register_component<SpreadSearchComponent>();
 
+    // assgined: only bullets
+    // read system: -
+    // write systems: -
+    // comment: data component, store the bullet type (arrow, fire ball or something similar)
+    ecs.register_component<BulletTypeComponent>();
+
+    // assigned: bullets
+    // read_systems: -
+    // write systems: -
+    // comment: store bullet life time
+    // it should be used in apply damage when we store cast duration (to allow block attack by the target entity)
+    ecs.register_component<LifeTimerComponent>();
+
+    // assigned: bullet
+    // read systems: -
+    // write systems: -
+    // comment: store the host of the bullet, entity which create it
+    ecs.register_component<HostComponent>();
+
     // assigned: only monsters
     // read systems: -
     // write systems: -
@@ -539,6 +592,7 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<WeaponShieldeComponent>();
     ecs.register_component<WeaponDamageSpreadComponent>();
     ecs.register_component<WeaponDamageDistanceComponent>();
+    ecs.register_component<WeaponDamageSpeedComponent>();
 
     ecs.register_component<InventarItemTypeComponent>();
     ecs.register_component<InventarWeaponTypeComponent>();
@@ -550,7 +604,7 @@ export function setup_components(ecs: ECS): void {
 export function setup_systems(ecs: ECS,
                               navmesh: Navmesh,
                               random: PseudoRandom,
-                              level_width: i32,
+                              level_width_int: i32,
                               level_height: i32,
                               tile_size: f32,
                               defaults: Defaults,
@@ -599,13 +653,13 @@ export function setup_systems(ecs: ECS,
     // calculate quad index (used for neigborhoods) from the position of the player and monsters
     // store it in the component
     // if the index is changed, then move entity index in the inner array of the system, whcich tracking all changes and store actual indices
-    const neighborhood_tracking_system = ecs.register_system<NeighborhoodQuadGridTrackingSystem>(new NeighborhoodQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.neighborhood_quad_size));
+    const neighborhood_tracking_system = ecs.register_system<NeighborhoodQuadGridTrackingSystem>(new NeighborhoodQuadGridTrackingSystem(<f32>level_width_int * tile_size, <f32>level_height * tile_size, engine_settings.neighborhood_quad_size));
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<NeighborhoodQuadGridTrackingSystem, NeighborhoodQuadGridIndexComponent>();
     // for dead entity we should not required update it grid index
     ecs.set_system_without_component<NeighborhoodQuadGridTrackingSystem, DeadComponent>();
 
-    const search_tracking_system = ecs.register_system<SearchQuadGridTrackingSystem>(new SearchQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.search_quad_size));
+    const search_tracking_system = ecs.register_system<SearchQuadGridTrackingSystem>(new SearchQuadGridTrackingSystem(<f32>level_width_int * tile_size, <f32>level_height * tile_size, engine_settings.search_quad_size));
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, PositionComponent>();
     ecs.set_system_with_component<SearchQuadGridTrackingSystem, SearchQuadGridIndexComponent>();
     // the same for search grid tracking
@@ -631,7 +685,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_without_component<ShiftSwitchSystem, DeadComponent>();
 
     // tracking_system required to find closed entities to the attacker entity
-    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(neighborhood_tracking_system, navmesh));
+    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(neighborhood_tracking_system, navmesh, constants.bullet_max_distance));
     ecs.set_system_with_component<CastSwitchSystem, StateComponent>();
     ecs.set_system_with_component<CastSwitchSystem, StateCastComponent>();
     ecs.set_system_with_component<CastSwitchSystem, ActorTypeComponent>();
@@ -690,6 +744,7 @@ export function setup_systems(ecs: ECS,
     if (engine_settings.velocity_boundary_control) {
         ecs.register_system<PostVelocitySystem>(new PostVelocitySystem(navmesh));
         ecs.set_system_with_component<PostVelocitySystem, VelocityComponent>();
+        ecs.set_system_without_component<PostVelocitySystem, BulletComponent>();  // ignore for bullets
         ecs.set_system_without_component<PostVelocitySystem, DeadComponent>();
     }
 
@@ -711,13 +766,13 @@ export function setup_systems(ecs: ECS,
     ecs.register_system<MoveSystem>(new MoveSystem(navmesh, engine_settings.snap_to_navmesh));
     ecs.set_system_with_component<MoveSystem, VelocityComponent>();
     ecs.set_system_with_component<MoveSystem, PositionComponent>();
-    ecs.set_system_with_component<MoveSystem, StateComponent>();
+    ecs.set_system_without_component<MoveSystem, StateCastComponent>();  // exclue entities under cast state
     ecs.set_system_without_component<MoveSystem, DeadComponent>();
 
     // calculate tile index for the current player position
     // also find new, current and old tiles
     // send external call to the client
-    ecs.register_system<PositionToTileSystem>(new PositionToTileSystem(level_width, level_height, tile_size));
+    ecs.register_system<PositionToTileSystem>(new PositionToTileSystem(level_width_int, level_height, tile_size));
     ecs.set_system_with_component<PositionToTileSystem, PlayerComponent>();  // only for player
     ecs.set_system_with_component<PositionToTileSystem, PositionComponent>();
     ecs.set_system_with_component<PositionToTileSystem, TilePositionComponent>();
@@ -749,12 +804,21 @@ export function setup_systems(ecs: ECS,
 
     // calculate quad index from monster position
     // if index is changed, update data in the inner system variable
-    const visible_tracking_system = ecs.register_system<VisibleQuadGridTrackingSystem>(new VisibleQuadGridTrackingSystem(<f32>level_width * tile_size, <f32>level_height * tile_size, engine_settings.visible_quad_size));
+    const visible_tracking_system = ecs.register_system<VisibleQuadGridTrackingSystem>(new VisibleQuadGridTrackingSystem(<f32>level_width_int * tile_size, <f32>level_height * tile_size, engine_settings.visible_quad_size));
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, PositionComponent>();
-    ecs.set_system_with_component<VisibleQuadGridTrackingSystem, MonsterComponent>();  // does not tracking player
     ecs.set_system_with_component<VisibleQuadGridTrackingSystem, VisibleQuadGridIndexComponent>();
     // if mosnter is dead, then it placed in the same grid cell, so, it should not be tracked
     ecs.set_system_without_component<VisibleQuadGridTrackingSystem, DeadComponent>();
+
+    // this system track current bullet position, check collide with enemies and destroy when the bullet comes to the target
+    ecs.register_system<BulletSystem>(new BulletSystem(neighborhood_tracking_system, visible_tracking_system));
+    ecs.set_system_with_component<BulletSystem, BulletComponent>();
+    ecs.set_system_with_component<BulletSystem, PositionComponent>();
+    ecs.set_system_with_component<BulletSystem, PreviousPositionComponent>();
+    ecs.set_system_with_component<BulletSystem, TargetPositionComponent>();
+    ecs.set_system_with_component<BulletSystem, LifeTimerComponent>();
+    ecs.set_system_with_component<BulletSystem, HostComponent>();
+    ecs.set_system_with_component<BulletSystem, UpdateToClientComponent>();
 
     // tracking old and new monsters in the neighborhood of the player
     // call external method when the monster should be removed from the client
@@ -793,9 +857,6 @@ export function setup_systems(ecs: ECS,
     ecs.register_system<UpdateToClientSystem>(new UpdateToClientSystem());
     ecs.set_system_with_component<UpdateToClientSystem, ActorTypeComponent>();
     ecs.set_system_with_component<UpdateToClientSystem, UpdateToClientComponent>();
-    ecs.set_system_with_component<UpdateToClientSystem, PositionComponent>();
-    ecs.set_system_with_component<UpdateToClientSystem, AngleComponent>();
-    ecs.set_system_with_component<UpdateToClientSystem, MoveTagComponent>();
     ecs.set_system_without_component<UpdateToClientSystem, DeadComponent>();
 
     if (debug_settings.use_debug) {
@@ -864,6 +925,7 @@ export function setup_player(ecs: ECS, level: Level,
     ecs.add_component<AtackDistanceComponent>(player_entity, new AtackDistanceComponent(default_weapons.empty_weapon_attack_distance));
     ecs.add_component<AttackCooldawnComponent>(player_entity, new AttackCooldawnComponent(default_weapons.empty_weapon_attack_cooldawn));
 
+    // components for empty weapon
     ecs.add_component<DamageDamageComponent>(player_entity, new DamageDamageComponent(default_weapons.empty_weapon_damage));
     // here we define only damage distance component, because empty weapon does not contains spread paramater
     // but it contains damage distance parameter
@@ -929,6 +991,7 @@ export function setup_monster(ecs: ECS, level_width: f32,
     // damage
     ecs.add_component<DamageDamageComponent>(monster_entity, new DamageDamageComponent(weapon.damage()));
     // but other parameters can be defined with respect to input virtual weapon
+    // all components for damage we store on the entity
     const weapon_type = weapon.type();
     if (weapon_type == WEAPON_TYPE.UNKNOWN) {
         const weapon_hands = weapon as VirtualWeaponEmpty;
@@ -944,7 +1007,10 @@ export function setup_monster(ecs: ECS, level_width: f32,
 
         ecs.add_component<WeaponDamageTypeComponent>(monster_entity, new WeaponDamageTypeComponent(WEAPON_DAMAGE_TYPE.MELEE));
     } else if (weapon_type == WEAPON_TYPE.BOW) {
-        // no special parameters
+        const weapon_bow = weapon as VirtualWeaponBow;
+
+        ecs.add_component<DamageSpeedComponent>(monster_entity, new DamageSpeedComponent(weapon_bow.bullet_speed()));
+        ecs.add_component<DamageBulletTypeComponent>(monster_entity, new DamageBulletTypeComponent(BULLET_TYPE.ARROW));
         ecs.add_component<WeaponDamageTypeComponent>(monster_entity, new WeaponDamageTypeComponent(WEAPON_DAMAGE_TYPE.RANGE));
     }
     
@@ -957,6 +1023,41 @@ export function setup_monster(ecs: ECS, level_width: f32,
     ecs.add_component<ShadowDamageDistanceComponent>(monster_entity, new ShadowDamageDistanceComponent(default_weapons.shadow_damage_distance));
 
     return monster_entity;
+}
+
+export function setup_bullet(ecs: ECS,
+                             bullet_type: BULLET_TYPE, host: Entity,
+                             pos_x: f32, pos_y: f32, target_x: f32, target_y: f32, speed: f32, damage: u32): Entity {
+    const bullet = ecs.create_entity();
+
+    // calculate velocity
+    // at first get direction
+    let to_x = target_x - pos_x;
+    let to_y = target_y - pos_y;
+    const length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+    if (length > EPSILON) {
+        to_x /= length;
+        to_y /= length;
+    }
+    const angle = direction_to_angle(to_x, to_y);
+    // create velocity component
+    const velocity = new VelocityComponent(to_x * speed, to_y * speed);
+
+    ecs.add_component<BulletComponent>(bullet, new BulletComponent());
+    ecs.add_component<ActorTypeComponent>(bullet, new ActorTypeComponent(ACTOR.BULLET));
+    ecs.add_component<HostComponent>(bullet, new HostComponent(host));
+    ecs.add_component<BulletTypeComponent>(bullet, new BulletTypeComponent(bullet_type));
+    ecs.add_component<PositionComponent>(bullet, new PositionComponent(pos_x, pos_y));
+    ecs.add_component<PreviousPositionComponent>(bullet, new PreviousPositionComponent(pos_x, pos_y));
+    ecs.add_component<TargetPositionComponent>(bullet, new TargetPositionComponent(target_x, target_y));
+    ecs.add_component<LifeTimerComponent>(bullet, new LifeTimerComponent(0.0));
+    ecs.add_component<VelocityComponent>(bullet, velocity);
+    ecs.add_component<AngleComponent>(bullet, new AngleComponent(angle));
+    ecs.add_component<DamageDamageComponent>(bullet, new DamageDamageComponent(damage));  // this value obtained from initial weapon
+    ecs.add_component<VisibleQuadGridIndexComponent>(bullet, new VisibleQuadGridIndexComponent(level_width, visible_quad_size));  // for visibility controll
+    ecs.add_component<UpdateToClientComponent>(bullet, new UpdateToClientComponent());
+
+    return bullet;
 }
 
 export function setup_weapon_sword(ecs: ECS,
@@ -979,13 +1080,15 @@ export function setup_weapon_sword(ecs: ECS,
 }
 
 export function setup_weapon_bow(ecs: ECS,
-                                 attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32): Entity {
+                                 attack_distance: f32, attack_time: f32, attack_cooldawn: f32, damage: u32, shield: f32, speed: f32): Entity {
     const weapon_entity = ecs.create_entity();
     ecs.add_component(weapon_entity, new WeaponAttackDistanceComponent(attack_distance));
     ecs.add_component(weapon_entity, new WeaponAttackTimeComponent(attack_time));
     ecs.add_component(weapon_entity, new WeaponAttackCooldawnComponent(attack_cooldawn));
     ecs.add_component(weapon_entity, new WeaponDamageComponent(damage));
     ecs.add_component(weapon_entity, new WeaponShieldeComponent(shield));
+
+    ecs.add_component(weapon_entity, new WeaponDamageSpeedComponent(speed));
 
     ecs.add_component(weapon_entity, new InventarItemTypeComponent(INVENTORY_ITEM_TYPE.WEAPON));
     ecs.add_component(weapon_entity, new InventarWeaponTypeComponent(WEAPON_TYPE.BOW));

@@ -10,7 +10,7 @@ import { VisibleQuadGridIndexComponent } from "../components/visible_quad_grid_i
 
 // this system tracking entites and place it to the corresponding grid cell
 // also store the corresponding cell index into special coomponent
-// this system track only monsters (it inited with monster tag)
+// this system track only monsters and bullets (player does not contains required VisibleQuadGridIndexComponent)
 // each of them contains position and grid index component
 export class VisibleQuadGridTrackingSystem extends QuadGridTrackingSystem {
     update(dt: f32): void {

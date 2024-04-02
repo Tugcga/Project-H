@@ -71,9 +71,16 @@ export class VirtualWeaponSword extends VirtualWeapon {
 }
 
 export class VirtualWeaponBow extends VirtualWeapon {
-    constructor(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32) {
+    private m_bullet_speed: f32
+
+    constructor(attack_distance: f32, attack_time: f32, attack_cooldawn: f32, shield: f32, damage: u32, speed: f32) {
         super(attack_distance, attack_time, attack_cooldawn, shield, damage);
+        this.m_bullet_speed = speed;
 
         this.m_weapon_type = WEAPON_TYPE.BOW;
+    }
+
+    bullet_speed(): f32 {
+        return this.m_bullet_speed;
     }
 }

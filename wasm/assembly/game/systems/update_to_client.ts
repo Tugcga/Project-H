@@ -14,6 +14,7 @@ import { ShieldComponent } from "../components/shield";
 import { StateComponent } from "../components/state";
 
 import { external_define_entity_changes,
+         external_define_bullet_changes,
          external_define_total_update_entities } from "../../external";
 
 // we should init this system by define player entity value
@@ -57,7 +58,8 @@ export class UpdateToClientSystem extends System {
                         const should_update_value = should_update.value();
                         const actor_type_value = actor_type.type();
                         if (should_update_value) {
-                            if (actor_type_value == ACTOR.PLAYER || (actor_type_value == ACTOR.MONSTER) && is_ordered_list_contains<Entity>(visible_entities, entity)) {
+                            const is_visible_entity = is_ordered_list_contains<Entity>(visible_entities, entity);
+                            if (actor_type_value == ACTOR.PLAYER || (actor_type_value == ACTOR.MONSTER && is_visible_entity)) {
                                 const move: MoveTagComponent | null = this.get_component<MoveTagComponent>(entity);
                                 const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
                                 const angle: AngleComponent | null = this.get_component<AngleComponent>(entity);
@@ -70,6 +72,13 @@ export class UpdateToClientSystem extends System {
                                                                    life.life(), life.max_life(),
                                                                    shield.shield(), shield.max_shield(),
                                                                    state.state() == STATE.DEAD);
+                                }
+                            } else if (actor_type_value == ACTOR.BULLET && is_visible_entity) {
+                                // send only position and angle
+                                const position: PositionComponent | null = this.get_component<PositionComponent>(entity);
+                                const angle: AngleComponent | null = this.get_component<AngleComponent>(entity);
+                                if (position && angle) {
+                                    external_define_bullet_changes(entity, position.x(), position.y(), angle.value());
                                 }
                             }
 

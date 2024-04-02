@@ -1,11 +1,12 @@
 import { ClickCursor } from "./click_cursor";
-import { COOLDAWN, FIRST_MOUSE_CLICK_DELTA, MOVE_STATUS, OTHER_MOUSE_CLICK_DELTA, TARGET_ACTION } from "../constants";
+import { BULLET_TYPE, COOLDAWN, FIRST_MOUSE_CLICK_DELTA, MOVE_STATUS, OTHER_MOUSE_CLICK_DELTA, TARGET_ACTION } from "../constants";
 import { SceneTile } from "./scene_tile";
 import { Player } from "./player";
 import { Monster } from "./monster";
 import { Cooldawn } from "./cooldawn";
 import { EffectsCollection, EffectBase } from "./effect";
 import { Person } from "./person";
+import { Bullet } from "./bullet";
 
 // the Scene instance contains data of objects in the game
 export class Scene {
@@ -20,6 +21,7 @@ export class Scene {
     private m_player: Player = new Player(0);
     private m_player_id: number = 0;
     private m_monsters: Map<number, Monster> = new Map<number, Monster>();
+    private m_bullets: Map<number, Bullet> = new Map<number, Bullet>();
     private m_cooldawns: Cooldawn = new Cooldawn();
     private m_effects: EffectsCollection = new EffectsCollection();
     private m_visible_search_cones: boolean = false;
@@ -112,6 +114,10 @@ export class Scene {
         return this.m_monsters;
     }
 
+    get_bullets(): Map<number, Bullet> {
+        return this.m_bullets;
+    }
+
     get_person(id: number): Person | null {
         if (id == this.m_player_id) {
             return this.m_player;
@@ -122,6 +128,16 @@ export class Scene {
             }
         }
 
+        return null;
+    }
+
+    get_bullet(id: number): Bullet | null {
+        if (this.m_bullets.has(id)) {
+            const b = this.m_bullets.get(id);
+            if (b) {
+                return b;
+            }
+        }
         return null;
     }
 
@@ -241,7 +257,7 @@ export class Scene {
             }
 
             if (is_dead) {
-                this.m_click_cursor.deactivate_by_entity_remove(id);
+                this.m_click_cursor.deactivate_by_entity_remove(id, true);
             }
         }
     }
@@ -286,6 +302,15 @@ export class Scene {
         this.m_monsters.set(id, monster);
     }
 
+    create_bullet(id: number, bullet_type: BULLET_TYPE) {
+        const bullet = new Bullet(id, bullet_type);
+        this.m_bullets.set(id, bullet);
+    }
+
+    post_monster_create(id: number) {
+        this.m_click_cursor.activate_by_entity_remember(id);
+    }
+
     set_entity_position(entity: number, x: number, y: number) {
         if (entity == this.m_player_id) {
             this.m_player.set_position(x, y);
@@ -294,6 +319,11 @@ export class Scene {
                 const monster = this.m_monsters.get(entity);
                 if (monster) {
                     monster.set_position(x, y);
+                }
+            } else if (this.m_bullets.has(entity)) {
+                const bullet = this.m_bullets.get(entity);
+                if (bullet) {
+                    bullet.set_position(x, y);
                 }
             }
         }
@@ -348,6 +378,11 @@ export class Scene {
                 if(monster) {
                     monster.set_angle(angle);
                 }
+            } else if (this.m_bullets.has(entity)) {
+                const bullet = this.m_bullets.get(entity);
+                if (bullet) {
+                    bullet.set_angle(angle);
+                }
             }
         }
     }
@@ -376,6 +411,15 @@ export class Scene {
                 if(monster) {
                     monster.set_is_hide(is_hide);
                 }
+            }
+        }
+    }
+
+    set_bullet_target_position(id: number, x: number, y: number) {
+        if (this.m_bullets.has(id)) {
+            const bullet = this.m_bullets.get(id);
+            if (bullet) {
+                bullet.set_debug_target(x, y);
             }
         }
     }
@@ -450,10 +494,14 @@ export class Scene {
         if(this.m_monsters.has(entity)) {
             // cursor can have the link to removed entity
             // remove this link and only then delete the entity
-            this.m_click_cursor.deactivate_by_entity_remove(entity);
+            this.m_click_cursor.deactivate_by_entity_remove(entity, false);
             this.m_monsters.delete(entity);
         }
 
         this.m_cooldawns.remove_entity(entity);
+    }
+
+    remove_bullet(entity: number) {
+        this.m_bullets.delete(entity);
     }
 }

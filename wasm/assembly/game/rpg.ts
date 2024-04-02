@@ -2,7 +2,7 @@ import { ECS } from "../simple_ecs/simple_ecs";
 import { Entity } from "../simple_ecs/types";
 
 import { DefaultWeapons } from "./settings";
-import { WEAPON_TYPE, WEAPON_DAMAGE_TYPE, ACTOR } from "./constants"
+import { WEAPON_TYPE, WEAPON_DAMAGE_TYPE, ACTOR, BULLET_TYPE } from "./constants"
 
 import { EquipmentComponent } from "./components/inventar/equipment";
 import { InventarWeaponTypeComponent } from "./components/inventar/type";
@@ -12,14 +12,17 @@ import { WeaponAttackDistanceComponent,
          WeaponDamageComponent,
          WeaponShieldeComponent,
          WeaponDamageSpreadComponent,
-         WeaponDamageDistanceComponent } from "./components/inventar/weapon";
+         WeaponDamageDistanceComponent,
+         WeaponDamageSpeedComponent } from "./components/inventar/weapon";
 import { ShieldComponent } from "./components/shield";
 import { AtackTimeComponent } from "./components/atack_time";
 import { AtackDistanceComponent } from "./components/atack_distance";
 import { AttackCooldawnComponent } from "./components/attack_cooldawn";
 import { DamageDistanceComponent,
          DamageSpreadComponent,
-         DamageDamageComponent } from "./components/damage";
+         DamageDamageComponent,
+         DamageSpeedComponent,
+         DamageBulletTypeComponent } from "./components/damage";
 import { ActorTypeComponent } from "./components/actor_type";
 import { WeaponDamageTypeComponent } from "./components/weapon_damage_type";
 
@@ -81,6 +84,15 @@ function get_item_spread(ecs: ECS, entity: Entity): f32 {
     const damage_spread = ecs.get_component<WeaponDamageSpreadComponent>(entity);
     if (damage_spread) {
         return damage_spread.value();
+    } else {
+        return 0.0;
+    }
+}
+
+function get_item_bullet_speed(ecs: ECS, entity: Entity): f32 {
+    const damage_speed = ecs.get_component<WeaponDamageSpeedComponent>(entity);
+    if (damage_speed) {
+        return damage_speed.value();
     } else {
         return 0.0;
     }
@@ -163,6 +175,12 @@ function define_damage(ecs: ECS, entity: Entity, equipment: EquipmentComponent, 
     if (ecs.has_component<DamageSpreadComponent>(entity)) {
         ecs.remove_component<DamageSpreadComponent>(entity);
     }
+    if (ecs.has_component<DamageSpeedComponent>(entity)) {
+        ecs.remove_component<DamageSpeedComponent>(entity);
+    }
+    if (ecs.has_component<DamageBulletTypeComponent>(entity)) {
+        ecs.remove_component<DamageBulletTypeComponent>(entity);
+    }
 
     if (equipment.is_main_weapon()) {
         const main_weapon = equipment.get_main_weapon();
@@ -176,7 +194,8 @@ function define_damage(ecs: ECS, entity: Entity, equipment: EquipmentComponent, 
                 ecs.add_component(entity, new DamageDamageComponent(get_item_damage(ecs, main_weapon)));
                 ecs.add_component(entity, new DamageSpreadComponent(get_item_spread(ecs, main_weapon)));
             } else if (main_weapon_type_value == WEAPON_TYPE.BOW) {
-                // define only damage
+                ecs.add_component(entity, new DamageSpeedComponent(get_item_bullet_speed(ecs, main_weapon)));
+                ecs.add_component(entity, new DamageBulletTypeComponent(BULLET_TYPE.ARROW));
                 ecs.add_component(entity, new DamageDamageComponent(get_item_damage(ecs, main_weapon)));
             } else {
                 // unknown type of the main weapon
