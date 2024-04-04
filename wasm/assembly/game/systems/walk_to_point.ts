@@ -1,7 +1,7 @@
 import { Navmesh } from "../../pathfinder/navmesh/navmesh";
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
-import { EPSILON, TARGET_ACTION } from "../constants";
+import { EPSILON, TARGET_ACTION, TARGET_ACTION_TYPE } from "../constants";
 import { get_navmesh_path } from "../utilities";
 
 import { PreferredVelocityComponent } from "../components/preferred_velocity";
@@ -44,16 +44,17 @@ export class WalkToPointSystem extends System {
             if (position && speed && walk_to_point && pref_velocity && target_action) {
                 const spend_time = walk_to_point.get_spend_time();
                 const target_action_type = target_action.type();
+                const target_action_point_type = target_action.point_type();
 
-                if ((target_action_type == TARGET_ACTION.NONE && spend_time > recalculate_time) ||
-                    (target_action_type != TARGET_ACTION.NONE && spend_time > recalculate_target_time)) {
+                if (((target_action_point_type == TARGET_ACTION_TYPE.NONE || target_action_point_type == TARGET_ACTION_TYPE.POSITION) && spend_time > recalculate_time) ||
+                    (target_action_point_type == TARGET_ACTION_TYPE.ENTITY && spend_time > recalculate_target_time)) {
                     // update the path of the entity
                     const curent_x = position.x();
                     const curent_y = position.y();
                     let final_target_x = position.x();
                     let final_target_y = position.y();
 
-                    if (target_action_type != TARGET_ACTION.NONE) {
+                    if (target_action_point_type == TARGET_ACTION_TYPE.ENTITY) {
                         // there is a target
                         // we should get the position of the target entity
                         const target_entity = target_action.entity();
@@ -65,8 +66,10 @@ export class WalkToPointSystem extends System {
                     } else {
                         const path = walk_to_point.path_points();
                         const path_values_count = path.length;
-                        final_target_x = path[path_values_count - 3];
-                        final_target_y = path[path_values_count - 1];
+                        if (path_values_count >= 3) {
+                            final_target_x = path[path_values_count - 3];
+                            final_target_y = path[path_values_count - 1];
+                        }
                     }
 
                     const new_path = get_navmesh_path(navmesh, curent_x, curent_y, final_target_x, final_target_y);

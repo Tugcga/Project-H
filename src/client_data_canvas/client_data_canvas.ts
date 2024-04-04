@@ -1,6 +1,6 @@
 import { ClientBase } from "../client_base";
-import { CAMERA_LERP_COEFFICIENT, COOLDAWN, DAMAGE_TYPE, MOVE_STATUS, REMOVE_REASON, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
-import { draw_background, draw_bullet, draw_cursor, draw_level_tile, draw_lines, draw_monster, draw_neighbourhood_rect, draw_pairs, draw_player, draw_trajectory, draw_visibility_rect } from "./draws";
+import { CAMERA_LERP_COEFFICIENT, COOLDAWN, DAMAGE_TYPE, MOVE_STATUS, REMOVE_REASON, SKILL, TARGET_ACTION, TILE_PIXELS_SIZE } from "../constants";
+import { draw_background, draw_bullet, draw_cursor, draw_level_tile, draw_lines, draw_mid_rect, draw_monster, draw_neighbourhood_rect, draw_pairs, draw_player, draw_search_rect, draw_trajectory, draw_visibility_rect } from "./draws";
 
 // this version of the client application
 // use 2d canvas as draw device
@@ -19,6 +19,10 @@ export class ClientDataCanvas extends ClientBase {
     m_debug_visible_rect: Float32Array = new Float32Array(4);
     m_is_draw_neighbourhood_rect: boolean = false;
     m_debug_neighbourhood_rect: Float32Array = new Float32Array(4);
+    m_is_draw_search_rect: boolean = false;
+    m_debug_search_rect: Float32Array = new Float32Array(4);
+    m_is_draw_mid_rect: boolean = false;
+    m_debug_mid_rect: Float32Array = new Float32Array(4);
     m_debug_enemies_lines: Array<number>;  // for each enemy store 4 values: (x, y) of attacker and (x, y) of the target
     m_use_debug_draw: boolean = false;
 
@@ -100,6 +104,7 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_finish_hand_attack(entity: number): void {}
     scene_entity_start_shadow_attack(entity: number, time: number, damage_distance: number): void {}
     scene_entity_finish_shadow_attack(entity: number): void {}
+    scene_entity_finish_skill(entity: number, skill: SKILL): void {}
     scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void {}
     scene_click_entity(entity: number, action_id: TARGET_ACTION): void {}
     scene_click_position(pos_x: number, pos_y: number): void {}
@@ -109,10 +114,13 @@ export class ClientDataCanvas extends ClientBase {
     scene_entity_finish_stun(entity: number): void {}
     scene_entity_start_hide_activation(entity: number, activation_time: number): void {}
     scene_entity_finish_hide_activation(entity: number, interrupt: boolean): void {}
+    scene_entity_start_skill_round_attack(entity: number, cast_time: number, area_size: number): void {}
+    scene_entity_start_skill_stun_cone(entity: number, cast_time: number, cone_spread: number, cone_size: number): void {}
     scene_entity_switch_hide(id: number, is_hide: boolean): void {}
     scene_player_activate_hide(): void {}
     scene_player_deactivate_hide(): void {}
     scene_entity_resurrect(entity: number, life: number, max_life: number): void {}
+    scene_command_skill_result(is_start: boolean, is_entity_target: boolean, entity: number, position_x: number, position_y: number, skill: number): void {}
 
     debug_entity_trajectory(entity: number, coordinates: Float32Array): void {
         if (this.m_use_debug_draw) {
@@ -152,6 +160,26 @@ export class ClientDataCanvas extends ClientBase {
         }
     }
 
+    debug_player_search_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        if (this.m_use_debug_draw) {
+            this.m_debug_search_rect[0] = start_x;
+            this.m_debug_search_rect[1] = start_y;
+            this.m_debug_search_rect[2] = end_x;
+            this.m_debug_search_rect[3] = end_y;
+            this.m_is_draw_search_rect = true;
+        }
+    }
+
+    debug_player_mid_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        if (this.m_use_debug_draw) {
+            this.m_debug_mid_rect[0] = start_x;
+            this.m_debug_mid_rect[1] = start_y;
+            this.m_debug_mid_rect[2] = end_x;
+            this.m_debug_mid_rect[3] = end_y;
+            this.m_is_draw_mid_rect = true;
+        }
+    }
+
     debug_enemies_search(id: number, search_radius: number, enemy_ids: Int32Array): void {
         if (this.m_use_debug_draw) {
             const attacker = this.m_scene.get_person(id);
@@ -183,6 +211,8 @@ export class ClientDataCanvas extends ClientBase {
         if (!this.m_use_debug_draw) {
             this.m_is_draw_visible_rect = false;
             this.m_is_draw_neighbourhood_rect = false;
+            this.m_is_draw_search_rect = false;
+            this.m_is_draw_mid_rect = false;
 
             // disable debug draw for all persons
             const player = this.m_scene.get_player();
@@ -274,6 +304,14 @@ export class ClientDataCanvas extends ClientBase {
         // neighbourhood rect
         if (this.m_is_draw_neighbourhood_rect) {
             draw_neighbourhood_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_neighbourhood_rect);
+        }
+
+        if (this.m_is_draw_search_rect) {
+            draw_search_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_search_rect);
+        }
+
+        if (this.m_is_draw_mid_rect) {
+            draw_mid_rect(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_mid_rect);
         }
 
         draw_lines(this.m_scene_ctx, this.m_wtc_tfm, this.m_debug_enemies_lines);

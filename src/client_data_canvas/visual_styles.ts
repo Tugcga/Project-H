@@ -53,8 +53,10 @@ export const DEBUG_TRAJECTORY_POINT_RADIUS = 2.0;
 export const DEBUG_CLOSEST_PAIR_COLOR = "rgb(82, 209, 77)";
 export const DEBUG_CLOSEST_PAIR_WIDTH = 1.0;
 export const DEBUG_RECT_LINE_WIDTH = 1.0;
-export const DEBUG_VISIBILITY_RECT_COLOR = "rgb(111, 156, 227)";
+export const DEBUG_VISIBILITY_RECT_COLOR = "rgba(111, 156, 227, 0.5)";
 export const DEBUG_NEIGHBOURHOOD_RECT_COLOR = "rgb(134, 227, 111)";
+export const DEBUG_SEARCH_RECT_COLOR = "rgb(191, 147, 23)";
+export const DEBUG_MID_RECT_COLOR = "rgba(117, 12, 28, 0.25)";
 export const DEBUG_SEARCH_RADIUS_COLOR = "rgba(186, 77, 19, 0.25)";
 export const DEBUG_ENEMIES_TARGET_LINE_COLOR = "rgba(186, 77, 19, 0.7)";
 export const DEBUG_ENEMIES_TARGET_LINE_WIDTH: number = 1.0;
@@ -98,6 +100,14 @@ export const COOLDAWN_SHADOW_ATTACK_COLOR = "rgba(255, 164, 164, 0.5)";
 export const COOLDAWN_SHADOW_ATTACK_WIDTH = 2.0;
 export const COOLDAWN_SHADOW_ATTACK_RADIUS = 12.0;
 
+export const COOLDAWN_SKILL_ROUND_ATTACK_COLOR = "rgba(41, 128, 34, 0.5)";
+export const COOLDAWN_SKILL_ROUND_ATTACK_WIDTH = 4.0;
+export const COOLDAWN_SKILL_ROUND_ATTACK_RADIUS = 6.0;
+
+export const COOLDAWN_SKILL_STUN_CONE_COLOR = "rgba(34, 128, 89, 0.5)";
+export const COOLDAWN_SKILL_STUN_CONE_WIDTH = 4.0;
+export const COOLDAWN_SKILL_STUN_CONE_RADIUS = 6.0;
+
 // action effects
 export const EFFECT_MELEE_ATTACK_COLOR = "rgba(217, 43, 20, 0.5)";
 export const EFFECT_STUN_COLOR = "rgba(40, 111, 224, 0.25)";
@@ -115,3 +125,9 @@ export const EFFECT_HAND_ATTACK_COLOR = "rgba(103, 136, 174, 0.5)";
 export const EFFECT_RANGE_ATTACK_COLOR = "rgba(219, 149, 35, 0.75)";
 export const EFFECT_RANGE_ATTACK_WIDTH = 2.0;
 export const EFFECT_RANGE_ATTACK_DELTA = 6.0;  // gap between person circle and effect line
+
+export const EFFECT_SKILL_ROUND_ATTACK_COLOR = "rgba(199, 38, 38, 0.25)";
+export const EFFECT_SKILL_ROUND_ATTACK_STROKE = "rgba(199, 38, 38, 0.35)";
+
+export const EFFECT_SKILL_STUN_CONE_COLOR = "rgba(199, 38, 38, 0.25)";
+export const EFFECT_SKILL_STUN_CONE_STROKE = "rgba(199, 38, 38, 0.35)";

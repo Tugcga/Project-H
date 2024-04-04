@@ -2,10 +2,10 @@ import { ECS } from "../simple_ecs/simple_ecs";
 import { Entity } from "../simple_ecs/types";
 import { Navmesh } from "../pathfinder/navmesh/navmesh";
 
-import { ASSERT_ERRORS, STATE, EPSILON, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, COOLDAWN, UPDATE_TARGET_ACTION_STATUS } from "./constants";
+import { TARGET_ACTION_TYPE, SKILL, WEAPON_TYPE, SKILL, ASSERT_ERRORS, STATE, EPSILON, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, COOLDAWN, UPDATE_TARGET_ACTION_STATUS } from "./constants";
 import { DefaultWeapons } from "./settings";
 
-import { get_navmesh_path, direction_to_angle } from "./utilities";
+import { get_navmesh_path, direction_to_angle, distance, points_to_angle } from "./utilities";
 
 // import components
 import { AngleComponent } from "./components/angle";
@@ -22,9 +22,22 @@ import { TargetActionComponent } from "./components/target_action";
 import { AtackTimeComponent } from "./components/atack_time";
 import { HideModeComponent } from "./components/hide_mode";
 import { ShadowAttackTimeComponent } from "./components/shadow_attack_time";
+import { CastSkillRoundAttackComponent,
+         CastSkillStunConeComponent } from "./components/cast";
 
 import { BuffShiftCooldawnComponent,
-         BuffHideCooldawnComponent } from "./skills/buffs";
+         BuffHideCooldawnComponent,
+         BuffSkillRoundAttackCooldawnComponent,
+         BuffSkillStunConeCooldawnComponent } from "./skills/buffs";
+import { SkillCollectionComponent } from "./skills/skill_collection";
+import { SkillParameterCastTimeComponent,
+         SkillParameterCooldawnComponent,
+         SkillParameterDistanceComponent,
+         SkillParameterConeSpreadComponent,
+         SkillParameterConeSizeComponent,
+         SkillParameterAreaRadiusComponent,
+         SkillParameterDamageComponent,
+         SkillParameterStunTimeComponent } from "./skills/skill";
 
 import { InventarComponent } from "./components/inventar/inventar";
 import { EquipmentComponent } from "./components/inventar/equipment";
@@ -35,86 +48,190 @@ import { external_entity_start_shift,
          external_entity_activate_shield,
          external_entity_start_stun,
          external_entity_switch_hide,
-         external_entity_start_hide } from "../external";
+         external_entity_start_hide,
+         external_entity_start_skill_round_attack,
+         external_entity_start_skill_stun_cone } from "../external";
 
 import { assign_cast_state, 
          interrupt_to_iddle, 
          is_entity_in_hide, 
          resurrect,
+         is_state_cast_action,
          should_redefine_target_action,
          try_start_weapon_attack, 
          try_start_shadow_attack } from "./states";
  import { update_entity_parameters,
-          is_weapon_doublehanded } from "./rpg";
+          is_weapon_doublehanded,
+          is_weapon_equiped } from "./rpg";
 
-function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, target_entity: Entity, target_x: f32, target_y: f32, action_type: TARGET_ACTION): boolean {
-    if (action_type == TARGET_ACTION.ATTACK) {
-        // at first we should check is we can start the attack cast
-        const entity_state: StateComponent | null = ecs.get_component<StateComponent>(entity);
-        const entity_target_action: TargetActionComponent | null = ecs.get_component<TargetActionComponent>(entity);
+function command_move_to_target(ecs: ECS, navmesh: Navmesh, entity: Entity, target_entity: Entity, target_x: f32, target_y: f32, action_type: TARGET_ACTION, skill: SKILL): boolean {
+    const entity_state: StateComponent | null = ecs.get_component<StateComponent>(entity);
+    const entity_target_action: TargetActionComponent | null = ecs.get_component<TargetActionComponent>(entity);
 
-        if (entity_state && entity_target_action) {
-            const entity_state_value = entity_state.state();
+    if (entity_state && entity_target_action) {
+        const entity_state_value = entity_state.state();
 
-            // TODO: find proper way to start shadow attack
-            // also create additional data components to store shadow attack distance, attack time and cooldawn
-            // check, may be nothing to do special
-            const should_update_status = should_redefine_target_action(ecs, entity, target_entity, entity_target_action, entity_state_value);
-            if (should_update_status == UPDATE_TARGET_ACTION_STATUS.FORBIDDEN) {
-                return false;
-            }
+        // check, may be nothing to do special
+        const should_update_status = should_redefine_target_action(ecs, entity, target_entity, entity_target_action, entity_state_value, skill);
+        if (should_update_status == UPDATE_TARGET_ACTION_STATUS.FORBIDDEN) {
+            return false;
+        }
 
-            // entity make the same, nothing to do
-            if (should_update_status == UPDATE_TARGET_ACTION_STATUS.NO) {
-                return true;
-            }
+        // entity make the same, nothing to do
+        if (should_update_status == UPDATE_TARGET_ACTION_STATUS.NO) {
+            return true;
+        }
 
-            // we prefer another action for the entity
-            // it should skip current action and start the new one
-            const is_interrupt = interrupt_to_iddle(ecs, entity, entity_state);
-            // if it false, then something is wrong
-            if (is_interrupt == false) {
-                return false;
-            }
+        // we prefer another action for the entity
+        // it should skip current action and start the new one
+        const is_interrupt = interrupt_to_iddle(ecs, entity, entity_state);
+        // if it false, then something is wrong
+        if (is_interrupt == false) {
+            return false;
+        }
 
-            const start_status = try_start_attack(ecs, entity, target_entity);
+        let start_status = START_CAST_STATUS.FAIL;
+        if (action_type == TARGET_ACTION.ATTACK) {
+            start_status = try_start_attack(ecs, entity, target_entity);
+        } else if (action_type == TARGET_ACTION.SKILL_POSITION || TARGET_ACTION.SKILL_ENTITY) {
+            start_status = try_start_skill(ecs, entity, target_entity, target_x, target_y, action_type, skill);
+        }
 
-            if (start_status == START_CAST_STATUS.OK) {
-                // we switch the state to cast
-                // here we should not clear state component, because it start from iddle
+        if (start_status == START_CAST_STATUS.OK) {
+            // we switch the state to cast
+            // here we should not clear state component, because it start from iddle
 
+            return true;
+        } else {
+            // fail to start the cast
+            // may be the distance or cooldawn
+            // create the path to the point
+            const is_create_path = command_move_to_point(ecs, navmesh, entity, target_x, target_y);
+            if (is_create_path) {
+                // we create path and switch the state
+                // next we should define target action
+                // to track that the entity moves to the target, not just to point
+                // we should define target action with respect what we shold do after entity comes to the required distance
+                if (action_type == TARGET_ACTION.ATTACK) {
+                    entity_target_action.set_target_entity(target_entity, TARGET_ACTION.ATTACK);
+                } else if (action_type == TARGET_ACTION.SKILL_ENTITY) {
+                    entity_target_action.set_target_entity(target_entity, TARGET_ACTION.SKILL_ENTITY);
+                    entity_target_action.set_target_skill(skill);
+                } else if (action_type == TARGET_ACTION.SKILL_POSITION) {
+                    entity_target_action.set_target_position(target_x, target_y, TARGET_ACTION.SKILL_POSITION);
+                    entity_target_action.set_target_skill(skill);
+                }
                 return true;
             } else {
-                // fail to start the cast
-                // may be the distance or cooldawn
-                // create the path to the point
-                const is_create_path = command_move_to_point(ecs, navmesh, entity, target_x, target_y);
-                if (is_create_path) {
-                    // we create path and switch the state
-                    // next we should define target action
-                    // to track that the entity moves to the target, not just to point
-                    const target_action: TargetActionComponent | null = ecs.get_component<TargetActionComponent>(entity);
+                // fail to create path to target position
+            }
+        }
+    } else {
+        assert(!ASSERT_ERRORS, "command_move_to_target -> entity does not contains StateComponent, TargetActionComponent");
+        // some component is invalid
+        return false;
+    }
+
+    return false;
+}
+
+export function try_start_skill(ecs: ECS, entity: Entity, target_entity: Entity, target_x: f32, target_y: f32, action_type: TARGET_ACTION, skill: SKILL): START_CAST_STATUS {
+    let target_pos_x = target_x;
+    let target_pos_y = target_y;
+    if (action_type == TARGET_ACTION.SKILL_ENTITY) {
+        const target_entity_position = ecs.get_component<PositionComponent>(target_entity);
+        if (target_entity_position) {
+            target_pos_x = target_entity_position.x();
+            target_pos_y = target_entity_position.y();
+        } else {
+            return START_CAST_STATUS.FAIL;
+        }
+    }
+
+    const skill_collection = ecs.get_component<SkillCollectionComponent>(entity);
+    const state = ecs.get_component<StateComponent>(entity);
+    const position = ecs.get_component<PositionComponent>(entity);
+    if (skill_collection && state && position) {
+        const entity_pos_x = position.x();
+        const entity_pos_y = position.y();
+        if (state.state() != STATE.DEAD && skill_collection.has_skill(skill)) {
+            const skill_entity = skill_collection.skill_entity(skill);
+            const skill_level = skill_collection.skill_level(skill);
+
+            // check the distance between current position, target position and skill apply distance
+            const cast_distance_parameter = ecs.get_component<SkillParameterDistanceComponent>(skill_entity);
+            if (cast_distance_parameter) {
+                const cast_distance_parameter_value = cast_distance_parameter.value(skill_level);
+
+                const d = distance(entity_pos_x, entity_pos_y, target_pos_x, target_pos_y);
+                if (d < cast_distance_parameter_value) {
+                    // entity is close to the target (point or entity)
+                    // we can start the skill cast
+                    const target_action = ecs.get_component<TargetActionComponent>(entity);
                     if (target_action) {
-                        target_action.set_target_entity(target_entity, action_type);
-                        return true;
-                    } else {
-                        assert(!ASSERT_ERRORS, "command_move_to_target -> entity does not contains TargetActionComponent");
-                        return false;
+                        target_action.reset();
+                    }
+                    command_entity_unhide(ecs, entity);
+                    if (skill == SKILL.STUN_CONE) {
+                        // check cooldawn baf
+                        if (!ecs.has_component<BuffSkillStunConeCooldawnComponent>(entity)) {
+                            if (is_weapon_equiped(ecs, entity, WEAPON_TYPE.SWORD)) {
+                                const is_interrupt = interrupt_to_iddle(ecs, entity, state);
+                                if (is_interrupt) {
+                                    const cast_time_parameter = ecs.get_component<SkillParameterCastTimeComponent>(skill_entity);
+                                    const cast_cooldawn_parameter = ecs.get_component<SkillParameterCooldawnComponent>(skill_entity);
+                                    const cast_damage_parameter = ecs.get_component<SkillParameterDamageComponent>(skill_entity);
+
+                                    const cast_cone_spread_parameter = ecs.get_component<SkillParameterConeSpreadComponent>(skill_entity);
+                                    const cast_cone_size_parameter = ecs.get_component<SkillParameterConeSizeComponent>(skill_entity);
+                                    const cast_stun_time_parameter = ecs.get_component<SkillParameterStunTimeComponent>(skill_entity);
+                                    if (cast_time_parameter && cast_cooldawn_parameter && cast_damage_parameter &&
+                                        cast_cone_spread_parameter && cast_cone_size_parameter && cast_stun_time_parameter) {
+                                        const cast_time_value = cast_time_parameter.value(skill_level);
+                                        const cast_cooldawn_value = cast_cooldawn_parameter.value(skill_level);
+                                        const cast_damage_value = cast_damage_parameter.value(skill_level);
+
+                                        const cast_cone_spread_value = cast_cone_spread_parameter.value(skill_level);
+                                        const cast_cone_size_value = cast_cone_size_parameter.value(skill_level);
+                                        const cast_stun_time_value = cast_stun_time_parameter.value(skill_level);
+
+                                        const cast_status = assign_cast_state(ecs, entity, cast_time_value, state, CAST_ACTION.SKILL_STUN_CONE);
+                                        if (cast_status == START_CAST_STATUS.OK) {
+                                            // set target angle
+                                            const entity_target_angle = ecs.get_component<TargetAngleComponent>(entity);
+                                            if (entity_target_angle) {
+                                                entity_target_angle.set_value(points_to_angle(entity_pos_x, entity_pos_y, target_pos_x, target_pos_y));
+                                            }
+                                            external_entity_start_skill_stun_cone(entity, cast_time_value, cast_cone_spread_value, cast_cone_size_value);
+
+                                            // add cooldawn
+                                            ecs.add_component<BuffSkillStunConeCooldawnComponent>(entity, new BuffSkillStunConeCooldawnComponent(cast_cooldawn_value));
+                                            external_entity_start_cooldawn(entity, COOLDAWN.SKILL_STUN_CONE, cast_cooldawn_value);
+
+                                            // add cast skill component
+                                            ecs.add_component<CastSkillStunConeComponent>(entity, 
+                                                new CastSkillStunConeComponent(action_type == TARGET_ACTION.SKILL_ENTITY ? TARGET_ACTION_TYPE.ENTITY : TARGET_ACTION_TYPE.POSITION,
+                                                                               target_x, target_y, target_entity,
+                                                                               cast_damage_value, cast_cone_spread_value, cast_cone_size_value, cast_stun_time_value));
+                                        }
+
+                                        return cast_status;
+                                    }
+                                }
+                            }
+                        } else {
+                            return START_CAST_STATUS.FAIL_COOLDAWN;
+                        }
                     }
                 } else {
-                    // fail to create path to target position
+                    return START_CAST_STATUS.FAIL_DISTANCE;
                 }
             }
         } else {
-            assert(!ASSERT_ERRORS, "command_move_to_target -> entity does not contains StateComponent, TargetActionComponent");
-            // some component is invalid
+            return START_CAST_STATUS.FAIL_WRONG_CAST;
         }
-    } else {
-        // unknown target action
     }
-    // other actions are not supported yet
-
-    return false;
+    return START_CAST_STATUS.FAIL;
 }
 
 export function try_start_attack(ecs: ECS, entity: Entity, target_entity: Entity): START_CAST_STATUS {
@@ -191,7 +308,7 @@ export function command_move_to_point(ecs: ECS, navmesh: Navmesh, entity: Entity
 export function command_init_attack(ecs: ECS, navmesh: Navmesh, entity: Entity, target_entity: Entity): boolean {
     const target_position: PositionComponent | null = ecs.get_component<PositionComponent>(target_entity);
     if (target_position) {
-        return command_move_to_target(ecs, navmesh, entity, target_entity, target_position.x(), target_position.y(), TARGET_ACTION.ATTACK);
+        return command_move_to_target(ecs, navmesh, entity, target_entity, target_position.x(), target_position.y(), TARGET_ACTION.ATTACK, SKILL.NONE);
     } else {
         assert(!ASSERT_ERRORS, "command_init_attack -> entity does not contains PositionComponent");
     }
@@ -408,6 +525,90 @@ export function command_stun(ecs: ECS, entity: Entity, duration: f32): void {
     } else {
         assert(!ASSERT_ERRORS, "command_stun -> entity does not contains StateComponent");
     }
+}
+
+export function command_use_nontarget_skill(ecs: ECS, entity: Entity, skill: SKILL): bool {
+    // check that entity has this skill
+    const skill_collection = ecs.get_component<SkillCollectionComponent>(entity);
+    const state = ecs.get_component<StateComponent>(entity);
+    let is_start = false;
+    if (skill_collection && state) {
+        if (state.state() != STATE.DEAD && skill_collection.has_skill(skill)) {
+            const skill_entity = skill_collection.skill_entity(skill);
+            const skill_level = skill_collection.skill_level(skill);
+            if (skill_level > 0) {
+                if (skill == SKILL.ROUND_ATTACK) {
+                    // round attack we can use only when entity equiped by sword
+                    // equip exists only for player
+                    // for monsters we can check weapon type
+                    if (is_weapon_equiped(ecs, entity, WEAPON_TYPE.SWORD) && 
+                        !is_state_cast_action(ecs, entity, CAST_ACTION.SKILL_ROUND_ATTACK) &&
+                        !ecs.has_component<BuffSkillRoundAttackCooldawnComponent>(entity)) {
+                        // unhide the entity
+                        command_entity_unhide(ecs, entity);
+                        const is_interrupt = interrupt_to_iddle(ecs, entity, state);
+                        if (is_interrupt) {
+                            // get skill parameters
+                            const cast_time_parameter = ecs.get_component<SkillParameterCastTimeComponent>(skill_entity);
+                            const cast_cooldawn_parameter = ecs.get_component<SkillParameterCooldawnComponent>(skill_entity);
+                            const cast_area_parameter = ecs.get_component<SkillParameterAreaRadiusComponent>(skill_entity);
+                            const cast_damage_parameter = ecs.get_component<SkillParameterDamageComponent>(skill_entity);
+                            if (cast_time_parameter && cast_cooldawn_parameter && cast_area_parameter && cast_damage_parameter) {
+                                const cast_time_value = cast_time_parameter.value(skill_level);
+                                const cast_cooldawn_value = cast_cooldawn_parameter.value(skill_level);
+                                const cast_area_value = cast_area_parameter.value(skill_level);
+                                const cast_damage_value = cast_damage_parameter.value(skill_level);
+
+                                const cast_status = assign_cast_state(ecs, entity, cast_time_value, state, CAST_ACTION.SKILL_ROUND_ATTACK);
+                                if (cast_status == START_CAST_STATUS.OK) {
+                                    external_entity_start_skill_round_attack(entity, cast_time_value, cast_area_value);
+
+                                    // add cooldawn
+                                    ecs.add_component<BuffSkillRoundAttackCooldawnComponent>(entity, new BuffSkillRoundAttackCooldawnComponent(cast_cooldawn_value));
+                                    external_entity_start_cooldawn(entity, COOLDAWN.SKILL_ROUND_ATTACK, cast_cooldawn_value);
+
+                                    // add cast skill component
+                                    ecs.add_component<CastSkillRoundAttackComponent>(entity, new CastSkillRoundAttackComponent(cast_area_value, cast_damage_value));
+
+                                    is_start = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return is_start;
+}
+
+export function command_use_target_position_skill(ecs: ECS, navmesh: Navmesh, entity: Entity, pos_x: f32, pos_y: f32, skill: SKILL): bool {
+    // check that entity has this skill
+    const skill_collection = ecs.get_component<SkillCollectionComponent>(entity);
+    const state = ecs.get_component<StateComponent>(entity);
+    if (skill_collection && state) {
+        if (state.state() != STATE.DEAD && skill_collection.has_skill(skill)) {
+            return command_move_to_target(ecs, navmesh, entity, 0, pos_x, pos_y, TARGET_ACTION.SKILL_POSITION, skill);
+        }
+    }
+
+    return false;
+}
+
+export function command_use_target_entity_skill(ecs: ECS, navmesh: Navmesh, entity: Entity, target_entity: Entity, skill: SKILL): bool {
+    const skill_collection = ecs.get_component<SkillCollectionComponent>(entity);
+    const state = ecs.get_component<StateComponent>(entity);
+    if (skill_collection && state) {
+        if (state.state() != STATE.DEAD && skill_collection.has_skill(skill)) {
+            const target_position = ecs.get_component<PositionComponent>(target_entity);
+            if (target_position) {
+                return command_move_to_target(ecs, navmesh, entity, target_entity, target_position.x(), target_position.y(), TARGET_ACTION.SKILL_ENTITY, skill);
+            }
+        }
+    }
+    
+    return false;
 }
 
 export function command_resurrect(ecs: ECS, entity: Entity): void {

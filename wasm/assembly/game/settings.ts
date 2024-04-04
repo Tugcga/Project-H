@@ -12,6 +12,8 @@ export class DebugSettings {
     // for player only
     show_visible_quad: bool = true;
     show_neighborhood_quad: bool = true;
+    show_search_quad: bool = true;
+    show_mid_quad: bool = true;
 
     // for enemies only
     // show virtual lines to entities from the enemies list
@@ -29,6 +31,7 @@ export class EngineSettings {
     visible_quad_size: f32 = 18.0;  // the size of one quad, used for tracking neighborhood movable items (in fact close to tile_size * visible_radius)
     neighborhood_quad_size: f32 = 1.5;  // this quad size used for building neighborhood grid and use it in rvo (for finding close actors)
     search_quad_size: f32 = 5.0;
+    mid_quad_size: f32 = 4.0; // this quad grid used for attack targets
     tiles_visible_radius: i32 = 12;
 
     path_recalculate_time: f32 = 1.0;  // in seconds, after this time we should calculate the path to the target point
@@ -67,6 +70,10 @@ export class EngineSettings {
 
     set_search_quad_size(in_value: f32): void {
         this.search_quad_size = in_value;
+    }
+
+    set_mid_quad_size(in_value: f32): void {
+        this.mid_quad_size = in_value;
     }
 
     set_tiles_visible_radius(in_value: i32): void {
@@ -206,11 +213,37 @@ export class DefaultWeapons {
     }
 }
 
+// default parameters for skills
+export class SkillRoundAttack {
+    cast_time: f32 = 1.0;
+    cooldawn: f32 = 5.0;
+    damage: u32 = 4;
+    area_radius: f32 = 2.0;
+}
+
+export class SkillStunCone {
+    cast_time: f32 = 0.75;
+    cooldawn: f32 = 8.0;
+    distance: f32 = 2.0;
+    damage: u32 = 6;
+    cone_spread: f32 = Mathf.PI / 3.0;
+    cone_size: f32 = 3.5;
+    stun_time: f32 = 1.0;
+}
+
+// store all default parameters for all supported skills
+// in game API we change these parameters directly
+export class DefaultSkills {
+    round_attack: SkillRoundAttack = new SkillRoundAttack();
+    stun_cone: SkillStunCone = new SkillStunCone();
+}
+
 export class Defaults {
     default_weapons: DefaultWeapons;
     default_monster_weapon: DefaultMonsterWeapon;
     default_monster_parameters: DefaultMonsterParameters;
     default_player_parameters: DefaultPlayerParameters;
+    default_skills: DefaultSkills;
     default_stun_time: f32 = 1.0;
 
     constructor() {
@@ -218,6 +251,7 @@ export class Defaults {
         this.default_monster_weapon = new DefaultMonsterWeapon();
         this.default_monster_parameters = new DefaultMonsterParameters();
         this.default_player_parameters = new DefaultPlayerParameters();
+        this.default_skills = new DefaultSkills();
     }
 }
 

@@ -6,7 +6,7 @@ import { Level } from "./promethean/level";
 
 import { generate_level, generate_navmesh } from "./game/generate";
 import { Settings, ConstantsSettings } from "./game/settings";
-import { EPSILON, ACTOR, TARGET_ACTION, STATE, DAMAGE_TYPE, INVENTORY_ITEM_TYPE, WEAPON_TYPE } from "./game/constants";
+import { SKILL, EPSILON, ACTOR, TARGET_ACTION, STATE, DAMAGE_TYPE, INVENTORY_ITEM_TYPE, WEAPON_TYPE } from "./game/constants";
 import { distance } from "./game/utilities";
 
 import { external_define_level,
@@ -15,7 +15,7 @@ import { external_define_level,
          external_create_player,
          external_click_entity,
          external_click_position,
-         external_define_entity_changes } from "./external";
+         external_define_person_changes } from "./external";
 
 import { define_local_values,
          setup_components, 
@@ -23,7 +23,8 @@ import { define_local_values,
          setup_player, 
          setup_monster,
          setup_weapon_sword,
-         setup_weapon_bow } from "./game/ecs_setup";
+         setup_weapon_bow,
+         setup_skill } from "./game/ecs_setup";
 
 import { PositionComponent } from "./game/components/position";
 import { RadiusSelectComponent } from "./game/components/radius";
@@ -61,11 +62,43 @@ import { command_activate_shield,
          command_shift, 
          command_stun, 
          command_resurrect,
+         command_use_nontarget_skill,
+         command_use_target_position_skill,
+         command_use_target_entity_skill,
          command_toggle_hide_mode,
          command_equip_main_weapon,
          command_free_equip_weapon } from "./game/commands";
 import { update_entity_parameters } from "./game/rpg";
 import { output_update_entity_params } from "./game/states";
+
+// use to obtaint client click result
+// is it over an entity or not
+class ClickResult {
+    private m_is_target_entity: bool;
+    private m_entity: Entity;
+
+    constructor() {
+        this.reset();
+    }
+
+    set_target_entity(entity: Entity): void {
+        this.m_is_target_entity = true;
+        this.m_entity = entity;
+    }
+
+    is_target_entity(): bool {
+        return this.m_is_target_entity;
+    }
+
+    entity(): Entity {
+        return this.m_entity;
+    }
+
+    reset(): void {
+        this.m_is_target_entity = false;
+        this.m_entity = 0;
+    }
+}
 
 export class Game {
     private ecs: ECS | null = null;
@@ -76,8 +109,11 @@ export class Game {
     private settings: Settings;
 
     private seed: u32 = 0;
+    private m_click_buffer: ClickResult;
 
     constructor(in_settings: Settings) {
+        this.m_click_buffer = new ClickResult();  // use this class to store client click result
+
         let local_seed = in_settings.get_seed();
         let local_level = generate_level(local_seed, in_settings.get_generate());
 
@@ -146,9 +182,15 @@ export class Game {
             debug_settings,
             engine_settings);
 
+        // create skills
+        const default_skills = local_defaults.default_skills;
+        const skills_map: Map<SKILL, Entity> = new Map<SKILL, Entity>();
+        skills_map.set(SKILL.ROUND_ATTACK, setup_skill(local_ecs, SKILL.ROUND_ATTACK, default_skills));
+        skills_map.set(SKILL.STUN_CONE, setup_skill(local_ecs, SKILL.STUN_CONE, default_skills));
+
         // setup player entity
         const player_entity = setup_player(local_ecs, local_level, 
-                                           start_x, start_y, start_angle, <f32>local_level.width() * tile_size, 
+                                           start_x, start_y, start_angle, <f32>local_level.width() * tile_size, skills_map,
                                            local_defaults, local_constants, local_engine);
 
         const update_system = local_ecs.get_system<UpdateToClientSystem>();
@@ -176,7 +218,7 @@ export class Game {
         const angle = local_ecs.get_component<AngleComponent>(player_entity);
 
         if (life && shield && position && angle) {
-            external_define_entity_changes(player_entity, position.x(), position.y(), angle.value(), false, life.life(), life.max_life(), shield.shield(), shield.max_shield(), false);
+            external_define_person_changes(player_entity, position.x(), position.y(), angle.value(), false, life.life(), life.max_life(), shield.shield(), shield.max_shield(), false);
         }
 
         // store in the class all local instances
@@ -231,24 +273,19 @@ export class Game {
         }
     }
 
-    client_point(in_x: f32, in_y: f32): void {
-        let local_ecs = this.ecs;
-        let local_navmesh = this.navmesh;
-        if (local_ecs && local_navmesh) {
-            // get player entity
-            const player_entity = this.player_entity;
+    private _get_click_result(in_x: f32, in_y: f32): ClickResult {
+        const local_click_result = this.m_click_buffer;
+        const local_ecs = this.ecs;
+        const player_entity = this.player_entity;
 
-            // we should properly assign the action when the player click at some position
-            // if there is an monster near the click point, then start to atack it
-            // if there is another iteractible item (actor) - go to them and interact
-            // if nothing in the point, then try to go to this point
+        local_click_result.reset();
+        if (local_ecs) {
             const neighborhood_tracking_system = local_ecs.get_system<NeighborhoodQuadGridTrackingSystem>();
             const neight_entities = neighborhood_tracking_system.get_items_from_position(in_x, in_y);
-            let assign_target = false;
             for (let i = 0, len = neight_entities.length; i < len; i++) {
                 const e = neight_entities[i];
                 const e_actor_type: ActorTypeComponent | null = local_ecs.get_component<ActorTypeComponent>(e);
-                if (e_actor_type && !assign_target) {
+                if (e_actor_type) {
                     if (e_actor_type.type() == ACTOR.MONSTER) {
                         // if the close entity is a monster
                         // check is we click inside the select radius
@@ -262,18 +299,41 @@ export class Game {
                                 const pos_y = pos.y();
                                 const d = distance(pos_x, pos_y, in_x, in_y);
                                 if (d < sel_radius.value()) {
-                                    // find the first actor near the click point
-                                    // try to start the action
-                                    assign_target = command_init_attack(local_ecs, local_navmesh, player_entity, e);
-                                    if (assign_target) {
-                                        external_click_entity(e, TARGET_ACTION.ATTACK);
-                                    }
+                                    local_click_result.set_target_entity(e);
+                                    return local_click_result;
                                 }
                             }
                         }
                     }
                 }
             }
+        }
+
+        return local_click_result;
+    }
+
+
+    client_point(in_x: f32, in_y: f32): void {
+        let local_ecs = this.ecs;
+        let local_navmesh = this.navmesh;
+        const player_entity = this.player_entity;
+
+        if (local_ecs && local_navmesh) {
+            // we should properly assign the action when the player click at some position
+            // if there is an monster near the click point, then start to atack it
+            // if there is another iteractible item (actor) - go to them and interact
+            // if nothing in the point, then try to go to this point
+            const click_result = this._get_click_result(in_x, in_y);
+            let assign_target = false;
+            if (click_result.is_target_entity()) {
+                // try to start the action
+                const entity = click_result.entity();
+                assign_target = command_init_attack(local_ecs, local_navmesh, player_entity, entity);
+                if (assign_target) {
+                    external_click_entity(entity, TARGET_ACTION.ATTACK);
+                }
+            }
+            
 
             if (!assign_target) {
                 // find valid point
@@ -322,6 +382,50 @@ export class Game {
         const player_entity = this.player_entity;
         if (local_ecs) {
             command_toggle_hide_mode(local_ecs, player_entity);
+        }
+    }
+
+    player_apply_nontarget_skill(skill: SKILL): bool {
+        const local_ecs = this.ecs;
+        const player_entity = this.player_entity;
+        if (local_ecs && skill != SKILL.NONE) {
+            return command_use_nontarget_skill(local_ecs, player_entity, skill);
+        }
+
+        return false;
+    }
+
+    // input is position of the client click
+    // we should define is we select an entity or click at clear ground
+    player_apply_position_target_skill(position_x: f32, position_y: f32, skill: SKILL): bool {
+        const local_ecs = this.ecs;
+        const local_navmesh = this.navmesh;
+        if (local_ecs && local_navmesh) {
+            // check is position click at monster or not
+            const click_result = this._get_click_result(position_x, position_y);
+            const player_entity = this.player_entity;
+            if (click_result.is_target_entity()) {
+                const click_entity = click_result.entity();
+
+                const start_skill = command_use_target_entity_skill(local_ecs, local_navmesh, player_entity, click_entity, skill);
+                external_click_entity(click_entity, TARGET_ACTION.SKILL_ENTITY);
+
+                return start_skill;
+            } else {
+                // find valid position on navmesh
+                const sample = local_navmesh.sample(position_x, 0.0, position_y);
+                if (sample.length == 4 && sample[3] > 0.5) {
+                    const pos_x = sample[0];
+                    const pos_y = sample[2];
+
+                    const start_skill = command_use_target_position_skill(local_ecs, local_navmesh, player_entity, pos_x, pos_y, skill);
+                    external_click_position(pos_x, pos_y);
+                    return start_skill;
+                }
+                return false;
+            }
+        } else {
+            return false;
         }
     }
 

@@ -4,8 +4,8 @@ import { Navmesh } from "../pathfinder/navmesh/navmesh";
 import { PseudoRandom } from "../promethean/pseudo_random";
 import { Level } from "../promethean/level";
 
-import { EPSILON, STATE, ACTOR, INVENTORY_ITEM_TYPE, WEAPON_TYPE, WEAPON_DAMAGE_TYPE, BULLET_TYPE } from "./constants";
-import { DefaultWeapons, Defaults, ConstantsSettings } from "./settings";
+import { SKILL, EPSILON, STATE, ACTOR, INVENTORY_ITEM_TYPE, WEAPON_TYPE, WEAPON_DAMAGE_TYPE, BULLET_TYPE } from "./constants";
+import { DefaultWeapons, Defaults, ConstantsSettings, DefaultSkills } from "./settings";
 import { direction_to_angle } from "./utilities";
 
 // import components
@@ -54,13 +54,16 @@ import { DamageDistanceComponent,
          ShadowDamageDistanceComponent } from "./components/damage";
 import { CastMeleeDamageComponent,
          CastShadowDamageComponent,
-         CastRangeDamageComponent } from "./components/cast";
+         CastRangeDamageComponent,
+         CastSkillRoundAttackComponent,
+         CastSkillStunConeComponent } from "./components/cast";
 import { LifeComponent } from "./components/life";
 import { ShieldComponent,
          ShieldIncreaseComponent } from "./components/shield";
 import { ApplyDamageComponent } from "./components/apply_damage";
 import { TeamComponent } from "./components/team";
 import { SearchQuadGridIndexComponent } from "./components/search_quad_grid_index";
+import { MidQuadGridIndexComponent } from "./components/mid_quad_grid_index";
 import { EnemiesListComponent } from "./components/enemies_list";
 import { BehaviourComponent } from "./components/behaviour";
 import { HideModeComponent } from "./components/hide_mode";
@@ -110,6 +113,7 @@ import { UpdateToClientSystem } from "./systems/update_to_client";
 import { UpdateDebugSystem } from "./systems/update_debug"
 import { ApplyDamageSystem } from "./systems/apply_damage";
 import { SearchQuadGridTrackingSystem } from "./systems/search_quad_grid_tracking";
+import { MidQuadGridTrackingSystem } from "./systems/mid_quad_grid_tracking";
 import { SearchEnemiesSystem } from "./systems/search_enemies";
 import { BehaviourSystem } from "./systems/behaviour";
 import { BulletSystem } from "./systems/bullet";
@@ -120,12 +124,26 @@ import { BuffShiftCooldawnComponent,
          BuffHandAttackCooldawnComponent,
          BuffHideCooldawnComponent,
          BuffShadowAttackCooldawnComponent,
+         BuffSkillRoundAttackCooldawnComponent,
+         BuffSkillStunConeCooldawnComponent,
          BuffTimerShiftCooldawnSystem,
          BuffTimerMeleeAttackCooldawnSystem,
          BuffTimerRangeAttackCooldawnSystem,
          BuffTimerHandAttackCooldawnSystem,
          BuffTimerHideCooldawnSystem,
-         BuffTimerShadowAttackCooldawnSystem } from "./skills/buffs";
+         BuffTimerShadowAttackCooldawnSystem,
+         BuffTimerSkillRoundAttackCooldawnSystem,
+         BuffTimerSkillStunConeCooldawnSystem } from "./skills/buffs";
+import { SkillTypeComponent } from "./skills/skill_type";
+import { SkillParameterCastTimeComponent,
+         SkillParameterCooldawnComponent,
+         SkillParameterDistanceComponent,
+         SkillParameterConeSpreadComponent,
+         SkillParameterConeSizeComponent,
+         SkillParameterAreaRadiusComponent,
+         SkillParameterDamageComponent,
+         SkillParameterStunTimeComponent } from "./skills/skill";
+import { SkillCollectionComponent } from "./skills/skill_collection";
 
 import { VirtualWeapon,
          VirtualWeaponEmpty,
@@ -163,7 +181,7 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<DeadComponent>();
 
     // assigned: bullet (arrow or magic ball)
-    // read systems: -
+    // read systems: BulletSystem
     // write systems: -
     // comment: tag for bullet entity
     ecs.register_component<BulletComponent>();
@@ -183,6 +201,7 @@ export function setup_components(ecs: ECS): void {
     //               ApplyDamageSystem (for rotate to attacker)
     //               SearchEnemiesSystem
     //               BehaviourSystem
+    //               BulletSystem
     // write systems: MoveSystem (make actual move)
     //                ShiftSystem (move at shift action)
     // comment: define the spatial position of the entity in the level
@@ -191,12 +210,13 @@ export function setup_components(ecs: ECS): void {
     // assigned: player, monsters
     // read systems: MoveTrackingSystem
     // write systems: MoveTrackingSystem (each update call reassign the component data from the current position)
+    //                BulletSystem
     // comment: store in this component position of the entity from the previous update call
     // used to define is entity is moved or not (by compare the current position with the previous one)
     ecs.register_component<PreviousPositionComponent>();
 
     // assigned: bullet
-    // read systems: -
+    // read systems: BulletSystem
     // write systems: -
     // comment: define the finall position target for the bullet
     ecs.register_component<TargetPositionComponent>();
@@ -389,6 +409,7 @@ export function setup_components(ecs: ECS): void {
     //                RotateSystem (activate when the entity change the angle)
     //                ShieldIncreaseSystem (when update the shield)
     //                ApplyDamageSystem (after apply damage life or shield is changed)
+    //                BulletSystem
     // comment: contains the flag (bool value) is the data about the entity should be updated on the client
     // at the end of the update call the system UpdateToClientSystem check each component
     // if it contains active flag, then it update data about corresponding entity at the client
@@ -418,6 +439,10 @@ export function setup_components(ecs: ECS): void {
     ecs.register_component<BuffHideCooldawnComponent>();
     // BuffTimerShadowAttackCooldawnSystem
     ecs.register_component<BuffShadowAttackCooldawnComponent>();
+    // BuffTimerSkillRoundAttackCooldawnSystem
+    ecs.register_component<BuffSkillRoundAttackCooldawnComponent>();
+    // BuffTimerSkillStunConeCooldawnSystem
+    ecs.register_component<BuffSkillStunConeCooldawnComponent>();
 
     // assigned: player (and may be monsters)
     // read systems: ShiftSystem (to define actual speed, it calculated as general entity speed multiply to the value in the component)
@@ -488,6 +513,8 @@ export function setup_components(ecs: ECS): void {
     // the same for shadow attack result
     ecs.register_component<CastShadowDamageComponent>();
     ecs.register_component<CastRangeDamageComponent>();
+    ecs.register_component<CastSkillRoundAttackComponent>();
+    ecs.register_component<CastSkillStunConeComponent>();
 
     // assigned: all players and monsters
     // read systems: -
@@ -533,6 +560,12 @@ export function setup_components(ecs: ECS): void {
     // comments: split the space into quads to help to search enemies for each entity
     ecs.register_component<SearchQuadGridIndexComponent>();
 
+    // assigned: every player and monster
+    // read systems: -
+    // write systems: MidQuadGridTrackingSystem
+    // comments: this component track position in the grid, which used for attack targets
+    ecs.register_component<MidQuadGridIndexComponent>();
+
     // assigned: monsters, driven by computer
     // read systems: BehaviourSystem
     // write systems: SearchEnemiesSystem (update the list values)
@@ -566,13 +599,13 @@ export function setup_components(ecs: ECS): void {
 
     // assigned: bullets
     // read_systems: -
-    // write systems: -
+    // write systems: BulletSystem
     // comment: store bullet life time
     // it should be used in apply damage when we store cast duration (to allow block attack by the target entity)
     ecs.register_component<LifeTimerComponent>();
 
     // assigned: bullet
-    // read systems: -
+    // read systems: BulletSystem
     // write systems: -
     // comment: store the host of the bullet, entity which create it
     ecs.register_component<HostComponent>();
@@ -599,6 +632,19 @@ export function setup_components(ecs: ECS): void {
 
     ecs.register_component<EquipmentComponent>();
     ecs.register_component<InventarComponent>();
+
+    /*---Skills---*/
+    ecs.register_component<SkillTypeComponent>();
+    ecs.register_component<SkillParameterCastTimeComponent>();
+    ecs.register_component<SkillParameterCooldawnComponent>();
+    ecs.register_component<SkillParameterDistanceComponent>();
+    ecs.register_component<SkillParameterConeSpreadComponent>();
+    ecs.register_component<SkillParameterConeSizeComponent>();
+    ecs.register_component<SkillParameterAreaRadiusComponent>();
+    ecs.register_component<SkillParameterDamageComponent>();
+    ecs.register_component<SkillParameterStunTimeComponent>();
+
+    ecs.register_component<SkillCollectionComponent>();
 }
 
 export function setup_systems(ecs: ECS,
@@ -665,6 +711,11 @@ export function setup_systems(ecs: ECS,
     // the same for search grid tracking
     ecs.set_system_without_component<SearchQuadGridTrackingSystem, DeadComponent>();
 
+    const mid_tracking_system = ecs.register_system<MidQuadGridTrackingSystem>(new MidQuadGridTrackingSystem(<f32>level_width_int * tile_size, <f32>level_height * tile_size, engine_settings.mid_quad_size));
+    ecs.set_system_with_component<MidQuadGridTrackingSystem, PositionComponent>();
+    ecs.set_system_with_component<MidQuadGridTrackingSystem, MidQuadGridIndexComponent>();
+    ecs.set_system_without_component<MidQuadGridTrackingSystem, DeadComponent>();
+
     // check is the entity comes to the target point of the path
     // if yes, switch to the iddle state (for the player) or iddle wait state (for mosnters)
     ecs.register_system<WalkToPointSwitchSystem>(new WalkToPointSwitchSystem());
@@ -685,7 +736,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_without_component<ShiftSwitchSystem, DeadComponent>();
 
     // tracking_system required to find closed entities to the attacker entity
-    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(neighborhood_tracking_system, navmesh, constants.bullet_max_distance));
+    ecs.register_system<CastSwitchSystem>(new CastSwitchSystem(mid_tracking_system, navmesh, constants.bullet_max_distance));
     ecs.set_system_with_component<CastSwitchSystem, StateComponent>();
     ecs.set_system_with_component<CastSwitchSystem, StateCastComponent>();
     ecs.set_system_with_component<CastSwitchSystem, ActorTypeComponent>();
@@ -852,6 +903,12 @@ export function setup_systems(ecs: ECS,
     ecs.register_system<BuffTimerShadowAttackCooldawnSystem>(new BuffTimerShadowAttackCooldawnSystem());
     ecs.set_system_with_component<BuffTimerShadowAttackCooldawnSystem, BuffShadowAttackCooldawnComponent>();
 
+    ecs.register_system<BuffTimerSkillRoundAttackCooldawnSystem>(new BuffTimerSkillRoundAttackCooldawnSystem());
+    ecs.set_system_with_component<BuffTimerSkillRoundAttackCooldawnSystem, BuffSkillRoundAttackCooldawnComponent>();
+
+    ecs.register_system<BuffTimerSkillStunConeCooldawnSystem>(new BuffTimerSkillStunConeCooldawnSystem());
+    ecs.set_system_with_component<BuffTimerSkillStunConeCooldawnSystem, BuffSkillStunConeCooldawnComponent>();
+
     // update data at client for required entities
     // send some debug data if it is active
     ecs.register_system<UpdateToClientSystem>(new UpdateToClientSystem());
@@ -860,7 +917,7 @@ export function setup_systems(ecs: ECS,
     ecs.set_system_without_component<UpdateToClientSystem, DeadComponent>();
 
     if (debug_settings.use_debug) {
-        ecs.register_system<UpdateDebugSystem>(new UpdateDebugSystem(debug_settings, neighborhood_tracking_system, visible_tracking_system));
+        ecs.register_system<UpdateDebugSystem>(new UpdateDebugSystem(debug_settings, neighborhood_tracking_system, visible_tracking_system, search_tracking_system, mid_tracking_system));
         ecs.set_system_with_component<UpdateDebugSystem, ActorTypeComponent>();
         ecs.set_system_with_component<UpdateDebugSystem, PositionComponent>();
         ecs.set_system_with_component<UpdateDebugSystem, StateComponent>();
@@ -871,7 +928,8 @@ export function setup_systems(ecs: ECS,
 }
 
 export function setup_player(ecs: ECS, level: Level, 
-                             pos_x: f32, pos_y: f32, angle: f32, level_width: f32, defaults: Defaults, constants: ConstantsSettings, engine: EngineSettings): Entity {
+                             pos_x: f32, pos_y: f32, angle: f32, level_width: f32, skills_map: Map<SKILL, Entity>,
+                             defaults: Defaults, constants: ConstantsSettings, engine: EngineSettings): Entity {
     const default_weapons = defaults.default_weapons;
     const default_player = defaults.default_player_parameters;
 
@@ -900,6 +958,7 @@ export function setup_player(ecs: ECS, level: Level,
     ecs.add_component<NeighborhoodQuadGridIndexComponent>(player_entity, new NeighborhoodQuadGridIndexComponent(level_width, engine.neighborhood_quad_size));
     ecs.add_component<TeamComponent>(player_entity, new TeamComponent(default_player.default_team));
     ecs.add_component<SearchQuadGridIndexComponent>(player_entity, new SearchQuadGridIndexComponent(level_width, engine.search_quad_size));
+    ecs.add_component<MidQuadGridIndexComponent>(player_entity, new MidQuadGridIndexComponent(level_width, engine.mid_quad_size));
     ecs.add_component<HideModeComponent>(player_entity, new HideModeComponent(default_player.hide_speed_multiplier, default_player.hide_cooldawn, default_player.hide_activate_time));
     ecs.add_component<TargetActionComponent>(player_entity, new TargetActionComponent());
 
@@ -936,6 +995,12 @@ export function setup_player(ecs: ECS, level: Level,
     ecs.add_component<ShadowAttackTimeComponent>(player_entity, new ShadowAttackTimeComponent(default_weapons.shadow_attack_time));
     ecs.add_component<ShadowAttackDistanceComponent>(player_entity, new ShadowAttackDistanceComponent(default_weapons.shadow_attack_distance));
     ecs.add_component<ShadowDamageDistanceComponent>(player_entity, new ShadowDamageDistanceComponent(default_weapons.shadow_damage_distance));
+
+    // add skills
+    const player_skills_collection = new SkillCollectionComponent();
+    player_skills_collection.add_skill(SKILL.ROUND_ATTACK, skills_map[SKILL.ROUND_ATTACK]);
+    player_skills_collection.add_skill(SKILL.STUN_CONE, skills_map[SKILL.STUN_CONE]);
+    ecs.add_component<SkillCollectionComponent>(player_entity, player_skills_collection);
     
     return player_entity;
 }
@@ -969,6 +1034,7 @@ export function setup_monster(ecs: ECS, level_width: f32,
     ecs.add_component<TargetActionComponent>(monster_entity, new TargetActionComponent());
     ecs.add_component<TeamComponent>(monster_entity, new TeamComponent(team));
     ecs.add_component<SearchQuadGridIndexComponent>(monster_entity, new SearchQuadGridIndexComponent(level_width, engine.search_quad_size));
+    ecs.add_component<MidQuadGridIndexComponent>(monster_entity, new MidQuadGridIndexComponent(level_width, engine.mid_quad_size));
     ecs.add_component<EnemiesListComponent>(monster_entity, new EnemiesListComponent());
     ecs.add_component<RadiusSearchComponent>(monster_entity, new RadiusSearchComponent(search_radius));
     ecs.add_component<SpreadSearchComponent>(monster_entity, new SpreadSearchComponent(search_spread));
@@ -1014,7 +1080,6 @@ export function setup_monster(ecs: ECS, level_width: f32,
         ecs.add_component<WeaponDamageTypeComponent>(monster_entity, new WeaponDamageTypeComponent(WEAPON_DAMAGE_TYPE.RANGE));
     }
     
-
     // shadow
     // use the same defaults as player
     ecs.add_component<ShadowAttackCooldawnComponent>(monster_entity, new ShadowAttackCooldawnComponent(default_weapons.shadow_attack_cooldawn));
@@ -1094,4 +1159,31 @@ export function setup_weapon_bow(ecs: ECS,
     ecs.add_component(weapon_entity, new InventarWeaponTypeComponent(WEAPON_TYPE.BOW));
 
     return weapon_entity;
+}
+
+// for each supported skill create an entity with components, which define the skill parameters
+export function setup_skill(ecs: ECS, skill: SKILL, default_skills: DefaultSkills): Entity {
+    const skill_entity = ecs.create_entity();
+
+    ecs.add_component<SkillTypeComponent>(skill_entity, new SkillTypeComponent(skill));
+    if (skill == SKILL.ROUND_ATTACK) {
+        const round_attack = default_skills.round_attack;
+        ecs.add_component<SkillParameterCastTimeComponent>(skill_entity, new SkillParameterCastTimeComponent(round_attack.cast_time));
+        ecs.add_component<SkillParameterCooldawnComponent>(skill_entity, new SkillParameterCooldawnComponent(round_attack.cooldawn));
+        ecs.add_component<SkillParameterDamageComponent>(skill_entity, new SkillParameterDamageComponent(round_attack.damage));
+
+        ecs.add_component<SkillParameterAreaRadiusComponent>(skill_entity, new SkillParameterAreaRadiusComponent(round_attack.area_radius));
+    } else if (skill == SKILL.STUN_CONE) {
+        const stun_cone = default_skills.stun_cone;
+        ecs.add_component<SkillParameterCastTimeComponent>(skill_entity, new SkillParameterCastTimeComponent(stun_cone.cast_time));
+        ecs.add_component<SkillParameterCooldawnComponent>(skill_entity, new SkillParameterCooldawnComponent(stun_cone.cooldawn));
+        ecs.add_component<SkillParameterDistanceComponent>(skill_entity, new SkillParameterDistanceComponent(stun_cone.distance));
+        ecs.add_component<SkillParameterDamageComponent>(skill_entity, new SkillParameterDamageComponent(stun_cone.damage));
+
+        ecs.add_component<SkillParameterConeSpreadComponent>(skill_entity, new SkillParameterConeSpreadComponent(stun_cone.cone_spread));
+        ecs.add_component<SkillParameterConeSizeComponent>(skill_entity, new SkillParameterConeSizeComponent(stun_cone.cone_size));
+        ecs.add_component<SkillParameterStunTimeComponent>(skill_entity, new SkillParameterStunTimeComponent(stun_cone.stun_time));
+    }
+
+    return skill_entity;
 }

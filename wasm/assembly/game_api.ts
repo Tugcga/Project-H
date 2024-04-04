@@ -1,6 +1,7 @@
 import { Game } from "./game";
 import { Settings } from "./game/settings";
 import { VirtualWeapon } from "./game/virtuals";
+import { SKILL } from "./game/constants";
 
 export function create_settings(): Settings {
     return new Settings();
@@ -26,12 +27,16 @@ export function settings_set_debug_flags(settings: Settings,
                                          in_show_closest: boolean,
                                          in_show_visible: boolean,
                                          in_show_neighborhood: boolean,
+                                         in_show_search: boolean,
+                                         in_show_mid: boolean,
                                          in_show_enemy_targets: boolean): void {
     const debug = settings.get_debug();
     debug.show_path = in_show_path;
     debug.show_closest = in_show_closest;
     debug.show_visible_quad = in_show_visible;
     debug.show_neighborhood_quad = in_show_neighborhood;
+    debug.show_search_quad = in_show_search;
+    debug.show_mid_quad = in_show_mid;
     debug.show_enemy_targets = in_show_enemy_targets;
 }
 
@@ -49,6 +54,11 @@ export function settings_set_visible_quad_size(settings: Settings, in_size: f32)
 export function settings_set_search_quad_size(settings: Settings, in_size: f32): void {
     const engine = settings.get_engine();
     engine.set_search_quad_size(in_size);
+}
+
+export function settings_set_mid_quad_size(settings: Settings, in_size: f32): void {
+    const engine = settings.get_engine();
+    engine.set_mid_quad_size(in_size);
 }
 
 export function settings_set_rvo_time_horizon(settings: Settings, in_time: f32): void {
@@ -183,6 +193,34 @@ export function settings_set_default_shadow_weapon(settings: Settings,
     default_weapon.set_shadow_weapon(attack_time, attack_distance, attack_cooldawn, damage_distance);
 }
 
+/*---Default skills---*/
+export function settings_set_skill_round_attack(settings: Settings,
+                                                cast_time: f32, cooldawn: f32, damage: u32, area_radius: f32): void {
+    const defaults = settings.get_defaults();
+    const default_skills = defaults.default_skills;
+    const round_attack = default_skills.round_attack;
+
+    round_attack.cast_time = cast_time;
+    round_attack.cooldawn = cooldawn;
+    round_attack.damage = damage;
+    round_attack.area_radius = area_radius;
+}
+
+export function settings_set_skill_stun_cone(settings: Settings,
+                                             cast_time: f32, cooldawn: f32, distance: f32, damage: u32, cone_spread: f32, cone_size: f32, stun_time: f32): void {
+    const defaults = settings.get_defaults();
+    const default_skills = defaults.default_skills;
+    const stun_cone = default_skills.stun_cone;
+
+    stun_cone.cast_time = cast_time;
+    stun_cone.cooldawn = cooldawn;
+    stun_cone.distance = distance;
+    stun_cone.damage = damage;
+    stun_cone.cone_spread = cone_spread;
+    stun_cone.cone_size = cone_size;
+    stun_cone.stun_time = stun_time;
+}
+
 /*---Utility funcions, for gameplay tests---*/
 export function dev_game_resurrect_player(game: Game): void {
     game.dev_resurrect_player();
@@ -265,6 +303,15 @@ export function game_client_release_shield(game: Game): void {
 
 export function game_client_toggle_hide(game: Game): void {
     game.player_toggle_hide();
+}
+
+// player apply the skill
+export function game_skill_nontarget(game: Game, skill: SKILL): bool {
+    return game.player_apply_nontarget_skill(skill);
+}
+
+export function game_skill_target(game: Game, position_x: f32, position_y: f32, skill: SKILL): bool {
+    return game.player_apply_position_target_skill(position_x, position_y, skill);
 }
 
 export function game_add_monsters(game: Game): void {

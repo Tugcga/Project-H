@@ -1,7 +1,7 @@
 import { ECS } from "../simple_ecs/simple_ecs";
 import { Entity } from "../simple_ecs/types";
 
-import { ASSERT_ERRORS, CAST_ACTION, COOLDAWN, START_CAST_STATUS, STATE, TARGET_ACTION, UPDATE_TARGET_ACTION_STATUS, WEAPON_DAMAGE_TYPE, BULLET_TYPE } from "./constants";
+import { TARGET_ACTION_TYPE, SKILL, ASSERT_ERRORS, CAST_ACTION, COOLDAWN, START_CAST_STATUS, STATE, TARGET_ACTION, UPDATE_TARGET_ACTION_STATUS, WEAPON_DAMAGE_TYPE, BULLET_TYPE } from "./constants";
 import { distance } from "./utilities";
 
 import { PositionComponent } from "./components/position";
@@ -24,7 +24,9 @@ import { DamageDistanceComponent,
          ShadowDamageDistanceComponent } from "./components/damage";
 import { CastMeleeDamageComponent,
          CastShadowDamageComponent,
-         CastRangeDamageComponent } from "./components/cast";
+         CastRangeDamageComponent,
+         CastSkillRoundAttackComponent,
+         CastSkillStunConeComponent } from "./components/cast";
 import { HideModeComponent } from "./components/hide_mode";
 import { ShadowAttackCooldawnComponent } from "./components/shadow_attack_cooldawn";
 import { ShadowAttackDistanceComponent } from "./components/shadow_attack_distance";
@@ -38,7 +40,9 @@ import { BuffMeleeAttackCooldawnComponent,
          BuffRangeAttackCooldawnComponent,
          BuffHandAttackCooldawnComponent,
          BuffHideCooldawnComponent,
-         BuffShadowAttackCooldawnComponent } from "./skills/buffs";
+         BuffShadowAttackCooldawnComponent,
+         BuffSkillRoundAttackCooldawnComponent,
+         BuffSkillStunConeCooldawnComponent } from "./skills/buffs";
 import { get_weapon_damage_type } from "./rpg";
 
 import { external_entity_start_melee_attack,
@@ -49,6 +53,7 @@ import { external_entity_start_melee_attack,
          external_entity_finish_hand_attack,
          external_entity_start_shadow_attack,
          external_entity_finish_shadow_attack,
+         external_entity_finish_skill,
          external_entity_start_cooldawn,
          external_entity_release_shield,
          external_entity_finish_hide,
@@ -101,6 +106,14 @@ export function assign_cast_state(ecs: ECS,
     } else if (cast_type == CAST_ACTION.SHADOW_ATTACK) {
         const buff_shadow: BuffShadowAttackCooldawnComponent | null = ecs.get_component<BuffShadowAttackCooldawnComponent>(entity);
         if (buff_shadow) {
+            return START_CAST_STATUS.FAIL_COOLDAWN;
+        }
+    } else if (cast_type == CAST_ACTION.SKILL_ROUND_ATTACK) {
+        if (ecs.has_component<BuffSkillRoundAttackCooldawnComponent>(entity)) {
+            return START_CAST_STATUS.FAIL_COOLDAWN;
+        }
+    } else if (cast_type == CAST_ACTION.SKILL_STUN_CONE) {
+        if (ecs.has_component<BuffSkillStunConeCooldawnComponent>(entity)) {
             return START_CAST_STATUS.FAIL_COOLDAWN;
         }
     } else {
@@ -415,6 +428,16 @@ export function interrupt_to_iddle(ecs: ECS, entity: Entity, entity_state: State
                 entity_state.set_state(STATE.IDDLE);
                 clear_state_components(ecs, STATE.CASTING, entity);
                 external_entity_finish_shadow_attack(entity, true);
+            } else if (entity_cast_type == CAST_ACTION.SKILL_ROUND_ATTACK) {
+                ecs.remove_component<CastSkillRoundAttackComponent>(entity);
+                entity_state.set_state(STATE.IDDLE);
+                clear_state_components(ecs, STATE.CASTING, entity);
+                external_entity_finish_skill(entity, SKILL.ROUND_ATTACK, true);
+            } else if (entity_cast_type == CAST_ACTION.SKILL_STUN_CONE) {
+                ecs.remove_component<CastSkillStunConeComponent>(entity);
+                entity_state.set_state(STATE.IDDLE);
+                clear_state_components(ecs, STATE.CASTING, entity);
+                external_entity_finish_skill(entity, SKILL.STUN_CONE, true);
             } else {
                 assert(!ASSERT_ERRORS, "interrupt_to_iddle -> unknown CAST_ACTION = " + entity_cast_type.toString());
                 // unsupported cast type
@@ -463,10 +486,39 @@ export function resurrect(ecs: ECS, entity: Entity): void {
     }
 }
 
-export function should_redefine_target_action(ecs: ECS, entity: Entity, target_entity: Entity, entity_target_action: TargetActionComponent, entity_state_value: STATE): UPDATE_TARGET_ACTION_STATUS {
+export function is_state_cast_action(ecs: ECS, entity: Entity, cast_action: CAST_ACTION): bool {
+    const state = ecs.get_component<StateComponent>(entity);
+    if (state) {
+        const state_value = state.state();
+        if (state_value == STATE.CASTING) {
+            const cast = ecs.get_component<StateCastComponent>(entity);
+            if (cast) {
+                const cast_type = cast.type();
+                if (cast_type == cast_action) {
+                    return true;
+                } else {
+                    // another cast action
+                    return false;
+                }
+            } else {
+                // no cast component
+                return false;
+            }
+        } else {
+            // state is not casting
+            return false;
+        }
+    } else {
+        // no state component
+        return false;
+    }
+}
+
+export function should_redefine_target_action(ecs: ECS, entity: Entity, target_entity: Entity, entity_target_action: TargetActionComponent, entity_state_value: STATE, skill: SKILL): UPDATE_TARGET_ACTION_STATUS {
     // check what entity is doing
     if (entity_state_value == STATE.WALK_TO_POINT) {
-        if (entity_target_action.type() == TARGET_ACTION.ATTACK) {
+        const entity_target_action_type = entity_target_action.type();
+        if (entity_target_action_type == TARGET_ACTION.ATTACK) {
             if (entity_target_action.entity() == target_entity) {
                 // it already goes to the same target, nothing to do
                 return UPDATE_TARGET_ACTION_STATUS.NO;
@@ -474,6 +526,14 @@ export function should_redefine_target_action(ecs: ECS, entity: Entity, target_e
                 // another target
                 return UPDATE_TARGET_ACTION_STATUS.YES;
             }
+        } else if (entity_target_action_type == TARGET_ACTION.SKILL_ENTITY) {
+            if (entity_target_action.entity() == target_entity && entity_target_action.skill() == skill) {
+                return UPDATE_TARGET_ACTION_STATUS.NO;
+            } else {
+                return UPDATE_TARGET_ACTION_STATUS.YES;
+            }
+        } else if (entity_target_action_type == TARGET_ACTION.SKILL_POSITION) {
+            return UPDATE_TARGET_ACTION_STATUS.YES;
         } else {
             // entity simply goes to the point, action is NONE
             return UPDATE_TARGET_ACTION_STATUS.YES;
@@ -522,9 +582,31 @@ export function should_redefine_target_action(ecs: ECS, entity: Entity, target_e
                 const entity_cast_shadow: CastShadowDamageComponent | null = ecs.get_component<CastShadowDamageComponent>(entity);
                 if (entity_cast_shadow) {
                     if (entity_cast_shadow.target() == target_entity) {
-                        UPDATE_TARGET_ACTION_STATUS.NO;
+                        return UPDATE_TARGET_ACTION_STATUS.NO;
                     } else {
                         return UPDATE_TARGET_ACTION_STATUS.YES;
+                    }
+                } else {
+                    return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
+                }
+            } else if (entity_cast_type == CAST_ACTION.SKILL_ROUND_ATTACK) {
+                // this is non-target skill
+                return UPDATE_TARGET_ACTION_STATUS.NO;
+            } else if (entity_cast_type == CAST_ACTION.SKILL_STUN_CONE) {
+                const entity_cast_stun_cone = ecs.get_component<CastSkillStunConeComponent>(entity);
+                if (entity_cast_stun_cone) {
+                    const cast_target_type = entity_cast_stun_cone.target_type();
+                    if (cast_target_type == TARGET_ACTION_TYPE.POSITION) {
+                        return UPDATE_TARGET_ACTION_STATUS.YES;
+                    } else if (cast_target_type == TARGET_ACTION_TYPE.ENTITY) {
+                        const cast_target_entity = entity_cast_stun_cone.target_entity();
+                        if (cast_target_entity == target_entity) {
+                            return UPDATE_TARGET_ACTION_STATUS.NO; 
+                        } else {
+                            return UPDATE_TARGET_ACTION_STATUS.YES;
+                        }
+                    } else {
+                        return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;
                     }
                 } else {
                     return UPDATE_TARGET_ACTION_STATUS.FORBIDDEN;

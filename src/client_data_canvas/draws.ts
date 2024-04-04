@@ -2,11 +2,11 @@ import { CURSOR_TYPE, ClickCursor } from "../scene/click_cursor";
 import { EFFECT, CLICK_CURSOR_RADIUS, CLICK_CURSOR_TIME, COOLDAWN, MOVE_STATUS, BULLET_TYPE } from "../constants";
 import { SceneTile } from "../scene/scene_tile";
 import { Transform } from "../transform";
-import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH, ENTITY_DEAD_BACK_COLOR, PLAYER_LIVE_BACK_COLOR, MONSTER_LIVE_BACK_COLOR, ENTITY_LIFE_CIRCLE_DELTA, EFFECT_STUN_COLOR, EFFECT_STUN_STROKE_COLOR, EFFECT_STUN_RADIUS_MULTIPLIER, DEBUG_SEARCH_RADIUS_COLOR, DEBUG_ENEMIES_TARGET_LINE_WIDTH, DEBUG_ENEMIES_TARGET_LINE_COLOR, PLAYER_HIDE_COLOR, MONSTER_HIDE_COLOR, SEARCH_CONE_COLOR, SEARCH_CONE_STROKE, SEARCH_CONE_STROKE_WIDTH, COOLDAWN_HIDE_WIDTH, COOLDAWN_HIDE_COLOR, COOLDAWN_HIDE_RADIUS, EFFECT_HIDE_ACTIVATION_STROKE, EFFECT_HIDE_ACTIVATION_COLOR, COOLDAWN_SHADOW_ATTACK_WIDTH, COOLDAWN_SHADOW_ATTACK_COLOR, COOLDAWN_SHADOW_ATTACK_RADIUS, EFFECT_SHADOW_ATTACK_COLOR, EFFECT_SHADOW_ATTACK_WIDTH, COOLDAWN_RANGE_ATTACK_WIDTH, COOLDAWN_RANGE_ATTACK_COLOR, COOLDAWN_RANGE_ATTACK_RADIUS, COOLDAWN_HAND_ATTACK_WIDTH, COOLDAWN_HAND_ATTACK_COLOR, COOLDAWN_HAND_ATTACK_RADIUS, EFFECT_HAND_ATTACK_COLOR, EFFECT_RANGE_ATTACK_COLOR, EFFECT_RANGE_ATTACK_WIDTH, EFFECT_RANGE_ATTACK_DELTA, BULLET_ARROW_COLOR, BULLET_ARROW_HEAD_SIZE, BULLET_ARROW_TAIL_SIZE, DEBUG_BULLET_TARGET_LINE_COLOR, DEBUG_BULLET_TARGET_POINT_COLOR, DEBUG_BULLET_TARGET_LINE_WIDTH, DEBUG_BULLET_TARGET_POINT_SIZE } from "./visual_styles";
+import { CLICK_CURSOR_CENTER_SIZE, CLICK_CURSOR_COLOR, CLICK_CURSOR_STROKE_COLOR, CLICK_CURSOR_STROKE_WIDTH, COOLDAWN_SHIFT_COLOR, COOLDAWN_SHIFT_RADIUS, COOLDAWN_SHIFT_WIDTH, DEBUG_CLOSEST_PAIR_COLOR, DEBUG_CLOSEST_PAIR_WIDTH, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH, DEBUG_TRAJECTORY_COLOR, DEBUG_TRAJECTORY_POINT_COLOR, DEBUG_TRAJECTORY_POINT_RADIUS, DEBUG_TRAJECTORY_WIDTH, DEBUG_VISIBILITY_RECT_COLOR, MONSTER_IDLE_COLOR, MONSTER_IS_STROKE, MONSTER_MOVE_COLOR, MONSTER_SECONDARY_STROKE_COLOR, MONSTER_SHIFT_COLOR, MONSTER_STROKE_COLOR, MONSTER_STROKE_WIDTH, PLAYER_IDLE_COLOR, PLAYER_IS_STROKE, PLAYER_MOVE_COLOR, PLAYER_SHIFT_COLOR, PLAYER_STROKE_COLOR, PLAYER_STROKE_WIDTH, TILE_IS_STROKE, TILE_NONWALKABLE_COLOR, TILE_STROKE_COLOR, TILE_STROKE_WIDTH, TILE_WALKABLE_COLOR, PLAYER_SECONDARY_STROKE_COLOR, COOLDAWN_MELEE_ATTACK_WIDTH, COOLDAWN_MELEE_ATTACK_COLOR, COOLDAWN_MELEE_ATTACK_RADIUS, EFFECT_MELEE_ATTACK_COLOR, SELECT_RADIUS_COLOR, SELECT_CURSOR_STROKE_WIDTH, SELECT_CURSOR_COLOR, SELECT_CURSOR_STROKE_COLOR, SHIELD_ACTIVE_COLOR, SHIELD_PASSIVE_COLOR, SHIELD_ACTIVE_WIDTH, SHIELD_PASSIVE_WIDTH, ENTITY_DEAD_BACK_COLOR, PLAYER_LIVE_BACK_COLOR, MONSTER_LIVE_BACK_COLOR, ENTITY_LIFE_CIRCLE_DELTA, EFFECT_STUN_COLOR, EFFECT_STUN_STROKE_COLOR, EFFECT_STUN_RADIUS_MULTIPLIER, DEBUG_SEARCH_RADIUS_COLOR, DEBUG_ENEMIES_TARGET_LINE_WIDTH, DEBUG_ENEMIES_TARGET_LINE_COLOR, PLAYER_HIDE_COLOR, MONSTER_HIDE_COLOR, SEARCH_CONE_COLOR, SEARCH_CONE_STROKE, SEARCH_CONE_STROKE_WIDTH, COOLDAWN_HIDE_WIDTH, COOLDAWN_HIDE_COLOR, COOLDAWN_HIDE_RADIUS, EFFECT_HIDE_ACTIVATION_STROKE, EFFECT_HIDE_ACTIVATION_COLOR, COOLDAWN_SHADOW_ATTACK_WIDTH, COOLDAWN_SHADOW_ATTACK_COLOR, COOLDAWN_SHADOW_ATTACK_RADIUS, EFFECT_SHADOW_ATTACK_COLOR, EFFECT_SHADOW_ATTACK_WIDTH, COOLDAWN_RANGE_ATTACK_WIDTH, COOLDAWN_RANGE_ATTACK_COLOR, COOLDAWN_RANGE_ATTACK_RADIUS, COOLDAWN_HAND_ATTACK_WIDTH, COOLDAWN_HAND_ATTACK_COLOR, COOLDAWN_HAND_ATTACK_RADIUS, EFFECT_HAND_ATTACK_COLOR, EFFECT_RANGE_ATTACK_COLOR, EFFECT_RANGE_ATTACK_WIDTH, EFFECT_RANGE_ATTACK_DELTA, BULLET_ARROW_COLOR, BULLET_ARROW_HEAD_SIZE, BULLET_ARROW_TAIL_SIZE, DEBUG_BULLET_TARGET_LINE_COLOR, DEBUG_BULLET_TARGET_POINT_COLOR, DEBUG_BULLET_TARGET_LINE_WIDTH, DEBUG_BULLET_TARGET_POINT_SIZE, COOLDAWN_SKILL_ROUND_ATTACK_WIDTH, COOLDAWN_SKILL_ROUND_ATTACK_COLOR, COOLDAWN_SKILL_ROUND_ATTACK_RADIUS, COOLDAWN_SKILL_STUN_CONE_WIDTH, COOLDAWN_SKILL_STUN_CONE_COLOR, COOLDAWN_SKILL_STUN_CONE_RADIUS, EFFECT_SKILL_ROUND_ATTACK_COLOR, EFFECT_SKILL_ROUND_ATTACK_STROKE, EFFECT_SKILL_STUN_CONE_STROKE, EFFECT_SKILL_STUN_CONE_COLOR, DEBUG_SEARCH_RECT_COLOR, DEBUG_MID_RECT_COLOR } from "./visual_styles";
 import { Person } from "../scene/person";
 import { Player } from "../scene/player";
 import { Monster } from "../scene/monster";
-import { EffectBase, HandAttackEffect, MeleeAttackEffect, RangeAttackEffect, ShadowAttackEffect } from "../scene/effect";
+import { EffectBase, HandAttackEffect, MeleeAttackEffect, RangeAttackEffect, ShadowAttackEffect, SkillRoundAttackEffect, SkillStunConeEffect } from "../scene/effect";
 import { Bullet } from "../scene/bullet";
 
 export function draw_background(draw_ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -307,6 +307,14 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
                 draw_ctx.lineWidth = COOLDAWN_HAND_ATTACK_WIDTH;
                 draw_ctx.strokeStyle = COOLDAWN_HAND_ATTACK_COLOR;
                 cooldawn_radius = COOLDAWN_HAND_ATTACK_RADIUS;
+            } else if (cooldawn == COOLDAWN.SKILL_ROUND_ATTACK) {
+                draw_ctx.lineWidth = COOLDAWN_SKILL_ROUND_ATTACK_WIDTH;
+                draw_ctx.strokeStyle = COOLDAWN_SKILL_ROUND_ATTACK_COLOR;
+                cooldawn_radius = COOLDAWN_SKILL_ROUND_ATTACK_RADIUS;
+            } else if (cooldawn == COOLDAWN.SKILL_STUN_CONE) {
+                draw_ctx.lineWidth = COOLDAWN_SKILL_STUN_CONE_WIDTH;
+                draw_ctx.strokeStyle = COOLDAWN_SKILL_STUN_CONE_COLOR;
+                cooldawn_radius = COOLDAWN_SKILL_STUN_CONE_RADIUS;
             }
             draw_ctx.beginPath();
             draw_ctx.arc(c_center[0], c_center[1], cooldawn_radius, a, 2.0 * Math.PI * (1.0 - times[1] / times[0]) + a);
@@ -400,6 +408,54 @@ function draw_person(draw_ctx: CanvasRenderingContext2D,
                 draw_ctx.lineTo(c_center[0] - Math.cos(a) * r, c_center[1] - Math.sin(a) * r);
                 draw_ctx.closePath();
                 draw_ctx.stroke();
+                draw_ctx.restore();
+            } else if (effect_type == EFFECT.SKILL_ROUND_ATTACK) {
+                const skill_effect: SkillRoundAttackEffect = effect as SkillRoundAttackEffect;
+                const proportion = skill_effect.proportion();
+                const size = skill_effect.area_size();
+                const c_size = tfm.apply_scale(size);
+
+                draw_ctx.save();
+                draw_ctx.strokeStyle = EFFECT_SKILL_ROUND_ATTACK_STROKE;
+                draw_ctx.fillStyle = EFFECT_SKILL_ROUND_ATTACK_COLOR;
+
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], c_radius, 0, 2 * Math.PI);
+                draw_ctx.stroke();
+
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], c_size, 0, 2 * Math.PI);
+                draw_ctx.stroke();
+
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], c_radius, a, a + 2 * Math.PI * proportion);
+                draw_ctx.arc(c_center[0], c_center[1], c_size, a + 2 * Math.PI * proportion, a, true);
+                draw_ctx.closePath();
+                draw_ctx.fill();
+                draw_ctx.restore();
+            } else if (effect_type == EFFECT.SKILL_STUN_CONE) {
+                const skill_effect: SkillStunConeEffect = effect as SkillStunConeEffect;
+                const proportion = skill_effect.proportion();
+                const cone_spread = skill_effect.cone_spread();
+                const cone_size = skill_effect.cone_size();
+                const c_cone_size = tfm.apply_scale(cone_size);
+
+                draw_ctx.save();
+                draw_ctx.strokeStyle = EFFECT_SKILL_STUN_CONE_STROKE;
+                draw_ctx.fillStyle = EFFECT_SKILL_STUN_CONE_COLOR;
+
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], c_radius, a - cone_spread / 2, a + cone_spread / 2);
+                draw_ctx.arc(c_center[0], c_center[1], c_cone_size, a + cone_spread / 2, a - cone_spread / 2, true);
+                draw_ctx.closePath();
+                draw_ctx.stroke();
+
+                draw_ctx.beginPath();
+                draw_ctx.arc(c_center[0], c_center[1], c_radius, a - cone_spread / 2, a + cone_spread / 2);
+                draw_ctx.arc(c_center[0], c_center[1], c_radius + (c_cone_size - c_radius) * proportion, a + cone_spread / 2, a - cone_spread / 2, true);
+                draw_ctx.closePath();
+                draw_ctx.fill();
+
                 draw_ctx.restore();
             }
         }
@@ -556,27 +612,51 @@ function draw_rect(draw_ctx: CanvasRenderingContext2D,
     draw_ctx.restore();
 }
 
+function draw_double_rect(draw_ctx: CanvasRenderingContext2D, 
+                          wtc_tfm: Transform,
+                          coordinates: Float32Array,
+                          show_inner: boolean,
+                          show_outer: boolean,
+                          stroke_style: string,
+                          stroke_width: number) {
+    if (show_inner) {
+        draw_rect(draw_ctx, wtc_tfm, coordinates, stroke_style, stroke_width);
+    }
+
+    if (show_outer) {
+        const width = coordinates[2] - coordinates[0];
+        const height = coordinates[3] - coordinates[1];
+        const outer_coordinates = new Float32Array(4);
+        outer_coordinates[0] = coordinates[0] - width;
+        outer_coordinates[1] = coordinates[1] - height;
+        outer_coordinates[2] = coordinates[2] + width;
+        outer_coordinates[3] = coordinates[3] + height;
+        draw_rect(draw_ctx, wtc_tfm, outer_coordinates, stroke_style, stroke_width);
+    }
+}
+
 export function draw_visibility_rect(draw_ctx: CanvasRenderingContext2D, 
                                      wtc_tfm: Transform,
                                      coordinates: Float32Array) {
-    // this the center rect which contains the player
-    draw_rect(draw_ctx, wtc_tfm, coordinates, DEBUG_VISIBILITY_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
-    // next draw outer rect
-    // calculate new corners
-    const width = coordinates[2] - coordinates[0];
-    const height = coordinates[3] - coordinates[1];
-    const outer_coordinates = new Float32Array(4);
-    outer_coordinates[0] = coordinates[0] - width;
-    outer_coordinates[1] = coordinates[1] - height;
-    outer_coordinates[2] = coordinates[2] + width;
-    outer_coordinates[3] = coordinates[3] + height;
-    draw_rect(draw_ctx, wtc_tfm, outer_coordinates, DEBUG_VISIBILITY_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
+    draw_double_rect(draw_ctx, wtc_tfm, coordinates, true, true, DEBUG_VISIBILITY_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
 }
 
 export function draw_neighbourhood_rect(draw_ctx: CanvasRenderingContext2D, 
                                         wtc_tfm: Transform,
                                         coordinates: Float32Array) {
-    draw_rect(draw_ctx, wtc_tfm, coordinates, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
+    draw_double_rect(draw_ctx, wtc_tfm, coordinates, true, true, DEBUG_NEIGHBOURHOOD_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
+}
+
+export function draw_search_rect(draw_ctx: CanvasRenderingContext2D, 
+                                 wtc_tfm: Transform,
+                                 coordinates: Float32Array) {
+draw_double_rect(draw_ctx, wtc_tfm, coordinates, true, true, DEBUG_SEARCH_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
+}
+
+export function draw_mid_rect(draw_ctx: CanvasRenderingContext2D, 
+                              wtc_tfm: Transform,
+                              coordinates: Float32Array) {
+draw_double_rect(draw_ctx, wtc_tfm, coordinates, true, true, DEBUG_MID_RECT_COLOR, DEBUG_RECT_LINE_WIDTH);
 }
 
 export function draw_lines(draw_ctx: CanvasRenderingContext2D, 

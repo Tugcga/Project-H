@@ -87,3 +87,17 @@ export class BuffTimerShadowAttackCooldawnSystem extends System {
         timer_update<BuffShadowAttackCooldawnComponent>(dt, this);
     }
 }
+
+export class BuffSkillRoundAttackCooldawnComponent extends BuffCooldawn {}
+export class BuffTimerSkillRoundAttackCooldawnSystem extends System {
+    update(dt: f32): void {
+        timer_update<BuffSkillRoundAttackCooldawnComponent>(dt, this);
+    }
+}
+
+export class BuffSkillStunConeCooldawnComponent extends BuffCooldawn {}
+export class BuffTimerSkillStunConeCooldawnSystem extends System {
+    update(dt: f32): void {
+        timer_update<BuffSkillStunConeCooldawnComponent>(dt, this);
+    }
+}

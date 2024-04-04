@@ -3,7 +3,7 @@ import { PseudoRandom } from "../../promethean/pseudo_random"
 import { System } from "../../simple_ecs/system_manager";
 import { Entity } from "../../simple_ecs/types";
 import { ECS } from "../../simple_ecs/simple_ecs";
-import { EPSILON, STATE, ACTOR, COOLDAWN, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, DAMAGE_TYPE } from "../constants";
+import { SKILL, EPSILON, STATE, ACTOR, COOLDAWN, TARGET_ACTION, CAST_ACTION, START_CAST_STATUS, DAMAGE_TYPE } from "../constants";
 import { direction_to_angle, get_navmesh_path, distance } from "../utilities";
 
 import { ActorTypeComponent } from "../components/actor_type";
@@ -22,7 +22,7 @@ import { HideModeComponent } from "../components/hide_mode";
 import { EnemiesListComponent } from "../components/enemies_list";
 import { SpeedComponent } from "../components/speed";
 
-import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
+import { MidQuadGridTrackingSystem } from "./mid_quad_grid_tracking";
 import { SearchEnemiesSystem } from "./search_enemies"
 
 import { BuffShiftCooldawnComponent } from "../skills/buffs";
@@ -35,23 +35,28 @@ import { external_entity_finish_shift,
          external_entity_finish_shadow_attack,
          external_entity_finish_stun,
          external_entity_finish_hide,
-         external_entity_switch_hide } from "../../external";
+         external_entity_switch_hide,
+         external_entity_finish_skill } from "../../external";
 import { clear_state_components, interrupt_to_iddle } from "../states";
 
 import { apply_melee_attack,
          apply_hand_attack,
          apply_hide,
          apply_shadow_attack,
-         emit_range_bullet } from "../skills/apply";
+         emit_range_bullet,
+         apply_skill_round_attack,
+         apply_skill_stun_cone } from "../skills/apply";
 
 import { command_init_attack, 
-         try_start_attack } from "../commands";
+         try_start_attack,
+         try_start_skill } from "../commands";
 
 // several systems from this file controll the switch between different states of entitites
 // this system controlls when the actor comes to the finall target point
 export class WalkToPointSwitchSystem extends System {
     update(dt: f32): void {
         const entities = this.entities();
+        const local_ecs: ECS | null = this.get_ecs();
 
         for (let i = 0, len = entities.length; i < len; i++) {
             const entity: Entity = entities[i];
@@ -61,14 +66,16 @@ export class WalkToPointSwitchSystem extends System {
             const entity_target_action: TargetActionComponent | null = this.get_component<TargetActionComponent>(entity);
             const pref_velocity: PreferredVelocityComponent | null = this.get_component<PreferredVelocityComponent>(entity);
             
-            if (pref_velocity && walk_to_point && state && entity_target_action) {
-                if (entity_target_action.type() == TARGET_ACTION.ATTACK) {
-                    const local_ecs: ECS | null = this.get_ecs();
+            if (local_ecs && pref_velocity && walk_to_point && state && entity_target_action) {
+                const entity_target_action_type = entity_target_action.type();
+
+
+                if (entity_target_action_type == TARGET_ACTION.ATTACK || entity_target_action_type == TARGET_ACTION.SKILL_ENTITY) {
                     const target_entity: Entity = entity_target_action.entity();
 
                     const target_state: StateComponent | null = this.get_component<StateComponent>(target_entity);
 
-                    if (local_ecs && target_state) {
+                    if (target_state) {
                         const target_state_value = target_state.state();
                         if (target_state_value == STATE.DEAD) {
                             // target is dead
@@ -77,13 +84,21 @@ export class WalkToPointSwitchSystem extends System {
                             pref_velocity.set(0.0, 0.0);
                         } else {
                             const prev_state_value = state.state();
-                            const attack_status = try_start_attack(local_ecs, entity, target_entity);
-                            if (attack_status == START_CAST_STATUS.OK) {
+                            let status = START_CAST_STATUS.FAIL;
+                            if (entity_target_action_type == TARGET_ACTION.ATTACK) {
+                                status = try_start_attack(local_ecs, entity, target_entity);
+                            } else if (entity_target_action_type == TARGET_ACTION.SKILL_ENTITY) {
+                                status = try_start_skill(local_ecs, entity, target_entity, 0.0, 0.0, TARGET_ACTION.SKILL_ENTITY, entity_target_action.skill());
+                            }
+                            
+                            if (status == START_CAST_STATUS.OK) {
                                 pref_velocity.set(0.0, 0.0);
-                                clear_state_components(local_ecs, prev_state_value, entity);
+                                if (entity_target_action_type == TARGET_ACTION.ATTACK) {
+                                    clear_state_components(local_ecs, prev_state_value, entity);
+                                }
                             } else {
-                                // there are several reasons to fial the cast start
-                                if(attack_status == START_CAST_STATUS.FAIL_COOLDAWN) {
+                                // there are several reasons to fail the cast start
+                                if (status == START_CAST_STATUS.FAIL_COOLDAWN) {
                                     // distance is ok, but the cast is not ready
                                     // wait at place, reset the velocity
                                     pref_velocity.set(0.0, 0.0);
@@ -94,6 +109,16 @@ export class WalkToPointSwitchSystem extends System {
                                     // nothing to do special
                                 }
                             }
+                        }
+                    }
+                } else if (entity_target_action_type == TARGET_ACTION.SKILL_POSITION) {
+                    const status = try_start_skill(local_ecs, entity, 0, entity_target_action.position_x(), entity_target_action.position_y(), TARGET_ACTION.SKILL_POSITION, entity_target_action.skill());
+                    // similary clear states
+                    if (status == START_CAST_STATUS.OK) {
+                        pref_velocity.set(0.0, 0.0);
+                    } else {
+                        if (status == START_CAST_STATUS.FAIL_COOLDAWN) {
+                            pref_velocity.set(0.0, 0.0);
                         }
                     }
                 } else if (!walk_to_point.active() || walk_to_point.target_point_index() >= walk_to_point.path_points_count()) {
@@ -160,10 +185,10 @@ function allign_to_target(ecs: ECS, entity: Entity, target_entity: Entity, posit
 
 export class CastSwitchSystem extends System {
     private m_navmesh: Navmesh;  // used to call attack after cast is finish
-    private m_tracking_system: NeighborhoodQuadGridTrackingSystem;
+    private m_tracking_system: MidQuadGridTrackingSystem;
     private m_bullet_max_distance: f32;
 
-    constructor(in_tracking_system: NeighborhoodQuadGridTrackingSystem, in_navmesh: Navmesh, in_bullet_max_distance: f32) {
+    constructor(in_tracking_system: MidQuadGridTrackingSystem, in_navmesh: Navmesh, in_bullet_max_distance: f32) {
         super();
 
         this.m_navmesh = in_navmesh;
@@ -289,6 +314,20 @@ export class CastSwitchSystem extends System {
                         apply_shadow_attack(local_ecs, entity);
 
                         // turn to iddle state
+                        clear_state_components(local_ecs, STATE.CASTING, entity);
+                        state.set_state(STATE.IDDLE);
+                    } else if (cast_type == CAST_ACTION.SKILL_ROUND_ATTACK) {
+                        external_entity_finish_skill(entity, SKILL.ROUND_ATTACK, false);
+
+                        apply_skill_round_attack(local_ecs, entity, tracking_system);
+
+                        clear_state_components(local_ecs, STATE.CASTING, entity);
+                        state.set_state(STATE.IDDLE);
+                    } else if (cast_type == CAST_ACTION.SKILL_STUN_CONE) {
+                        external_entity_finish_skill(entity, SKILL.STUN_CONE, false);
+
+                        apply_skill_stun_cone(local_ecs, entity, tracking_system);
+
                         clear_state_components(local_ecs, STATE.CASTING, entity);
                         state.set_state(STATE.IDDLE);
                     } else {

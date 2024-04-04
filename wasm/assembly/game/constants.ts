@@ -42,12 +42,22 @@ export enum COOLDAWN {
     RANGE_ATTACK,
     HIDE_ACTIVATION,
     SHADOW_ATTACK,
+    SKILL_ROUND_ATTACK,
+    SKILL_STUN_CONE,
+}
+
+export enum SKILL {
+    NONE,
+    ROUND_ATTACK,
+    STUN_CONE,
 }
 
 // this enum used to define the action at the end of user click
 export enum TARGET_ACTION {
     NONE,
-    ATTACK,
+    ATTACK,  // use common attack
+    SKILL_ENTITY,  // apply skill to traget entity
+    SKILL_POSITION,  // apply skill to position
 }
 
 // what type of the target point
@@ -63,7 +73,9 @@ export enum CAST_ACTION {
     MELEE_ATTACK,
     RANGE_ATTACK,
     HIDE_ACTIVATION,
-    SHADOW_ATTACK
+    SHADOW_ATTACK,
+    SKILL_ROUND_ATTACK,
+    SKILL_STUN_CONE,
 }
 
 export enum DAMAGE_TYPE {
@@ -71,6 +83,7 @@ export enum DAMAGE_TYPE {
     MELEE,
     RANGE,
     ULTIMATE,  // infinite value without any protection
+    SKILL,
 }
 
 export enum START_CAST_STATUS {

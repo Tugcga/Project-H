@@ -13,7 +13,7 @@ import { LifeComponent } from "../components/life";
 import { ShieldComponent } from "../components/shield";
 import { StateComponent } from "../components/state";
 
-import { external_define_entity_changes,
+import { external_define_person_changes,
          external_define_bullet_changes,
          external_define_total_update_entities } from "../../external";
 
@@ -68,7 +68,7 @@ export class UpdateToClientSystem extends System {
                                 const state: StateComponent | null = this.get_component<StateComponent>(entity);
 
                                 if (move && position && angle && life && shield && state) {
-                                    external_define_entity_changes(entity, position.x(), position.y(), angle.value(), move.status(),
+                                    external_define_person_changes(entity, position.x(), position.y(), angle.value(), move.status(),
                                                                    life.life(), life.max_life(),
                                                                    shield.shield(), shield.max_shield(),
                                                                    state.state() == STATE.DEAD);

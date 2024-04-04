@@ -1,8 +1,8 @@
-import { __Internref24, instantiate } from "../wasm/build/game_api";
+import { __Internref27, instantiate } from "../wasm/build/game_api";
 import { SceneMap } from "./scene/scene_map";
 import { Scene } from "./scene/scene";
 import { Transform } from "./transform";
-import { ACTOR, COOLDAWN, DAMAGE_TYPE, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, REMOVE_REASON, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
+import { ACTOR, COOLDAWN, DAMAGE_TYPE, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, REMOVE_REASON, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, SKILL, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
 import { cursor_coordinates, touch_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
 
@@ -10,7 +10,7 @@ import { GameUI } from "./ui/ui";
 // it implement functionality for connecting between wasm module (the server) and client IO
 // particular graphic backend should use this base class
 export abstract class ClientBase {
-    m_game_ptr: __Internref24;
+    m_game_ptr: __Internref27;
     m_scene_canvas: HTMLCanvasElement;
     m_scene_ctx: CanvasRenderingContext2D;
 
@@ -28,6 +28,9 @@ export abstract class ClientBase {
     m_current_time: number;
     m_module: any = undefined;
     m_is_start: boolean = false;
+
+    m_is_wait_click: boolean = false;
+    m_activated_skill: SKILL = SKILL.NONE;
 
     m_map: SceneMap;
     m_wtc_tfm: Transform = new Transform();
@@ -84,6 +87,7 @@ export abstract class ClientBase {
     abstract scene_entity_finish_hand_attack(entity: number): void;
     abstract scene_entity_start_shadow_attack(entity: number, time: number, damage_distance: number): void;
     abstract scene_entity_finish_shadow_attack(entity: number): void;
+    abstract scene_entity_finish_skill(entity: number, skill: SKILL): void;
     abstract scene_entity_start_cooldawn(entity: number, cooldawn_id: COOLDAWN, time: number): void;
     abstract scene_click_entity(entity: number, action_id: TARGET_ACTION): void;
     abstract scene_click_position(pos_x: number, pos_y: number): void;
@@ -93,10 +97,13 @@ export abstract class ClientBase {
     abstract scene_entity_finish_stun(entity: number): void;
     abstract scene_entity_start_hide_activation(entity: number, activation_time: number): void;
     abstract scene_entity_finish_hide_activation(entity: number, interrupt: boolean): void;
+    abstract scene_entity_start_skill_round_attack(entity: number, cast_time: number, area_size: number): void;
+    abstract scene_entity_start_skill_stun_cone(entity: number, cast_time: number, cone_spread: number, cone_size: number): void;
     abstract scene_entity_switch_hide(entity: number, is_hide: boolean): void;
     abstract scene_player_activate_hide(): void;
     abstract scene_player_deactivate_hide(): void;
     abstract scene_entity_resurrect(entity: number, life: number, max_life: number): void;
+    abstract scene_command_skill_result(is_start: boolean, is_entity_target: boolean, entity: number, position_x: number, position_y: number, skill: number): void;
     // debug callbacks
     // if debug is off, then these callbacks are not required
     // it never called from the module
@@ -104,6 +111,8 @@ export abstract class ClientBase {
     abstract debug_close_entity_pair(entity_a: number, a_pos_x: number, a_pos_y: number, entity_b: number, b_pos_x: number, b_pos_y: number): void;
     abstract debug_player_visible_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
     abstract debug_player_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
+    abstract debug_player_search_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
+    abstract debug_player_mid_quad(start_x: number, start_y: number, end_x: number, end_y: number): void;
     abstract debug_enemies_search(id: number, search_radius: number, enemy_ids: Int32Array): void;
     abstract debug_define_draw_flag(output_debug: boolean): void;
     abstract debug_toggle_draw_flag(): void;
@@ -120,7 +129,7 @@ export abstract class ClientBase {
             update_entity_params: this.update_entity_params.bind(this),
             create_monster: this.create_monster.bind(this),
             create_bullet: this.create_bullet.bind(this),
-            define_entity_changes: this.define_entity_changes.bind(this),
+            define_person_changes: this.define_person_changes.bind(this),
             define_bullet_changes: this.define_bullet_changes.bind(this),
             remove_entity: this.remove_entity.bind(this),
             define_total_update_entities: this.define_total_update_entities.bind(this),
@@ -136,6 +145,7 @@ export abstract class ClientBase {
             entity_finish_hand_attack: this.entity_finish_hand_attack.bind(this),
             entity_start_shadow_attack: this.entity_start_shadow_attack.bind(this),
             entity_finish_shadow_attack: this.entity_finish_shadow_attack.bind(this),
+            entity_finish_skill: this.entity_finish_skill.bind(this),
             entity_start_cooldawn: this.entity_start_cooldawn.bind(this),
             entity_start_stun: this.entity_start_stun.bind(this),
             entity_finish_stun: this.entity_finish_stun.bind(this),
@@ -146,11 +156,16 @@ export abstract class ClientBase {
             entity_switch_hide: this.entity_switch_hide.bind(this),
             entity_start_hide: this.entity_start_hide.bind(this),
             entity_finish_hide: this.entity_finish_hide.bind(this),
+            entity_start_skill_round_attack: this.entity_start_skill_round_attack.bind(this),
+            entity_start_skill_stun_cone: this.entity_start_skill_stun_cone.bind(this),
             entity_resurrect: this.entity_resurrect.bind(this),
+            command_skill_result: this.command_skill_result.bind(this),
             debug_entity_walk_path: this.debug_entity_walk_path.bind(this),
             debug_close_entity: this.debug_close_entity.bind(this),
             debug_visible_quad: this.debug_visible_quad.bind(this),
             debug_neighbourhood_quad: this.debug_neighbourhood_quad.bind(this),
+            debug_search_quad: this.debug_search_quad.bind(this),
+            debug_mid_quad: this.debug_mid_quad.bind(this),
             debug_enemies_list: this.debug_enemies_list.bind(this)
         };
 
@@ -245,8 +260,6 @@ export abstract class ClientBase {
                 // controllable seed ↓ for test
                 module.settings_set_seed(settings_ptr, 12);
                 module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
-                module.settings_set_visible_quad_size(settings_ptr, 4.0);  // visibility radius for the player
-                module.settings_set_neighbourhood_quad_size(settings_ptr, 2.0);  // tweak this for greater radius for search close entities
                 module.settings_set_generate(settings_ptr,
                     22,  // level size
                     2, 4,  // min and max room size
@@ -261,7 +274,14 @@ export abstract class ClientBase {
                 const use_debug = true;
                 module.settings_set_use_debug(settings_ptr, use_debug);
                 this.debug_define_draw_flag(use_debug);  // for the client
-                module.settings_set_debug_flags(settings_ptr, true, true, true, true, true);
+                module.settings_set_debug_flags(settings_ptr, 
+                    true,  // show path
+                    false,  // show lines to the closest entities
+                    true,  // show visible rect
+                    false,  // show neighbourhood rect
+                    false,  // show search rect
+                    false,  // show mid rect
+                    true);  // show lines to monster enemies
                 // setup engine settings
                 module.settings_set_snap_to_navmesh(settings_ptr, true);
                 module.settings_set_use_rvo(settings_ptr, true);
@@ -270,6 +290,10 @@ export abstract class ClientBase {
                 module.settings_set_level_tile_size(settings_ptr, 1.5);  // size of one tile in the map
                 module.settings_set_tiles_visible_radius(settings_ptr, 12);  // how many map tiles are visible around the player
                 module.settings_set_search_system_chunk_count(settings_ptr, 5);
+                module.settings_set_visible_quad_size(settings_ptr, 18.0);  // visibility radius for the player
+                module.settings_set_neighbourhood_quad_size(settings_ptr, 1.0);  // tweak this for greater radius for search close entities
+                module.settings_set_search_quad_size(settings_ptr, 5.2);  // used for search enemies, should be greater than monster search radius
+                module.settings_set_mid_quad_size(settings_ptr, 4.0);  // used for attack, should be greater than weapon (and skills) damage radius
                 // setup game items default parameters
                 module.settings_set_player(settings_ptr, 0.5,  // radius
                     5.0,  // speed
@@ -400,6 +424,37 @@ export abstract class ClientBase {
         }
     }
 
+    click_event(canvas_x: number, canvas_y: number, world_x: number, world_y: number, is_force: boolean) {
+        const is_send = this.m_scene.input_click(canvas_x, canvas_y, world_x, world_y, is_force);
+        if (is_send) {
+            if (this.m_is_wait_click && this.m_activated_skill != SKILL.NONE) {
+                const click_result = this.m_module.game_skill_target(this.m_game_ptr, world_x, world_y, this.m_activated_skill);
+
+                this.m_is_wait_click = false;
+                this.m_activated_skill = SKILL.NONE;
+            } else {
+                this.m_module.game_client_point(this.m_game_ptr, world_x, world_y);
+            }
+        }
+    }
+
+    activate_target_skill(skill: SKILL) {
+        this.m_is_wait_click = true;
+        this.m_activated_skill = SKILL.STUN_CONE;
+
+        // check may be the enemy already selected
+        // then command to use the skill
+        const cursor = this.m_scene.get_click_cursor();
+        const select_person = cursor.get_entity_select();
+        if (select_person) {
+            const position = select_person.get_translation();
+            this.m_module.game_skill_target(this.m_game_ptr, position[0], position[1], skill);
+
+            this.m_is_wait_click = false;
+            this.m_activated_skill = SKILL.NONE;
+        }
+    }
+
     touch_start_event(event: TouchEvent) {
         if (this.m_is_start && this.m_is_game_active) {
             if (event.touches.length == 2) {
@@ -417,10 +472,7 @@ export abstract class ClientBase {
                         this.m_module.game_client_shift(this.m_game_ptr, c_world[0], c_world[1]);
                     } else {
                         // this is single touch
-                        const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
-                        if (is_send) {
-                            this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
-                        }
+                        this.click_event(c[0], c[1], c_world[0], c_world[1], true);
                     }
 
                     this.m_last_touch_time = touch_time;
@@ -450,10 +502,7 @@ export abstract class ClientBase {
     
                 const c = cursor_coordinates(this.m_scene_canvas, event);
                 const c_world = this.point_to_world(c[0], c[1]);
-                const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], true);
-                if (is_send) {
-                    this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
-                }
+                this.click_event(c[0], c[1], c_world[0], c_world[1], true);
             }
             if (is_right_click) {
                 this.m_is_right_mouse_press = true;
@@ -479,6 +528,10 @@ export abstract class ClientBase {
     }
 
     key_event(key: string) {
+        // reset skill wait machine
+        this.m_is_wait_click = false;
+        this.m_activated_skill = SKILL.NONE;
+
         if(this.m_is_start) {
             if(key == "Escape") {
                 // pause the game
@@ -532,6 +585,12 @@ export abstract class ClientBase {
                                                          Math.PI / 2.0,  // search spread
                                                          -2,  // team
                                                          true);  // friend for player
+                } else if (key == "q") {
+                    this.m_module.game_skill_nontarget(this.m_game_ptr, SKILL.ROUND_ATTACK);
+                } else if (key == "w") {
+                    // this will be target skill
+                    // we should activate the wait mechanism and release it after any click
+                    this.activate_target_skill(SKILL.STUN_CONE);
                 } else if (key == "r") {
                     this.m_module.dev_game_resurrect_player(this.m_game_ptr);
                 } else if(key == "a") {
@@ -577,10 +636,7 @@ export abstract class ClientBase {
             if(this.m_is_left_mouse_press && this.m_mouse_event && this.m_scene_canvas) {
                 const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
                 const c_world = this.point_to_world(c[0], c[1]);
-                const is_send = this.m_scene.input_click(c[0], c[1], c_world[0], c_world[1], false);
-                if (is_send) {
-                    this.m_module.game_client_point(this.m_game_ptr, c_world[0], c_world[1]);
-                }
+                this.click_event(c[0], c[1], c_world[0], c_world[1], false);
             }
 
             // read the current time
@@ -589,6 +645,7 @@ export abstract class ClientBase {
             const dt = (time - this.m_current_time) / 1000.0;
             // write the current time
             this.m_current_time = time;
+            this.m_total_level_entities = 0;
     
             // update the game
             if(this.m_module) {
@@ -679,11 +736,12 @@ export abstract class ClientBase {
         this.scene_update_entity_params(id, is_dead, life, max_life, select_radius, attack_distance, attack_time);
     }
 
-    create_monster(entity: number, pos_x: number, pos_y: number, radius: number, search_radius: number, search_spread: number, team: number) {
+    create_monster(entity: number, pos_x: number, pos_y: number, angle: number, radius: number, search_radius: number, search_spread: number, team: number) {
         // create with default parameters
         this.m_scene.create_monster(entity);
 
         // next define specific parameters
+        this.m_scene.set_entity_angle(entity, angle);
         this.m_scene.set_monster_radius(entity, radius);
         this.m_scene.set_entity_position(entity, pos_x, pos_y);
         this.m_scene.set_entity_team(entity, team);
@@ -704,7 +762,7 @@ export abstract class ClientBase {
         this.scene_create_bullet(entity, pos_x, pos_y, target_x, target_y, angle, bullet_type);
     }
 
-    define_entity_changes(entity: number, 
+    define_person_changes(entity: number, 
                           pos_x: number, pos_y: number,
                           angle: number, 
                           move_status: number,
@@ -806,6 +864,11 @@ export abstract class ClientBase {
         this.scene_entity_finish_shadow_attack(entity);
     }
 
+    entity_finish_skill(entity: number, skill: number, interrupt: boolean) {
+        this.m_scene.entity_finish_skill(entity, skill);
+        this.scene_entity_finish_skill(entity, skill);
+    }
+
     entity_start_cooldawn(entity: number, cooldawn_id: number, cooldawn_time: number) {
         this.m_scene.get_cooldawns().start_cooldawn(entity, cooldawn_id, cooldawn_time);
         this.scene_entity_start_cooldawn(entity, cooldawn_id, cooldawn_time);
@@ -869,10 +932,30 @@ export abstract class ClientBase {
         this.scene_entity_finish_hide_activation(entity, interrupt);
     }
 
+    entity_start_skill_round_attack(entity: number, cast_time: number, area_size: number) {
+        this.m_scene.entity_start_skill_round_attack(entity, cast_time, area_size);
+        this.scene_entity_start_skill_round_attack(entity, cast_time, area_size);
+    }
+
+    entity_start_skill_stun_cone(entity: number, cast_time: number, cone_spread: number, cone_size: number) {
+        this.m_scene.entity_start_skill_stun_cone(entity, cast_time, cone_spread, cone_size);
+        this.scene_entity_start_skill_stun_cone(entity, cast_time, cone_spread, cone_size);
+    }
+
     entity_resurrect(entity: number, life: number, max_life: number) {
         this.m_scene.set_entity_alive(entity);
         this.m_scene.set_entity_life(entity, life, max_life);
         this.scene_entity_resurrect(entity, life, max_life);
+    }
+
+    // call when client click to use the skill and game answer what should be selected
+    command_skill_result(is_start: boolean, is_entity_target: boolean, entity: number, position_x: number, position_y: number, skill: number) {
+        // for simplicity select target entity
+        if (is_start && is_entity_target) {
+            this.m_scene.get_click_cursor().activate_by_enemy_select(entity);
+        }
+
+        this.scene_command_skill_result(is_start, is_entity_target, entity, position_x, position_y, skill);
     }
 
     debug_entity_walk_path(entity: number, points: ArrayLike<number>) {
@@ -893,6 +976,14 @@ export abstract class ClientBase {
 
     debug_neighbourhood_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
         this.debug_player_neighbourhood_quad(start_x, start_y, end_x, end_y);
+    }
+
+    debug_search_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        this.debug_player_search_quad(start_x, start_y, end_x, end_y);
+    }
+
+    debug_mid_quad(start_x: number, start_y: number, end_x: number, end_y: number): void {
+        this.debug_player_mid_quad(start_x, start_y, end_x, end_y);
     }
 
     debug_enemies_list(entity: number, search_radius: number, enemy_ids: ArrayLike<number>) {

@@ -8,7 +8,11 @@ import { PositionComponent } from "../components/position";
 import { ActorTypeComponent } from "../components/actor_type";
 import { VisibleQuadGridNeighborhoodComponent } from "../components/visible_quad_grid_neighborhood";
 import { NeighborhoodQuadGridIndexComponent } from "../components/neighborhood_quad_grid_index";
+import { SearchQuadGridIndexComponent } from "../components/search_quad_grid_index";
+import { MidQuadGridIndexComponent } from "../components/mid_quad_grid_index";
 import { NeighborhoodQuadGridTrackingSystem } from "./neighborhood_quad_grid_tracking";
+import { SearchQuadGridTrackingSystem } from "./search_quad_grid_tracking";
+import { MidQuadGridTrackingSystem } from "./mid_quad_grid_tracking";
 import { VisibleQuadGridTrackingSystem } from "./visible_quad_grid_tracking";
 import { EnemiesListComponent } from "../components/enemies_list";
 import { RadiusSearchComponent } from "../components/radius";
@@ -18,6 +22,8 @@ import { external_debug_entity_walk_path,
          external_debug_close_entity,
          external_debug_visible_quad,
          external_debug_neighborhood_quad,
+         external_debug_search_quad,
+         external_debug_mid_quad,
          external_debug_enemies_list } from "../../external";
 
 export class UpdateDebugSystem extends System {
@@ -28,14 +34,20 @@ export class UpdateDebugSystem extends System {
 
     private m_neighborhood_tracking: NeighborhoodQuadGridTrackingSystem;
     private m_visible_tracking: VisibleQuadGridTrackingSystem;
+    private m_search_tracking: SearchQuadGridTrackingSystem;
+    private m_mid_tracking: MidQuadGridTrackingSystem;
 
     constructor(in_debug: DebugSettings, 
                 in_neighborhood_tracking: NeighborhoodQuadGridTrackingSystem,
-                in_visible_tracking: VisibleQuadGridTrackingSystem) {
+                in_visible_tracking: VisibleQuadGridTrackingSystem,
+                in_search_tracking: SearchQuadGridTrackingSystem,
+                in_mid_tracking: MidQuadGridTrackingSystem) {
         super();
         this.m_debug_settings = in_debug;
         this.m_neighborhood_tracking = in_neighborhood_tracking;
         this.m_visible_tracking = in_visible_tracking;
+        this.m_search_tracking = in_search_tracking;
+        this.m_mid_tracking = in_mid_tracking;
     }
 
     init(in_player_entity: Entity): void {
@@ -57,6 +69,8 @@ export class UpdateDebugSystem extends System {
             const debug_show_closest = debug.show_closest;
             const debug_show_visible_quad = debug.show_visible_quad;
             const debug_show_neighborhood_quad = debug.show_neighborhood_quad;
+            const debug_show_search_quad = debug.show_search_quad;
+            const debug_show_mid_quad = debug.show_mid_quad;
             const debug_show_enemy_targets = debug.show_enemy_targets;
 
             if (visible_neighborhood) {
@@ -160,6 +174,46 @@ export class UpdateDebugSystem extends System {
                                     const end_y = <f32>(y_index + 1) * quad_size;
 
                                     external_debug_neighborhood_quad(start_x, start_y, end_x, end_y);
+                                }
+                            }
+
+                            if (actor_type_value == ACTOR.PLAYER && debug_show_search_quad) {
+                                const search_quad_index: SearchQuadGridIndexComponent | null = this.get_component<SearchQuadGridIndexComponent>(entity);
+                                if (search_quad_index) {
+                                    const quad_index = search_quad_index.value();
+                                    const quad_width_count = search_quad_index.width_count();
+                                    const quad_size = search_quad_index.quad_size();
+
+                                    const y_index = quad_index / quad_width_count;
+                                    const x_index = quad_index - y_index * quad_width_count;
+
+                                    const start_x = <f32>x_index * quad_size;
+                                    const start_y = <f32>y_index * quad_size;
+
+                                    const end_x = <f32>(x_index + 1) * quad_size;
+                                    const end_y = <f32>(y_index + 1) * quad_size;
+
+                                    external_debug_search_quad(start_x, start_y, end_x, end_y);
+                                }
+                            }
+
+                            if (actor_type_value == ACTOR.PLAYER && debug_show_mid_quad) {
+                                const mid_quad_index: MidQuadGridIndexComponent | null = this.get_component<MidQuadGridIndexComponent>(entity);
+                                if (mid_quad_index) {
+                                    const quad_index = mid_quad_index.value();
+                                    const quad_width_count = mid_quad_index.width_count();
+                                    const quad_size = mid_quad_index.quad_size();
+
+                                    const y_index = quad_index / quad_width_count;
+                                    const x_index = quad_index - y_index * quad_width_count;
+
+                                    const start_x = <f32>x_index * quad_size;
+                                    const start_y = <f32>y_index * quad_size;
+
+                                    const end_x = <f32>(x_index + 1) * quad_size;
+                                    const end_y = <f32>(y_index + 1) * quad_size;
+
+                                    external_debug_mid_quad(start_x, start_y, end_x, end_y);
                                 }
                             }
 

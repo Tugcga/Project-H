@@ -1,5 +1,5 @@
 import { ClickCursor } from "./click_cursor";
-import { BULLET_TYPE, COOLDAWN, FIRST_MOUSE_CLICK_DELTA, MOVE_STATUS, OTHER_MOUSE_CLICK_DELTA, TARGET_ACTION } from "../constants";
+import { BULLET_TYPE, COOLDAWN, FIRST_MOUSE_CLICK_DELTA, MOVE_STATUS, OTHER_MOUSE_CLICK_DELTA, SKILL, TARGET_ACTION } from "../constants";
 import { SceneTile } from "./scene_tile";
 import { Player } from "./player";
 import { Monster } from "./monster";
@@ -67,7 +67,7 @@ export class Scene {
     }
 
     input_click_entity(id: number, action: TARGET_ACTION) {
-        if (action == TARGET_ACTION.ATTACK) {
+        if (action != TARGET_ACTION.NONE) {
             this.m_click_cursor.activate_by_enemy_select(id);
         }
     }
@@ -470,6 +470,10 @@ export class Scene {
         this.m_effects.remove_shadow_attack(entity);
     }
 
+    entity_finish_skill(entity: number, skill: SKILL) {
+        this.m_effects.remove_skill(entity, skill);
+    }
+
     entity_start_stun(id: number, duration: number) {
         if (id == this.m_player_id) {
             this.m_click_cursor.deactivate_enemy_select();
@@ -488,6 +492,14 @@ export class Scene {
 
     entity_finish_hide_cast(id: number) {
         this.m_effects.remove_hide_cast(id);
+    }
+
+    entity_start_skill_round_attack(id: number, cast_time: number, area_size: number) {
+        this.m_effects.add_skill_round_attack(id, cast_time, area_size);
+    }
+
+    entity_start_skill_stun_cone(id: number, cast_time: number, cone_spread: number, cone_size: number) {
+        this.m_effects.add_skill_stun_cone(id, cast_time, cone_spread, cone_size);
     }
 
     remove_monster(entity: number) {

@@ -120,6 +120,13 @@ export class ClickCursor extends SceneItem {
         return this.m_time_accum / this.m_life_time;
     }
 
+    get_entity_select(): Person | null {
+        if (this.m_type == CURSOR_TYPE.ENEMY_ENTITY) {
+            return this.m_select_person;
+        }
+        return null;
+    }
+
     deactivate_by_entity_remove(id: number, by_dead: boolean) {
         if (this.m_type == CURSOR_TYPE.ENEMY_ENTITY && this.m_select_person) {
             if (this.m_select_person.get_id() == id) {

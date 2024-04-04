@@ -1,4 +1,4 @@
-import { EFFECT } from "../constants";
+import { EFFECT, SKILL } from "../constants";
 
 export class EffectsCollection {
     // key - entity id
@@ -56,6 +56,14 @@ export class EffectsCollection {
         this.add_effect(entity, new HideActivationEffect(duration));
     }
 
+    add_skill_round_attack(entity: number, duration: number, area_size: number) {
+        this.add_effect(entity, new SkillRoundAttackEffect(duration, area_size));
+    }
+
+    add_skill_stun_cone(entity: number, duration: number, cone_spread: number, cone_size: number) {
+        this.add_effect(entity, new SkillStunConeEffect(duration, cone_spread, cone_size));
+    }
+
     remove_melee_attack(entity: number) {
         this.remove_by_type(entity, EFFECT.MELEE_ATTACK);
     }
@@ -70,6 +78,14 @@ export class EffectsCollection {
 
     remove_shadow_attack(entity: number) {
         this.remove_by_type(entity, EFFECT.SHADOW_ATTACK);
+    }
+
+    remove_skill(entity: number, skill: SKILL) {
+        if (skill == SKILL.ROUND_ATTACK) {
+            this.remove_by_type(entity, EFFECT.SKILL_ROUND_ATTACK);
+        } else if (skill == SKILL.STUN_CONE) {
+            this.remove_by_type(entity, EFFECT.SKILL_STUN_CONE);
+        }
     }
 
     remove_stun(entity: number) {
@@ -205,4 +221,27 @@ export class HideActivationEffect extends EffectBase {
     constructor(duration: number) {
         super(duration, EFFECT.HIDE_ACTIVATION);
     }
+}
+
+export class SkillRoundAttackEffect extends EffectBase {
+    private m_area_size: number;
+    constructor(duration: number, area_size: number) {
+        super(duration, EFFECT.SKILL_ROUND_ATTACK);
+        this.m_area_size = area_size;
+    }
+
+    area_size(): number { return this.m_area_size; }
+}
+
+export class SkillStunConeEffect extends EffectBase {
+    private m_cone_spread: number;
+    private m_cone_size: number;
+    constructor(duration: number, cone_spread: number, cone_size: number) {
+        super(duration, EFFECT.SKILL_STUN_CONE);
+        this.m_cone_spread = cone_spread;
+        this.m_cone_size = cone_size;
+    }
+
+    cone_spread(): number { return this.m_cone_spread; }
+    cone_size(): number { return this.m_cone_size; }
 }

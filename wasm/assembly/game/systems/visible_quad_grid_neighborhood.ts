@@ -81,9 +81,10 @@ export class VisibleQuadGridNeighborhoodSystem extends System {
                             const e_search_radius = this.get_component<RadiusSearchComponent>(e);
                             const e_search_spread = this.get_component<SpreadSearchComponent>(e);
                             const e_team = this.get_component<TeamComponent>(e);
+                            const e_angle = this.get_component<AngleComponent>(e);
 
-                            if (e_actor && e_radius && e_position && e_team && e_search_radius && e_search_spread) {
-                                external_create_monster(e, e_position.x(), e_position.y(), e_radius.value(), e_search_radius.value(), e_search_spread.value(), e_team.team());
+                            if (e_actor && e_radius && e_position && e_team && e_search_radius && e_search_spread && e_angle) {
+                                external_create_monster(e, e_position.x(), e_position.y(), e_angle.value(), e_radius.value(), e_search_radius.value(), e_search_spread.value(), e_team.team());
                             }
 
                             const e_select_radius = this.get_component<RadiusSelectComponent>(e);

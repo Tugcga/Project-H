@@ -15,7 +15,7 @@ export class UIItems {
         }
 
         if(this.m_visible_element) {
-            this.m_visible_element.set_text(visible.toString());
+            this.m_visible_element.set_text((visible + 1).toString());
         }
     }
 }

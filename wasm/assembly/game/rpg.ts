@@ -285,3 +285,32 @@ export function get_weapon_damage_type(ecs: ECS, entity: Entity): WEAPON_DAMAGE_
 
     return WEAPON_DAMAGE_TYPE.UNKNOWN;
 }
+
+export function is_weapon_equiped(ecs: ECS, entity: Entity, weapon_type: WEAPON_TYPE): bool {
+    const entity_equip = ecs.get_component<EquipmentComponent>(entity);
+    if (entity_equip) {
+        if (entity_equip.is_main_weapon()) {
+            const entity_main_weapon = entity_equip.get_main_weapon();
+            // get weapon type
+            const entiy_weapon_type = ecs.get_component<InventarWeaponTypeComponent>(entity_main_weapon);
+            if (entiy_weapon_type) {
+                const weapon_type_value = entiy_weapon_type.type();
+                if (weapon_type_value == weapon_type) {
+                    return true;
+                } else {
+                    // another weapon type
+                    return false;
+                }
+            } else {
+                // component does not exist in the weapon entity, this is wrong
+                return false;
+            }
+        } else {
+            // no main weapon
+            return false;
+        }
+    } else {
+        // no equip
+        return false;
+    }
+}

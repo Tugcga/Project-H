@@ -7,7 +7,9 @@ import { distance, direction_to_angle } from "../utilities";
 
 import { CastMeleeDamageComponent,
          CastShadowDamageComponent,
-         CastRangeDamageComponent } from "../components/cast";
+         CastRangeDamageComponent,
+         CastSkillRoundAttackComponent,
+         CastSkillStunConeComponent } from "../components/cast";
 import { RadiusComponent } from "../components/radius";
 import { PositionComponent } from "../components/position";
 import { ApplyDamageComponent } from "../components/apply_damage";
@@ -21,15 +23,16 @@ import { HostComponent } from "../components/host";
 import { LifeTimerComponent } from "../components/life_timer";
 import { DamageDamageComponent } from "../components/damage";
 
-import { NeighborhoodQuadGridTrackingSystem } from "../systems/neighborhood_quad_grid_tracking";
+import { MidQuadGridTrackingSystem } from "../systems/mid_quad_grid_tracking";
 import { SearchEnemiesSystem } from "../systems/search_enemies"
 
 import { external_entity_switch_hide,
          external_create_bullet } from "../../external";
 import { setup_bullet } from "../ecs_setup";
+import { command_stun } from "../commands";
 
 
-export function apply_melee_attack(ecs: ECS, entity: Entity, cast_duration: f32, tracking_system: NeighborhoodQuadGridTrackingSystem): void {
+export function apply_melee_attack(ecs: ECS, entity: Entity, cast_duration: f32, tracking_system: MidQuadGridTrackingSystem): void {
     const cast_melee: CastMeleeDamageComponent | null = ecs.get_component<CastMeleeDamageComponent>(entity);
     const position = ecs.get_component<PositionComponent>(entity);
     if (cast_melee && position) {
@@ -267,5 +270,113 @@ export function apply_bullet_attack(ecs: ECS, bullet_entity: Entity, target_enti
         } else {
             ecs.add_component<ApplyDamageComponent>(target_entity, new ApplyDamageComponent(host_value, damage_value, DAMAGE_TYPE.RANGE, life_timer_value));
         }
+    }
+}
+
+export function apply_skill_round_attack(ecs: ECS, entity: Entity, tracking_system: MidQuadGridTrackingSystem): void {
+    const cast = ecs.get_component<CastSkillRoundAttackComponent>(entity);
+    
+    if (cast) {
+        const position = ecs.get_component<PositionComponent>(entity);
+        const state = ecs.get_component<StateComponent>(entity);
+        if (position && state) {
+            if (state.state() != STATE.DEAD) {
+                const cast_area_size = cast.area();
+                const cast_damage = cast.damage();
+
+                const position_x = position.x();
+                const position_y = position.y();
+                // get all entities in the neighborhood
+                const closed_entities = tracking_system.get_items_from_position(position_x, position_y);
+                for (let i = 0, len = closed_entities.length; i < len; i++) {
+                    const target_entity = closed_entities[i];
+
+                    const target_position = ecs.get_component<PositionComponent>(target_entity);
+                    const target_state = ecs.get_component<StateComponent>(target_entity);
+                    const target_radius = ecs.get_component<RadiusComponent>(target_entity);
+                    if (target_position && target_state && target_radius) {
+                        const target_state_value = target_state.state();
+                        const target_radius_value = target_radius.value();
+                        const target_pos_x = target_position.x();
+                        const target_pos_y = target_position.y();
+
+                        const d = distance(position_x, position_y, target_pos_x, target_pos_y);
+                        if (d <= cast_area_size + target_radius_value && target_state_value != STATE.DEAD && target_state_value != STATE.SHIFTING) {
+                            const target_apply_damage = ecs.get_component<ApplyDamageComponent>(target_entity);
+                            if (target_apply_damage) {
+                                target_apply_damage.extend(entity, cast_damage, DAMAGE_TYPE.SKILL, 0.0);
+                            } else {
+                                ecs.add_component<ApplyDamageComponent>(target_entity, new ApplyDamageComponent(entity, cast_damage, DAMAGE_TYPE.SKILL, 0.0));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ecs.remove_component<CastSkillRoundAttackComponent>(entity);
+    }
+}
+
+export function apply_skill_stun_cone(ecs: ECS, entity: Entity, tracking_system: MidQuadGridTrackingSystem): void {
+    const cast = ecs.get_component<CastSkillStunConeComponent>(entity);
+    if (cast) {
+        const position = ecs.get_component<PositionComponent>(entity);
+        const state = ecs.get_component<StateComponent>(entity);
+        const angle = ecs.get_component<AngleComponent>(entity);
+        if (position && state && angle) {
+            const state_value = state.state();
+            const position_x = position.x();
+            const position_y = position.y();
+            const angle_value = angle.value();
+            const angle_x = Mathf.cos(angle_value);
+            const angle_y = Mathf.sin(angle_value);
+
+            const cast_cone_spread = Mathf.cos(cast.cone_spread() / 2.0);
+            const cast_cone_size = cast.cone_size();
+            const cast_damage = cast.damage();
+            const cast_stun_time = cast.stun_time();
+
+            const closed_entities = tracking_system.get_items_from_position(position_x, position_y);
+            for (let i = 0, len = closed_entities.length; i < len; i++) {
+                const target_entity = closed_entities[i];
+
+                const target_position = ecs.get_component<PositionComponent>(target_entity);
+                const target_state = ecs.get_component<StateComponent>(target_entity);
+                const target_radius = ecs.get_component<RadiusComponent>(target_entity);
+                if (target_position && target_state && target_radius) {
+                    const target_state_value = target_state.state();
+                    if (target_state_value != STATE.DEAD && target_state_value != STATE.SHIFTING) {
+                        const target_pos_x = target_position.x();
+                        const target_pos_y = target_position.y();
+                        const target_radius_value = target_radius.value();
+
+                        let to_x = target_pos_x - position_x;
+                        let to_y = target_pos_y - position_y;
+                        const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+                        if (to_length > EPSILON) {
+                            to_x /= to_length;
+                            to_y /= to_length;
+                        }
+
+                        const to_entity_dot = to_x * angle_x + to_y * angle_y;
+
+                        if (to_entity_dot >= cast_cone_spread && (to_length <= cast_cone_size + target_radius_value)) {
+                            const target_entity_damage = ecs.get_component<ApplyDamageComponent>(target_entity);
+                            if (target_entity_damage) {
+                                target_entity_damage.extend(entity, cast_damage, DAMAGE_TYPE.SKILL, 0.0);
+                            } else {
+                                ecs.add_component<ApplyDamageComponent>(target_entity, new ApplyDamageComponent(entity, cast_damage, DAMAGE_TYPE.SKILL, 0.0));
+                            }
+
+                            // set entity stun
+                            command_stun(ecs, target_entity, cast_stun_time);
+                        }
+                    }
+                }
+            }
+        }
+
+        ecs.remove_component<CastSkillStunConeComponent>(entity);
     }
 }

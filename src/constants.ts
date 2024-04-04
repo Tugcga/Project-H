@@ -23,6 +23,8 @@ export enum EFFECT {
     STUN,
     HIDE_ACTIVATION,
     SHADOW_ATTACK,
+    SKILL_ROUND_ATTACK,
+    SKILL_STUN_CONE,
 }
 
 // the same as in wasm-side
@@ -54,6 +56,8 @@ export enum MOVE_STATUS {
 export enum TARGET_ACTION {
     NONE,
     ATTACK,
+    SKILL_ENTITY,
+    SKILL_POSITION,
 }
 
 export enum COOLDAWN {
@@ -63,6 +67,8 @@ export enum COOLDAWN {
     RANGE_ATTACK,
     HIDE_ACTIVATION,
     SHADOW_ATTACK,
+    SKILL_ROUND_ATTACK,
+    SKILL_STUN_CONE,
 }
 
 export enum DAMAGE_TYPE {
@@ -70,4 +76,10 @@ export enum DAMAGE_TYPE {
     MELEE,
     RANGE,
     ULTIMATE,
+}
+
+export enum SKILL {
+    NONE,
+    ROUND_ATTACK,
+    STUN_CONE,
 }

@@ -88,6 +88,21 @@ export function direction_to_angle(vec_x: f32, vec_y: f32): f32 {
     }
 }
 
+// convert two point to angle from the first to the second
+export function points_to_angle(start_x: f32, start_y: f32, end_x: f32, end_y: f32): f32 {
+    let to_x = end_x - start_x;
+    let to_y = end_y - start_y;
+    const length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+    if (length < EPSILON) {
+        return 0.0;
+    } else {
+        to_x /= length;
+        to_y /= length;
+    }
+
+    return direction_to_angle(to_x, to_y);
+}
+
 // return true if the input list contains value
 export function is_element_new(array: List<u32>, value: u32): bool {
     for (let i = 0, len = array.length; i < len; i++) {

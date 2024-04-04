@@ -19,6 +19,24 @@ import { SearchQuadGridTrackingSystem } from "./search_quad_grid_tracking";
 
 import { command_entity_unhide } from "../commands";
 
+// spread limit is a half of the angle of the cone
+function is_inside_cone(center_x: f32, center_y: f32, direction_x: f32, direction_y: f32, spread_limit: f32, pos_x: f32, pos_y: f32): bool {
+    let to_x = pos_x - center_x;
+    let to_y = pos_y - center_y;
+    const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
+    if (to_length > EPSILON) {
+        to_x /= to_length;
+        to_y /= to_length;
+    }
+
+    const directions_dot = to_x * direction_x + to_y * direction_y;
+    if (directions_dot < spread_limit) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 // in this system we only add entities to the enemies list
 // actual remove apply in behaviour system, when select a target and this target is dead or friend
 export class SearchEnemiesSystem extends System {
@@ -100,6 +118,11 @@ export class SearchEnemiesSystem extends System {
                                             const boundary_intersect = local_navmesh.intersect_boundary(pos_x, pos_y, target_pos_x, target_pos_y);
                                             if (boundary_intersect >= 0.9999) {
                                                 // no intersections with walls
+                                                const is_visible = is_inside_cone(pos_x, pos_y, active_direction_x, active_direction_y, active_spread_limit, target_pos_x, target_pos_y);
+                                                if (is_visible) {
+                                                    command_entity_unhide(local_ecs, target_entity);
+                                                }
+
                                                 if (active_team.is_friend(target_team_value)) {
                                                     // target is a friend of the active
                                                     // share with them ids from enemies list
@@ -110,31 +133,15 @@ export class SearchEnemiesSystem extends System {
                                                     }
                                                 }
                                                 else {
-                                                    // emeny inside search radius and in direct visibility
+                                                    // enemy inside search radius and in direct visibility
                                                     // check is it in hide mode
                                                     const hide_mode: HideModeComponent | null = this.get_component<HideModeComponent>(target_entity);
                                                     let add_enemy = true;
                                                     if (hide_mode) {
                                                         const is_hide = hide_mode.is_active();
                                                         if (is_hide) {
-                                                            // target in the hide move
-                                                            // calculate direction to the target
-                                                            let to_x = target_pos_x - pos_x;
-                                                            let to_y = target_pos_y - pos_y;
-                                                            const to_length = Mathf.sqrt(to_x * to_x + to_y * to_y);
-                                                            if (to_length > EPSILON) {
-                                                                to_x /= to_length;
-                                                                to_y /= to_length;
-                                                            }
-
-                                                            const directions_dot = to_x * active_direction_x + to_y * active_direction_y;
-                                                            if (directions_dot < active_spread_limit) {
-                                                                // target outside of the visible cone
+                                                            if (!is_visible) {
                                                                 add_enemy = false;
-                                                            } else {
-                                                                // target in hide mode, but active is discover it
-                                                                // disable hide mode in the target
-                                                                command_entity_unhide(local_ecs, target_entity);
                                                             }
                                                         }
                                                     }

@@ -25,13 +25,13 @@ declare function update_entity_params(entity: u32, is_dead: bool, life: u32, max
 declare function remove_entity(entity: u32, actor_type: u32, remove_reason: u32): void;
 
 @external("env", "host.create_monster")
-declare function create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, search_radius: f32, search_spread: f32, team: i32): void;
+declare function create_monster(entity: u32, pos_x: f32, pos_y: f32, angle: f32, radius: f32, search_radius: f32, search_spread: f32, team: i32): void;
 
 @external("env", "host.create_bullet")
 declare function create_bullet(entity: u32, pos_x: f32, pos_y: f32, target_x: f32, target_y: f32, angle: f32, bullet_type: u32): void;
 
-@external("env", "host.define_entity_changes")
-declare function define_entity_changes(entity: u32, pos_x: f32, pos_y: f32,
+@external("env", "host.define_person_changes")
+declare function define_person_changes(entity: u32, pos_x: f32, pos_y: f32,
                                        angle: f32,
                                        move_status: u32,
                                        life: u32, max_life: u32,
@@ -80,6 +80,9 @@ declare function entity_start_shadow_attack(entity: u32, time: f32, damage_dista
 @external("env", "host.entity_finish_shadow_attack")
 declare function entity_finish_shadow_attack(entity: u32, interrupt: bool): void;
 
+@external("env", "host.entity_finish_skill")
+declare function entity_finish_skill(entity: u32, skill: u32, interrupt: bool): void;
+
 @external("env", "host.entity_start_cooldawn")
 declare function entity_start_cooldawn(entity: u32, cooldawn_id: u32, cooldawn_time: f32): void;
 
@@ -107,6 +110,12 @@ declare function entity_start_hide(entity: u32, activation_time: f32): void;
 @external("env", "host.entity_finish_hide")
 declare function entity_finish_hide(entity: u32, interrupt: bool): void;
 
+@external("env", "host.entity_start_skill_round_attack")
+declare function entity_start_skill_round_attack(entity: u32, cast_time: f32, area_size: f32): void;
+
+@external("env", "host.entity_start_skill_stun_cone")
+declare function entity_start_skill_stun_cone(entity: u32, cast_time: f32, cone_spread: f32, cone_size: f32): void;
+
 @external("env", "host.entity_switch_hide")
 declare function entity_switch_hide(entity: u32, hide_active: bool): void;
 
@@ -124,6 +133,12 @@ declare function debug_visible_quad(start_x: f32, start_y: f32, end_x: f32, end_
 
 @external("env", "host.debug_neighbourhood_quad")
 declare function debug_neighbourhood_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void;
+
+@external("env", "host.debug_search_quad")
+declare function debug_search_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void;
+
+@external("env", "host.debug_mid_quad")
+declare function debug_mid_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void;
 
 @external("env", "host.debug_enemies_list")
 declare function debug_enemies_list(entity: u32, search_radius: f32, enemies: StaticArray<u32>): void;
@@ -199,13 +214,14 @@ export function external_remove_entity(entity: u32, actor_type: u32, remove_reas
     }
 }
 
-export function external_create_monster(entity: u32, pos_x: f32, pos_y: f32, radius: f32, search_radius: f32, search_spread: f32, team: i32): void {
+export function external_create_monster(entity: u32, pos_x: f32, pos_y: f32, angle: f32, radius: f32, search_radius: f32, search_spread: f32, team: i32): void {
     if(use_external) {
-        create_monster(entity, pos_x, pos_y, radius, search_radius, search_spread, team);
+        create_monster(entity, pos_x, pos_y, angle, radius, search_radius, search_spread, team);
     } else {
         console.log("ext -> create_monster: id " + entity.toString() + 
                     " position (" + pos_x.toString() + ", " + pos_y.toString() + 
-                    ") radius " + radius.toString() + 
+                    ") angle " + angle.toString() +
+                    " radius " + radius.toString() + 
                     " search " + search_radius.toString() + ":" + search_spread.toString() + 
                     " team " + team.toString());
     }
@@ -223,7 +239,7 @@ export function external_create_bullet(entity: u32, pos_x: f32, pos_y: f32, targ
     }
 }
 
-export function external_define_entity_changes(entity: u32, 
+export function external_define_person_changes(entity: u32, 
                                                pos_x: f32, pos_y: f32, 
                                                angle: f32, 
                                                move_status: u32,
@@ -231,9 +247,9 @@ export function external_define_entity_changes(entity: u32,
                                                shield: f32, max_shield: f32,
                                                is_dead: bool): void {
     if(use_external) {
-        define_entity_changes(entity, pos_x, pos_y, angle, move_status, life, max_life, shield, max_shield, is_dead);
+        define_person_changes(entity, pos_x, pos_y, angle, move_status, life, max_life, shield, max_shield, is_dead);
     } else {
-        console.log("ext -> define_entity_changes: id " + entity.toString() + 
+        console.log("ext -> define_person_changes: id " + entity.toString() + 
             " position " + pos_x.toString() + " " + pos_y.toString() + 
             " angle " + angle.toString() + 
             " move " + move_status.toString() +
@@ -355,6 +371,14 @@ export function external_entity_finish_shadow_attack(entity: u32, interrupt: boo
     }
 }
 
+export function external_entity_finish_skill(entity: u32, skill: u32, interrupt: bool): void {
+    if (use_external) {
+        entity_finish_skill(entity, skill, interrupt);
+    } else {
+        console.log("ext -> entity_finish_skill: " + entity.toString() + " skill " + skill.toString() + " interrupt " + interrupt.toString());
+    }
+}
+
 export function external_entity_start_cooldawn(entity: u32, cooldawn_id: u32, cooldawn_time: f32): void {
     if(use_external) {
         entity_start_cooldawn(entity, cooldawn_id, cooldawn_time);
@@ -427,6 +451,22 @@ export function external_entity_finish_hide(entity: u32, interrupt: bool): void 
     }
 }
 
+export function external_entity_start_skill_round_attack(entity: u32, cast_time: f32, area_size: f32): void {
+    if (use_external) {
+        entity_start_skill_round_attack(entity, cast_time, area_size);
+    } else {
+        console.log("ext -> entity_start_skill_round_attack: " + entity.toString() + " cast time " + cast_time.toString() + " area " + area_size.toString());
+    }
+}
+
+export function external_entity_start_skill_stun_cone(entity: u32, cast_time: f32, cone_spread: f32, cone_size: f32): void {
+    if (use_external) {
+        entity_start_skill_stun_cone(entity, cast_time, cone_spread, cone_size);
+    } else {
+        console.log("ext -> entity_start_skill_stun_cone: " + entity.toString() + " cast time " + cast_time.toString() + " cone spread " + cone_spread.toString() + " size " + cone_size.toString());
+    }
+}
+
 export function external_entity_switch_hide(entity: u32, hide_active: bool): void {
     if (use_external) {
         entity_switch_hide(entity, hide_active);
@@ -472,6 +512,22 @@ export function external_debug_neighborhood_quad(start_x: f32, start_y: f32, end
         debug_neighbourhood_quad(start_x, start_y, end_x, end_y);
     } else {
         console.log("ext -> debug_neighbourhood_quad: " + "(" + start_x.toString() + ", " + start_y.toString() + ") - (" + end_x.toString() + ", " + end_y.toString() + ")");
+    }
+}
+
+export function external_debug_search_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void {
+    if(use_external) {
+        debug_search_quad(start_x, start_y, end_x, end_y);
+    } else {
+        console.log("ext -> debug_search_quad: " + "(" + start_x.toString() + ", " + start_y.toString() + ") - (" + end_x.toString() + ", " + end_y.toString() + ")");
+    }
+}
+
+export function external_debug_mid_quad(start_x: f32, start_y: f32, end_x: f32, end_y: f32): void {
+    if(use_external) {
+        debug_mid_quad(start_x, start_y, end_x, end_y);
+    } else {
+        console.log("ext -> debug_mid_quad: " + "(" + start_x.toString() + ", " + start_y.toString() + ") - (" + end_x.toString() + ", " + end_y.toString() + ")");
     }
 }
 
