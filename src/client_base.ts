@@ -5,6 +5,7 @@ import { Transform } from "./transform";
 import { ACTOR, COOLDAWN, DAMAGE_TYPE, DEFAULT_HEIGHT, DEFAULT_WIDTH, DOUBLE_TOUCH_CURSOR_DELTA, DOUBLE_TOUCH_DELTA, MOVE_STATUS, REMOVE_REASON, RESIZABLE_HEIGHT_CLASS_NAME, RESIZABLE_WIDTH_CLASS_NAME, SKILL, TARGET_ACTION, TILE_PIXELS_SIZE } from "./constants";
 import { cursor_coordinates, touch_coordinates } from "./utilities";
 import { GameUI } from "./ui/ui";
+import { game_setup, setup_player_inventar } from "./game_setup";
 
 // base class for client of the game
 // it implement functionality for connecting between wasm module (the server) and client IO
@@ -254,73 +255,7 @@ export abstract class ClientBase {
 
                 // create settings object
                 const settings_ptr = module.create_settings();
-                // change default settings
-                // select random seed
-                const seed = Math.floor(Math.random() * 4294967295);
-                // controllable seed ↓ for test
-                module.settings_set_seed(settings_ptr, 12);
-                module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
-                module.settings_set_generate(settings_ptr,
-                    22,  // level size
-                    2, 4,  // min and max room size
-                    10  // the number of rooms
-                );
-                // use these settings ↓ for development
-                // module.settings_set_generate(settings_ptr, 12, 3, 4, 1);
-                // another settings
-                module.settings_set_generate(settings_ptr, 12, 3, 4, 2);
-
-                // activate debug info
-                const use_debug = true;
-                module.settings_set_use_debug(settings_ptr, use_debug);
-                this.debug_define_draw_flag(use_debug);  // for the client
-                module.settings_set_debug_flags(settings_ptr, 
-                    true,  // show path
-                    false,  // show lines to the closest entities
-                    true,  // show visible rect
-                    false,  // show neighbourhood rect
-                    false,  // show search rect
-                    false,  // show mid rect
-                    true);  // show lines to monster enemies
-                // setup engine settings
-                module.settings_set_snap_to_navmesh(settings_ptr, true);
-                module.settings_set_use_rvo(settings_ptr, true);
-                module.settings_set_path_recalculate_time(settings_ptr, 1.0, 0.1);
-                module.settings_set_velocity_boundary_control(settings_ptr, true);
-                module.settings_set_level_tile_size(settings_ptr, 1.5);  // size of one tile in the map
-                module.settings_set_tiles_visible_radius(settings_ptr, 12);  // how many map tiles are visible around the player
-                module.settings_set_search_system_chunk_count(settings_ptr, 5);
-                module.settings_set_visible_quad_size(settings_ptr, 18.0);  // visibility radius for the player
-                module.settings_set_neighbourhood_quad_size(settings_ptr, 1.0);  // tweak this for greater radius for search close entities
-                module.settings_set_search_quad_size(settings_ptr, 5.2);  // used for search enemies, should be greater than monster search radius
-                module.settings_set_mid_quad_size(settings_ptr, 4.0);  // used for attack, should be greater than weapon (and skills) damage radius
-                // setup game items default parameters
-                module.settings_set_player(settings_ptr, 0.5,  // radius
-                    5.0,  // speed
-                    12,  // life
-                    24.0,  // rotation speed
-                    1.0,  // shield resurrect
-                    1,  // team
-                    3.0,  // shift speed multiplier
-                    7.0,  // shift distance
-                    1.0,  // shift cooldawn
-                    0.5,  // hide speed multiplier
-                    1.0,  // hide cooldawn
-                    0.5);  // hide activate time
-                module.settings_set_default_empty_weapon(settings_ptr, 0.5,  // attack time
-                    1.0,  // attack distance
-                    0.75,  // attack cooldawn
-                    1.5,  // damage distance
-                    4,  // damage
-                    5.0);  // shield
-                module.settings_set_monster_iddle_time(settings_ptr, 1000.0, 2000.0);
-                module.settings_set_monsters_per_room(settings_ptr, 0, 0);  // no random monsters
-                module.settings_set_default_monster_person(settings_ptr, 0.5,  // radius
-                    3.0,  // speed
-                    8,  // life
-                    5.0,  // search radius
-                    Math.PI / 2.5,  // search spread
-                    -1);  // team
+                game_setup(this, module, settings_ptr, true);
                 
                 // create the game
                 // this method calls some callbacks:
@@ -332,11 +267,7 @@ export abstract class ClientBase {
                 console.log("generate the level:", (performance.now() - local_this.m_current_time) / 1000.0, "seconds");
                 local_this.m_current_time = performance.now();
 
-                // add weapons to the player inventory
-                module.dev_add_sword_to_player(local_this.m_game_ptr,
-                                               1.0, 0.75, 1.25, 7, 12.0, Math.PI / 2.0, 2.0);
-                module.dev_add_bow_to_player(local_this.m_game_ptr,
-                                             5.5, 0.5, 0.75, 7, 7.0, 12.0);
+                setup_player_inventar(module, local_this);
 
                 // call client start method
                 local_this.start();
@@ -567,13 +498,13 @@ export abstract class ClientBase {
                     const c = cursor_coordinates(this.m_scene_canvas, this.m_mouse_event);
                     const c_world = this.point_to_world(c[0], c[1]);
 
-                    const weapon_ptr = this.m_module.dev_create_virtual_empty_weapon(this.m_game_ptr,
-                        0.75,  // attack distance
-                        0.25,  // attack time
-                        1.3,  // attack cooldawn
-                        4.0,  // shield
-                        2,  // damage
-                        1.5);  // damage distance
+                    const weapon_ptr = this.m_module.dev_create_virtual_bow(this.m_game_ptr,
+                        5.5,  // attack distance
+                        0.5,  // attack time
+                        0.75,  // attack cooldawn
+                        12.0,  // shield
+                        5,  // damage
+                        12.0);  // bullet speed
                     
                     this.m_module.dev_game_spawn_monster(this.m_game_ptr,
                                                          0.4,  // radius
