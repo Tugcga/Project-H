@@ -22,17 +22,20 @@ import { interrupt_to_iddle } from "../states";
 
 export class ApplyDamageSystem extends System {
     private m_melee_stun: f32;  // default value for stun if interrupt melee attack
+    private m_react_attack: bool;
 
-    constructor(in_melee_stun: f32) {
+    constructor(in_melee_stun: f32, in_react_attack: bool) {
         super();
 
         this.m_melee_stun = in_melee_stun;
+        this.m_react_attack = in_react_attack;
     }
 
     update(dt: f32): void {
         const entities = this.entities();
         const local_ecs: ECS | null = this.get_ecs();
         const local_melee_stun = this.m_melee_stun;
+        const local_react_attack = this.m_react_attack;
         if (local_ecs) {
             for (let i = 0, len = entities.length; i < len; i++) {
                 const entity: Entity = entities[i];
@@ -143,7 +146,7 @@ export class ApplyDamageSystem extends System {
                             command_entity_unhide(local_ecs, entity);
 
                             // add atacker to the enemies list for the target
-                            if (damage_type != DAMAGE_TYPE.UNKNOWN) {
+                            if (local_react_attack && damage_type != DAMAGE_TYPE.UNKNOWN) {
                                 const target_enemies_list = local_ecs.get_component<EnemiesListComponent>(entity);
                                 if (target_enemies_list) {
                                     target_enemies_list.add_target(damage_attacker);

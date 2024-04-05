@@ -799,7 +799,7 @@ export function setup_systems(ecs: ECS,
         ecs.set_system_without_component<PostVelocitySystem, DeadComponent>();
     }
 
-    ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem(defaults.default_stun_time));
+    ecs.register_system<ApplyDamageSystem>(new ApplyDamageSystem(defaults.default_stun_time, constants.react_attack));
     ecs.set_system_with_component<ApplyDamageSystem, UpdateToClientComponent>();  // if life or shield is changed, activate update
     ecs.set_system_with_component<ApplyDamageSystem, LifeComponent>();
     ecs.set_system_with_component<ApplyDamageSystem, ShieldComponent>();

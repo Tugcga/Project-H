@@ -30,12 +30,15 @@ export function game_setup(client: ClientBase, module, settings_ptr, use_debug: 
     module.settings_set_debug_flags(settings_ptr, 
         true,  // show path
         false,  // show lines to the closest entities
-        true,  // show visible rect
+        false,  // show visible rect
         false,  // show neighbourhood rect
         false,  // show search rect
         false,  // show mid rect
         true);  // show lines to monster enemies
     // setup engine settings
+    if (use_debug) {
+        module.settings_set_react_attack(settings_ptr, false);
+    }
     module.settings_set_snap_to_navmesh(settings_ptr, true);
     module.settings_set_use_rvo(settings_ptr, true);
     module.settings_set_path_recalculate_time(settings_ptr, 1.0, 0.1);

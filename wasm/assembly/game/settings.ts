@@ -94,6 +94,8 @@ export class ConstantsSettings {
     monsters_per_room: Array<u32> = [3, 7];
     bullet_max_distance: f32 = 32.0;  // maximum distance for bullet target
 
+    react_attack: bool = true;
+
     set_monster_iddle_time(in_min: f32, in_max: f32): void {
         this.monster_iddle_time[0] = in_min;
         this.monster_iddle_time[1] = in_max;
@@ -118,6 +120,10 @@ export class ConstantsSettings {
 
     set_bullet_max_distance(in_value: f32): void {
         this.bullet_max_distance = in_value;
+    }
+
+    set_react_attack(in_value: bool): void {
+        this.react_attack = in_value;
     }
 }
 

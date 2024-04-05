@@ -90,7 +90,7 @@ export class WalkToPointSwitchSystem extends System {
                             } else if (entity_target_action_type == TARGET_ACTION.SKILL_ENTITY) {
                                 status = try_start_skill(local_ecs, entity, target_entity, 0.0, 0.0, TARGET_ACTION.SKILL_ENTITY, entity_target_action.skill());
                             }
-                            
+
                             if (status == START_CAST_STATUS.OK) {
                                 pref_velocity.set(0.0, 0.0);
                                 if (entity_target_action_type == TARGET_ACTION.ATTACK) {

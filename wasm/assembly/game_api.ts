@@ -127,6 +127,11 @@ export function settings_set_bullet_max_distance(settings: Settings, in_value: f
     constants.set_bullet_max_distance(in_value);
 }
 
+export function settings_set_react_attack(settings: Settings, in_value: bool): void {
+    const constants = settings.get_constants();
+    constants.set_react_attack(in_value);
+}
+
 /*---Default monster---*/
 export function settings_set_default_monster_common(settings: Settings,
                                                     rotation_speed: f32, shield_resurrect: f32, hide_speed_multiplier: f32, hide_activate_time: f32, hide_cooldawn: f32): void {

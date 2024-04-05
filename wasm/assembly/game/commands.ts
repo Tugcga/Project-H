@@ -167,15 +167,15 @@ export function try_start_skill(ecs: ECS, entity: Entity, target_entity: Entity,
                 if (d < cast_distance_parameter_value) {
                     // entity is close to the target (point or entity)
                     // we can start the skill cast
-                    const target_action = ecs.get_component<TargetActionComponent>(entity);
-                    if (target_action) {
-                        target_action.reset();
-                    }
                     command_entity_unhide(ecs, entity);
                     if (skill == SKILL.STUN_CONE) {
                         // check cooldawn baf
                         if (!ecs.has_component<BuffSkillStunConeCooldawnComponent>(entity)) {
                             if (is_weapon_equiped(ecs, entity, WEAPON_TYPE.SWORD)) {
+                                const target_action = ecs.get_component<TargetActionComponent>(entity);
+                                if (target_action) {
+                                    target_action.reset();
+                                }
                                 const is_interrupt = interrupt_to_iddle(ecs, entity, state);
                                 if (is_interrupt) {
                                     const cast_time_parameter = ecs.get_component<SkillParameterCastTimeComponent>(skill_entity);
