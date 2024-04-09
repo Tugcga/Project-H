@@ -255,7 +255,7 @@ export abstract class ClientBase {
 
                 // create settings object
                 const settings_ptr = module.create_settings();
-                game_setup(this, module, settings_ptr, false);
+                game_setup(this, module, settings_ptr, window.location.search);
                 
                 // create the game
                 // this method calls some callbacks:

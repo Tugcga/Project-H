@@ -1,14 +1,36 @@
 import { ClientBase } from "./client_base";
 
-export function game_setup(client: ClientBase, module, settings_ptr, use_debug: boolean) {
+// these parameters we define from the game url
+class GameParameters {
+    use_debug: boolean = false;
+}
+
+function parse_parameters(parameters_str: string): GameParameters {
+    const params = new GameParameters();
+    const url_search = new URLSearchParams(parameters_str);
+    
+    const param_debug = url_search.get("debug");
+    if (param_debug && param_debug == "true") {
+        params.use_debug = true;
+    }
+
+    return params;
+}
+
+export function game_setup(client: ClientBase, module, settings_ptr, link_parameters: string) {
+    // parse parameters
+    const params = parse_parameters(link_parameters);
+    const use_debug = params.use_debug;
     // change default settings
     // select random seed
     const seed = Math.floor(Math.random() * 4294967295);
     // controllable seed ↓ for test
     if (use_debug) {
         module.settings_set_seed(settings_ptr, 12);
+        console.log("use seed", 12);
     } else {
         module.settings_set_seed(settings_ptr, seed);
+        console.log("use seed", seed);
     }
     module.settings_set_rvo_time_horizon(settings_ptr, 0.25);
     if (use_debug) {
