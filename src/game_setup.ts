@@ -3,6 +3,7 @@ import { ClientBase } from "./client_base";
 // these parameters we define from the game url
 class GameParameters {
     use_debug: boolean = false;
+    seed: number | null = null;
 }
 
 function parse_parameters(parameters_str: string): GameParameters {
@@ -14,6 +15,14 @@ function parse_parameters(parameters_str: string): GameParameters {
         params.use_debug = true;
     }
 
+    const param_seed = url_search.get("seed");
+    if (param_seed) {
+        const seed = parseInt(param_seed, 10);
+        if (seed) {
+            params.seed = seed;
+        }
+    }
+
     return params;
 }
 
@@ -23,7 +32,7 @@ export function game_setup(client: ClientBase, module, settings_ptr, link_parame
     const use_debug = params.use_debug;
     // change default settings
     // select random seed
-    const seed = Math.floor(Math.random() * 4294967295);
+    const seed = params.seed ? params.seed : Math.floor(Math.random() * 4294967295);
     // controllable seed ↓ for test
     if (use_debug) {
         module.settings_set_seed(settings_ptr, 12);
